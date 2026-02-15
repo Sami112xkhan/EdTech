@@ -249,9 +249,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 const response = await emailjs.send(serviceId, templateId, {
                     to_email: userData.email,
                     to_name: userData.name,
-                    email: userData.email, // Common alternative
-                    user_email: userData.email, // Common alternative
-                    code: code,
+                    email: userData.email,
+                    passcode: code, // Matches user's template {{passcode}}
+                    time: new Date(Date.now() + 15 * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), // Matches {{time}}
+                    verify_url: `${window.location.origin}/verify?email=${encodeURIComponent(userData.email)}&code=${code}`
                 }, publicKey);
 
                 console.log('EMAILJS SUCCESS!', response.status, response.text);
@@ -320,9 +321,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             try {
                 await emailjs.send(serviceId, templateId, {
                     to_email: email,
-                    email: email, // Alternative
-                    user_email: email, // Alternative
-                    code: newCode,
+                    email: email,
+                    passcode: newCode, // Matches user's template {{passcode}}
+                    time: new Date(Date.now() + 15 * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), // Matches {{time}}
+                    verify_url: `${window.location.origin}/verify?email=${encodeURIComponent(email)}&code=${newCode}`
                 }, publicKey);
 
                 console.log('RESEND SUCCESS!');
