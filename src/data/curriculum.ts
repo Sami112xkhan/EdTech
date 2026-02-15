@@ -74,12 +74,28 @@ export const curriculum: Module[] = [
         notesPath: "/notes/HTML_In_One_Shot/HTML Tutorial for Beginners.pdf"
       },
       {
+        id: "css-mastery",
+        title: "Advanced CSS & Animations",
+        duration: "25:00",
+        youtubeId: "1Rs2ND1ryYc",
+        free: false,
+        notesPath: "/notes/Full Stack Web Development Mastery Course In Hindi/CSS/✅ 📘 CSS Animations – Detailed Notes.pdf"
+      },
+      {
         id: "tailwind",
         title: "Tailwind CSS Mastery",
         duration: "22:00",
         youtubeId: "lCxcTsOHrjo",
         free: false,
         notesPath: "/notes/Tailwind CSS/🎬 Tailwind CSS Mastery Course.pdf"
+      },
+      {
+        id: "bootstrap",
+        title: "Bootstrap 5 Foundation",
+        duration: "20:00",
+        youtubeId: "Jyvffr3aCp0",
+        free: false,
+        notesPath: "/notes/Bootstrap Mastery Course/🎬 Bootstrap 5 Mastery Course – Web Dev Mastery.pdf"
       },
       {
         id: "javascript",
@@ -112,6 +128,14 @@ export const curriculum: Module[] = [
         notesPath: "/notes/React.JS Complete Tutorial/Complete React.js Web Dev Mastey.pdf"
       },
       {
+        id: "react-router",
+        title: "React Router v7 Mastery",
+        duration: "20:00",
+        youtubeId: "77m62v_mXis",
+        free: false,
+        notesPath: "/notes/React.JS Complete Tutorial/React_Router_v7_Web_Dev_Mastery.pdf"
+      },
+      {
         id: "react-hooks",
         title: "All React Hooks In One Shot",
         duration: "25:00",
@@ -126,6 +150,14 @@ export const curriculum: Module[] = [
         youtubeId: "EnIRy6_CC_w",
         free: false,
         notesPath: "/notes/Redux_Toolkit_In_One_Shot/Redux - Toolkit.pdf"
+      },
+      {
+        id: "react-interview",
+        title: "React Interview Preparation",
+        duration: "40:00",
+        youtubeId: "v80vL9m2QTM",
+        free: false,
+        notesPath: "/notes/React_Most_Imp_Interview_Question/1_React_Interview_Questions_Web_Dev_Mastery.pdf"
       }
     ],
   },
