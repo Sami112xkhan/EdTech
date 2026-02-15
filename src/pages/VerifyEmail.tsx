@@ -19,6 +19,7 @@ const VerifyEmail: React.FC = () => {
     const queryParams = new URLSearchParams(location.search);
     const email = queryParams.get("email");
     const urlCode = queryParams.get("code");
+    const redirectTo = queryParams.get("redirect") || "/dashboard";
 
     useEffect(() => {
         if (!email) {
@@ -40,7 +41,7 @@ const VerifyEmail: React.FC = () => {
         setTimeout(() => {
             const result = verifyEmail(emailAddr, verificationCode);
             if (result.success) {
-                navigate("/dashboard");
+                navigate(redirectTo);
             } else {
                 setError(result.message);
                 setIsLoading(false);
@@ -67,7 +68,7 @@ const VerifyEmail: React.FC = () => {
             const result = verifyEmail(email, code);
 
             if (result.success) {
-                navigate("/dashboard");
+                navigate(redirectTo);
             } else {
                 setError(result.message);
                 setIsLoading(false);

@@ -41,7 +41,7 @@ const Signup: React.FC = () => {
                 password: data.password // Pass password if needed by signup logic
             });
             setIsLoading(false);
-            navigate("/checkout");
+            navigate(`/verify?email=${encodeURIComponent(data.email)}&redirect=/checkout`);
         } catch (error) {
             console.error("Signup submission failed:", error);
             setIsLoading(false);
