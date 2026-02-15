@@ -78,15 +78,13 @@ const Hero: React.FC = () => {
                     className="flex flex-col sm:flex-row items-center justify-center gap-4 relative z-20"
                 >
                     <div className="relative group">
-                        <a
-                            href="https://devmastery1.gumroad.com/l/mobtax"
-                            target="_blank"
-                            rel="noopener noreferrer"
+                        <Link
+                            to="/checkout"
                             className="w-full sm:w-auto px-8 py-4 rounded-full bg-primary hover:bg-primary/90 text-white font-semibold text-lg shadow-xl shadow-primary/25 transition-all hover:scale-105 flex items-center justify-center gap-2 relative z-10"
                         >
                             Secure Your Spot — ₹10,000
                             <ArrowRight className="w-5 h-5" />
-                        </a>
+                        </Link>
 
                         {/* Glass Tooltip */}
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-64 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-20">
