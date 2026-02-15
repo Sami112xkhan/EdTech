@@ -1,0 +1,85 @@
+@import "tailwindcss";
+@reference "tailwindcss";
+
+@theme {
+  --color-background: #0a0a0a;
+  --color-foreground: #ededed;
+
+  --color-primary: #6d28d9;
+  --color-primary-foreground: #ffffff;
+
+  --color-secondary: #1e1e2e;
+  --color-secondary-foreground: #ffffff;
+
+  --color-accent: #8b5cf6;
+  --color-accent-foreground: #ffffff;
+
+  --color-muted: #27272a;
+  --color-muted-foreground: #a1a1aa;
+
+  --color-border: #27272a;
+  --font-sans: "Inter", sans-serif;
+
+  --radius-lg: 0.5rem;
+  --radius-md: 0.375rem;
+  --radius-sm: 0.25rem;
+}
+
+/* Custom Utilities */
+@utility glass {
+  background: rgba(20, 20, 30, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+@utility glass-hover {
+  @apply transition-all duration-300;
+
+  &:hover {
+    background: rgba(30, 30, 45, 0.8);
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 0 15px rgba(139, 92, 246, 0.15);
+  }
+}
+
+@utility text-gradient {
+  background: linear-gradient(to right, #ffffff, #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Reset & Base Styles */
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Smooth Scroll (Lenis) */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+.lenis.lenis-scrolling iframe {
+  pointer-events: none;
+}

@@ -1,0 +1,190 @@
+
+import React, { useState } from "react";
+import { useForm } from "react-hook-form";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import Input from "../components/ui/Input";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { verifyGumroadLicense } from "../utils/gumroad";
+
+const Login: React.FC = () => {
+    const { register, handleSubmit, formState: { errors } } = useForm();
+    const [isLoading, setIsLoading] = useState(false);
+    const { login } = useAuth();
+    const navigate = useNavigate();
+    const [showAccessCode, setShowAccessCode] = useState(false);
+
+    const onSubmit = async (data: any) => {
+        setIsLoading(true);
+
+        // Use a try-catch block for the entire flow
+        try {
+            let isPremium = false;
+            let unlockedBy = '';
+
+            // Access Code Logic
+            if (showAccessCode && data.accessCode) {
+                const code = data.accessCode.trim(); // Case sensitive for License, but we can standardise
+                const usedCodes = JSON.parse(localStorage.getItem('used_access_codes') || '{}');
+
+                // 1. Static Codes
+                if ((code === 'AIFNNC9' || code === 'MASTER')) {
+                    if (usedCodes[code]) {
+                        alert('This access code has already been used.');
+                        setIsLoading(false);
+                        return;
+                    }
+                    isPremium = true;
+                    unlockedBy = `code:${code}`;
+                    usedCodes[code] = { usedBy: data.identifier, type: 'static', timestamp: new Date().toISOString() };
+                    localStorage.setItem('used_access_codes', JSON.stringify(usedCodes));
+                }
+                // 2. Gumroad License Key Logic
+                else {
+                    // Check if this license key was already used LOCALLY
+                    if (usedCodes[code]) {
+                        alert('This license key has already been redeemed.');
+                        setIsLoading(false);
+                        return;
+                    }
+
+                    // Verify with Gumroad API
+                    const verification = await verifyGumroadLicense(code);
+
+                    if (verification.valid) {
+                        isPremium = true;
+                        unlockedBy = `gumroad:${code}`;
+                        // Mark as used locally
+                        usedCodes[code] = {
+                            usedBy: data.identifier,
+                            email: verification.email, // Store the email associated with purchase
+                            type: 'gumroad_license',
+                            timestamp: new Date().toISOString()
+                        };
+                        localStorage.setItem('used_access_codes', JSON.stringify(usedCodes));
+                        alert(`License Verified! Welcome ${verification.name || ''}`);
+                    } else {
+                        alert(verification.message || 'Invalid Access Code or License Key');
+                        setIsLoading(false);
+                        return;
+                    }
+                }
+            }
+
+            // Mock login data
+            const userData = {
+                name: "User", // Placeholder name
+                username: data.identifier,
+                email: data.identifier,
+                isPaid: isPremium, // Grant premium if code valid
+                role: 'student',
+                unlockedBy: unlockedBy, // Track how they got premium
+                password: data.password
+            };
+
+            // Simulate slight delay for "normal" login feel if not verifying
+            if (!showAccessCode) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+
+            // Hack for demo: Update the mock 'users' list in localStorage
+            const storedUsers = JSON.parse(localStorage.getItem('users') || '[]');
+            const existingUserIndex = storedUsers.findIndex((u: any) => u.email === data.identifier || u.username === data.identifier);
+
+            if (existingUserIndex >= 0) {
+                if (isPremium) {
+                    storedUsers[existingUserIndex].isPaid = true;
+                    storedUsers[existingUserIndex].unlockedBy = unlockedBy;
+                    localStorage.setItem('users', JSON.stringify(storedUsers));
+                }
+            }
+
+            login({
+                ...userData,
+                isPaid: isPremium || (existingUserIndex >= 0 ? storedUsers[existingUserIndex].isPaid : false)
+            } as any);
+
+            navigate("/dashboard");
+        } catch (error) {
+            console.error("Login error:", error);
+            alert("An error occurred during login.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+            <div className="absolute inset-0 bg-background z-0" />
+            <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[120px]" />
+
+            <div className="w-full max-w-md bg-secondary/30 backdrop-blur-xl border border-white/10 p-8 rounded-2xl shadow-2xl relative z-10 animate-in fade-in zoom-in-95 duration-500">
+                <Link to="/" className="inline-flex items-center text-sm text-muted-foreground hover:text-white mb-6 transition-colors">
+                    <ArrowLeft className="w-4 h-4 mr-2" /> Back to Home
+                </Link>
+
+                <div className="mb-8 text-center">
+                    <h1 className="text-3xl font-bold mb-2">Welcome Back</h1>
+                    <p className="text-muted-foreground">Continue your learning journey.</p>
+                </div>
+
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                    <Input
+                        label="Username or Email"
+                        type="text"
+                        placeholder="john@example.com or johnwick"
+                        {...register("identifier", { required: "Username or Email is required" })}
+                        error={errors.identifier?.message as string}
+                    />
+
+                    <Input
+                        label="Password"
+                        type="password"
+                        placeholder="••••••••"
+                        {...register("password", { required: "Password is required" })}
+                        error={errors.password?.message as string}
+                    />
+
+                    {showAccessCode && (
+                        <div className="animate-in slide-in-from-top-2 fade-in duration-300">
+                            <Input
+                                label="Access Code"
+                                type="text"
+                                placeholder="Enter your premium code"
+                                {...register("accessCode")}
+                            />
+                            <p className="text-xs text-yellow-500/80 mt-1 ml-1">
+                                * Valid code unlocks Lifetime Premium
+                            </p>
+                        </div>
+                    )}
+
+                    <div className="flex items-center justify-between text-sm">
+                        <button
+                            type="button"
+                            onClick={() => setShowAccessCode(!showAccessCode)}
+                            className="text-primary hover:underline font-medium"
+                        >
+                            {showAccessCode ? "Hide Access Code" : "Have an Access Code?"}
+                        </button>
+                    </div>
+
+                    <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="w-full py-3 mt-4 rounded-lg bg-primary hover:bg-primary/90 text-white font-medium shadow-lg shadow-primary/25 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center"
+                    >
+                        {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Log In"}
+                    </button>
+                </form>
+
+                <div className="mt-6 text-center text-sm">
+                    <span className="text-muted-foreground">Don't have an account? </span>
+                    <Link to="/signup" className="text-primary hover:underline">Sign up</Link>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default Login;
