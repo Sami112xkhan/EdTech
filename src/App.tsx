@@ -23,6 +23,7 @@ import Feedback from "./pages/Feedback";
 import AIAssistantPage from "./pages/AIAssistantPage";
 import VerifyEmail from "./pages/VerifyEmail";
 import Suspended from "./pages/Suspended";
+import PlaygroundPage from "./pages/PlaygroundPage";
 import { FeedbackProvider } from "./context/FeedbackContext";
 
 function App() {
@@ -50,6 +51,7 @@ function App() {
                                         <Route path="/curriculum" element={<CurriculumPage />} />
                                         <Route path="/learn/:moduleId/:lessonId" element={<CoursePlayer />} />
                                         <Route path="/projects" element={<Projects />} />
+                                        <Route path="/playground" element={<PlaygroundPage />} />
                                         <Route path="/settings" element={<Settings />} />
                                         <Route path="/feedback" element={<Feedback />} />
                                         {/* AI Assistant Page */}

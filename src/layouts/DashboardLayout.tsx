@@ -11,7 +11,8 @@ import {
     ChevronRight,
     PanelLeft,
     MessageSquare,
-    Clock
+    Clock,
+    Code
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import AIAssistant from "../components/AIAssistant";
@@ -151,6 +152,7 @@ const DashboardLayout: React.FC = () => {
                     <SidebarLink to="/dashboard" icon={LayoutDashboard} isCollapsed={isCollapsed}>Dashboard</SidebarLink>
                     <SidebarLink to="/curriculum" icon={BookOpen} isCollapsed={isCollapsed}>Curriculum</SidebarLink>
                     <SidebarLink to="/projects" icon={FolderKanban} isCollapsed={isCollapsed}>Projects</SidebarLink>
+                    <SidebarLink to="/playground" icon={Code} isCollapsed={isCollapsed}>Playground</SidebarLink>
                     <SidebarLink to="/feedback" icon={MessageSquare} isCollapsed={isCollapsed}>Feedback</SidebarLink>
                     <SidebarLink to="/ai-assistant" icon={Bot} isCollapsed={isCollapsed}>AI Assistant</SidebarLink>
                     {user?.role === 'admin' && (
