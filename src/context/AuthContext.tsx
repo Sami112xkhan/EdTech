@@ -205,12 +205,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
-    const signup = (userData: User) => {
+    const signup = async (userData: User) => {
         const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
-        const existingUser = usersDb.find((u: User) => u.email === userData.email);
 
-        if (existingUser) {
-            alert("User already exists! Please login.");
+        // Check if user already exists
+        if (usersDb.some((u: User) => u.email === userData.email)) {
+            alert("User already exists with this email.");
             return;
         }
 
@@ -237,21 +237,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
         const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
 
+        console.log("Attempting to send verification email:", {
+            serviceId: serviceId ? 'Present' : 'Missing',
+            templateId: templateId ? 'Present' : 'Missing',
+            publicKey: publicKey ? 'Present' : 'Missing'
+        });
+
         if (serviceId && templateId && publicKey) {
-            emailjs.send(serviceId, templateId, {
-                to_email: userData.email,
-                to_name: userData.name,
-                code: code,
-            }, publicKey).then(
-                (response) => {
-                    console.log('SUCCESS!', response.status, response.text);
-                    // alert(`Verification code sent to ${userData.email}`);
-                },
-                (error) => {
-                    console.log('FAILED...', error);
-                    alert('Failed to send email. Please try again or check console if you are a developer.');
-                },
-            );
+            try {
+                const response = await emailjs.send(serviceId, templateId, {
+                    to_email: userData.email,
+                    to_name: userData.name,
+                    code: code,
+                }, publicKey);
+
+                console.log('EMAILJS SUCCESS!', response.status, response.text);
+            } catch (error) {
+                console.error('EMAILJS FAILED...', error);
+                alert('Failed to send verification email. Please check your internet connection or try again later.');
+                // throw error; // Optional: propagate error to caller
+            }
         } else {
             // Fallback for dev without keys
             console.warn("EmailJS keys missing in .env");

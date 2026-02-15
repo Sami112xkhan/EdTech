@@ -29,9 +29,8 @@ const Signup: React.FC = () => {
 
     const onSubmit = async (data: any) => {
         setIsLoading(true);
-        // Simulate API call
-        setTimeout(() => {
-            signup({
+        try {
+            await signup({
                 name: data.fullName,
                 username: data.username,
                 email: data.email,
@@ -39,10 +38,14 @@ const Signup: React.FC = () => {
                 role: 'user',
                 status: 'active',
                 completedLessons: [],
+                password: data.password // Pass password if needed by signup logic
             });
             setIsLoading(false);
             navigate("/checkout");
-        }, 1500);
+        } catch (error) {
+            console.error("Signup submission failed:", error);
+            setIsLoading(false);
+        }
     };
 
     // ... (inside component)

@@ -8,6 +8,7 @@ export interface User {
     status: 'active' | 'inactive';
     lastLogin?: string;
     completedLessons: string[];
+    password?: string;
     unlockedBy?: string;
     isVerified?: boolean;
     verificationCode?: string;
