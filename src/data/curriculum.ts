@@ -56,7 +56,7 @@ export const curriculum: Module[] = [
         duration: "45:00",
         youtubeId: "vLqTf2b6GZw",
         free: false,
-        notesPath: "/notes/DSA In JAVA/DSA In JAVA.pdf"
+        notesPath: "/notes/DSA In JAVA/java collection framework.pdf"
       }
     ],
   },
@@ -94,7 +94,7 @@ export const curriculum: Module[] = [
         duration: "20:00",
         youtubeId: "BS9v-YmG1vM",
         free: false,
-        notesPath: "/notes/JavaScript_OOPS/JavaScript_OOPS.pdf"
+        notesPath: "/notes/JavaScript_OOPS/OOPS_In_JS.pdf"
       }
     ],
   },
@@ -109,7 +109,7 @@ export const curriculum: Module[] = [
         duration: "50:00",
         youtubeId: "bMknfKXIFA8",
         free: false,
-        notesPath: "/notes/React.JS Complete Tutorial/React.JS Complete Tutorial.pdf"
+        notesPath: "/notes/React.JS Complete Tutorial/Complete React.js Web Dev Mastey.pdf"
       },
       {
         id: "react-hooks",
@@ -117,7 +117,7 @@ export const curriculum: Module[] = [
         duration: "25:00",
         youtubeId: "LlvBzyy-558",
         free: false,
-        notesPath: "/notes/All_React_Hooks_In_One_Shot/React Hooks In One Shot.pdf"
+        notesPath: "/notes/All_React_Hooks_In_One_Shot/📘 All React Hooks 2025 – Web Dev Mastery.pdf"
       },
       {
         id: "redux-toolkit",
@@ -125,7 +125,7 @@ export const curriculum: Module[] = [
         duration: "30:00",
         youtubeId: "EnIRy6_CC_w",
         free: false,
-        notesPath: "/notes/Redux_Toolkit_In_One_Shot/Redux Toolkit.pdf"
+        notesPath: "/notes/Redux_Toolkit_In_One_Shot/Redux - Toolkit.pdf"
       }
     ],
   },
@@ -148,7 +148,7 @@ export const curriculum: Module[] = [
         duration: "60:00",
         youtubeId: "rOpEN1JDaD0",
         free: false,
-        notesPath: "/notes/Full Stack Web Development Mastery Course In Hindi/Web Dev Mastery Course.pdf"
+        notesPath: "/notes/Full Stack Web Development Mastery Course In Hindi/HTML/🎓 Full Stack Web Development Mastery Course_ HTML – Beginner to Pro (With Examples).pdf"
       }
     ],
   },
@@ -171,7 +171,7 @@ export const curriculum: Module[] = [
         duration: "25:00",
         youtubeId: "JGNvVAbM-is",
         free: false,
-        notesPath: "/notes/C++ OOPs/C++ OOPs.pdf"
+        notesPath: "/notes/C++ OOPs/Complete_OOPS_Web_Dev_Mastery.pdf"
       }
     ]
   }
