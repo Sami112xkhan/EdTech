@@ -238,6 +238,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
 
         console.log("Attempting to send verification email:", {
+            to: userData.email,
             serviceId: serviceId ? 'Present' : 'Missing',
             templateId: templateId ? 'Present' : 'Missing',
             publicKey: publicKey ? 'Present' : 'Missing'
@@ -248,6 +249,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 const response = await emailjs.send(serviceId, templateId, {
                     to_email: userData.email,
                     to_name: userData.name,
+                    email: userData.email, // Common alternative
+                    user_email: userData.email, // Common alternative
                     code: code,
                 }, publicKey);
 
@@ -298,16 +301,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
-    const resendVerificationCode = (email: string) => {
+    const resendVerificationCode = async (email: string) => {
         const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
         const userIndex = usersDb.findIndex((u: User) => u.email === email);
-
         if (userIndex === -1) return;
 
         const newCode = Math.floor(100000 + Math.random() * 900000).toString();
         const updatedUser = { ...usersDb[userIndex], verificationCode: newCode };
-
-        usersDb[userIndex] = updatedUser;
         usersDb[userIndex] = updatedUser;
         localStorage.setItem("users_db", JSON.stringify(usersDb));
 
@@ -317,19 +317,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
 
         if (serviceId && templateId && publicKey) {
-            emailjs.send(serviceId, templateId, {
-                to_email: email,
-                code: newCode,
-            }, publicKey).then(
-                (response) => {
-                    console.log('SUCCESS!', response.status, response.text);
-                    alert(`New verification code sent to ${email}`);
-                },
-                (error) => {
-                    console.log('FAILED...', error);
-                    alert('Failed to send email.');
-                },
-            );
+            try {
+                await emailjs.send(serviceId, templateId, {
+                    to_email: email,
+                    email: email, // Alternative
+                    user_email: email, // Alternative
+                    code: newCode,
+                }, publicKey);
+
+                console.log('RESEND SUCCESS!');
+                alert(`New verification code sent to ${email}`);
+            } catch (error) {
+                console.error('RESEND FAILED...', error);
+                alert('Failed to send verification email. Please try again.');
+            }
         } else {
             console.warn("EmailJS keys missing in .env");
             alert(`[DEV MODE] New verification code: ${newCode}`);

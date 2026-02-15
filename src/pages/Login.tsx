@@ -102,15 +102,18 @@ const Login: React.FC = () => {
 
             // Perform login
             try {
-                login({
-                    ...userData,
+                const loginPayload = {
+                    email: data.identifier,
+                    username: data.identifier,
                     isVerified: true,
                     isPaid: isPremium || (existingUserIndex >= 0 ? storedUsers[existingUserIndex].isPaid : false),
                     unlockedBy: unlockedBy,
                     completedLessons: [],
                     status: 'active',
                     role: 'user'
-                });
+                } as any;
+
+                login(loginPayload);
 
                 setIsLoading(false);
                 navigate("/dashboard");
@@ -127,14 +130,15 @@ const Login: React.FC = () => {
 
                         // Retry login
                         login({
-                            ...userData,
+                            email: email,
+                            username: email,
                             isVerified: true,
                             isPaid: isPremium || (existingUserIndex >= 0 ? storedUsers[existingUserIndex].isPaid : false),
                             unlockedBy: unlockedBy,
                             completedLessons: [],
                             status: 'active',
                             role: 'user'
-                        });
+                        } as any);
                         setIsLoading(false);
                         navigate("/dashboard");
                     } else {
