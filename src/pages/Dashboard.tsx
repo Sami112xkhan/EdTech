@@ -3,14 +3,70 @@ import React, { useEffect } from "react";
 import { useSearchParams, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { curriculum } from "../data/curriculum";
-import { PlayCircle, Award, Clock, Lock, ShieldAlert, Flame } from "lucide-react";
+import { PlayCircle, Award, Clock, Lock, ShieldAlert, Flame, Download } from "lucide-react";
+import { jsPDF } from "jspdf";
+import { jsPDF } from "jspdf";
 
 const Dashboard: React.FC = () => {
     const [searchParams] = useSearchParams();
-    const { completePurchase, user, redeemCode } = useAuth();
+    const { completePurchase, user, redeemCode, requestCertificate } = useAuth();
     const location = useLocation();
     const [accessCode, setAccessCode] = React.useState("");
     const [isRedeeming, setIsRedeeming] = React.useState(false);
+
+    const generateCertificate = () => {
+        if (!user) return;
+        const doc = new jsPDF({
+            orientation: 'landscape',
+            unit: 'px',
+            format: [1200, 800]
+        });
+
+        // Background
+        doc.setFillColor(10, 10, 20); // Dark background
+        doc.rect(0, 0, 1200, 800, 'F');
+
+        // Border
+        doc.setDrawColor(255, 215, 0); // Gold
+        doc.setLineWidth(5);
+        doc.rect(20, 20, 1160, 760);
+
+        // Header
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(60);
+        doc.setFont("helvetica", "bold");
+        doc.text("CERTIFICATE OF MASTERY", 600, 150, { align: 'center' });
+
+        // Subheader
+        doc.setFontSize(30);
+        doc.setFont("helvetica", "normal");
+        doc.text("This is to certify that", 600, 250, { align: 'center' });
+
+        // Name
+        doc.setTextColor(255, 215, 0); // Gold
+        doc.setFontSize(80);
+        doc.setFont("times", "bolditalic");
+        doc.text(user.name, 600, 350, { align: 'center' });
+
+        // Course Name
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(30);
+        doc.setFont("helvetica", "normal");
+        doc.text("Has successfully completed the", 600, 450, { align: 'center' });
+
+        doc.setFontSize(40);
+        doc.setFont("helvetica", "bold");
+        doc.text("Full Stack Developer Architecture", 600, 520, { align: 'center' });
+
+        // Footer
+        doc.setFontSize(20);
+        doc.setTextColor(150, 150, 150);
+        const date = user.certificateIssueDate ? new Date(user.certificateIssueDate).toLocaleDateString() : new Date().toLocaleDateString();
+        doc.text(`Issued On: ${date}`, 200, 700);
+        doc.text("DevMastery Academy", 1000, 700, { align: 'right' });
+
+        doc.save(`${user.name.split(' ')[0]}_Certificate.pdf`);
+    };
 
     // Handle scroll for /curriculum route
     useEffect(() => {
@@ -219,9 +275,31 @@ const Dashboard: React.FC = () => {
                             <div className="text-2xl font-bold text-orange-500">{user?.streak || 0}</div>
                         </div>
                     </div>
-                    <div className="p-5 rounded-xl border border-white/5 bg-secondary/20">
-                        <div className="text-sm text-muted-foreground mb-1">XP Earned</div>
-                        <div className="text-2xl font-bold text-indigo-400">{user?.xp || 0}</div>
+                    <div className="p-5 rounded-xl border border-white/5 bg-secondary/20 col-span-2 md:col-span-1">
+                        <div className="text-sm text-muted-foreground mb-1">Certificate</div>
+                        {user?.certificateStatus === 'approved' ? (
+                            <button
+                                onClick={generateCertificate}
+                                className="flex items-center gap-2 px-3 py-1.5 bg-primary/20 hover:bg-primary/30 text-primary rounded-lg text-xs font-bold transition-all border border-primary/20"
+                            >
+                                <Download className="w-3 h-3" /> Download
+                            </button>
+                        ) : user?.certificateStatus === 'pending' ? (
+                            <div className="flex items-center gap-2 text-yellow-400 font-bold text-sm animate-pulse">
+                                <Clock className="w-4 h-4" /> Pending
+                            </div>
+                        ) : progress === 100 ? (
+                            <button
+                                onClick={requestCertificate}
+                                className="flex items-center gap-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold transition-all border border-white/10"
+                            >
+                                <Award className="w-3 h-3" /> Request
+                            </button>
+                        ) : (
+                            <div className="flex items-center gap-2 text-muted-foreground/50 font-bold text-sm">
+                                <Lock className="w-4 h-4" /> Locked
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

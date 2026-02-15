@@ -19,6 +19,9 @@ export interface User {
     lastLoginDate?: string; // YYYY-MM-DD
     xp?: number;
     level?: number;
+    // Certificate
+    certificateStatus?: 'locked' | 'eligible' | 'pending' | 'approved';
+    certificateIssueDate?: string;
 }
 
 export interface AccessCode {

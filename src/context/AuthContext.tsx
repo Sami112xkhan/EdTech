@@ -23,6 +23,10 @@ interface AuthContextType {
     getAllAccessCodes: () => import("../types").AccessCode[];
     revokeAccessCode: (code: string) => import("../types").AccessCode[];
     addXp: (amount: number) => void;
+    // Certificate System
+    requestCertificate: () => void;
+    approveCertificate: (email: string) => void;
+    rejectCertificate: (email: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -605,6 +609,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem("users_db", JSON.stringify(updatedDb));
     };
 
+    const requestCertificate = () => {
+        if (!user) return;
+
+        const updatedUser = { ...user, certificateStatus: 'pending' as const };
+
+        setUser(updatedUser);
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+
+        const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
+        const updatedDb = usersDb.map((u: User) => u.email === user.email ? updatedUser : u);
+        localStorage.setItem("users_db", JSON.stringify(updatedDb));
+
+        alert("Certificate requested! Please wait for admin approval.");
+    };
+
+    const approveCertificate = (email: string) => {
+        const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
+        const updatedDb = usersDb.map((u: User) => {
+            if (u.email === email) {
+                return { ...u, certificateStatus: 'approved' as const, certificateIssueDate: new Date().toISOString() };
+            }
+            return u;
+        });
+        localStorage.setItem("users_db", JSON.stringify(updatedDb));
+
+        // If current user is the one being approved (unlikely as admin does this, but good for consistency)
+        if (user && user.email === email) {
+            const updatedUser = { ...user, certificateStatus: 'approved' as const, certificateIssueDate: new Date().toISOString() };
+            setUser(updatedUser);
+            localStorage.setItem("user", JSON.stringify(updatedUser));
+        }
+    };
+
+    const rejectCertificate = (email: string) => {
+        const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
+        const updatedDb = usersDb.map((u: User) => {
+            if (u.email === email) {
+                return { ...u, certificateStatus: 'eligible' as const }; // Reset to eligible so they can request again
+            }
+            return u;
+        });
+        localStorage.setItem("users_db", JSON.stringify(updatedDb));
+    };
+
     return (
         <AuthContext.Provider value={{
             user,
@@ -624,7 +672,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             getAllAccessCodes,
             revokeAccessCode,
             loginWithGoogle,
-            addXp
+            loginWithGoogle,
+            addXp,
+            requestCertificate,
+            approveCertificate,
+            rejectCertificate
         }}>
             {children}
         </AuthContext.Provider>
