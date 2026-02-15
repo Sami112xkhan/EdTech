@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import {
     LayoutDashboard,
@@ -8,13 +8,53 @@ import {
     Bot,
     Settings,
     LogOut,
-    ChevronLeft,
     ChevronRight,
-    PanelLeft
+    PanelLeft,
+    MessageSquare,
+    Clock
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import AIAssistant from "../components/AIAssistant";
 import { motion, AnimatePresence } from "motion/react";
+
+const TrialCountdown = ({ expiry }: { expiry: string }) => {
+    const [timeLeft, setTimeLeft] = useState("");
+
+    useEffect(() => {
+        const calculateTime = () => {
+            const now = new Date().getTime();
+            const end = new Date(expiry).getTime();
+            const diff = end - now;
+
+            if (diff <= 0) return "Expired";
+
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+            if (days > 0) return `${days}d ${hours}h left`;
+            if (hours > 0) return `${hours}h ${mins}m left`;
+            return `${mins}m ${secs}s left`;
+        };
+
+        const timer = setInterval(() => {
+            setTimeLeft(calculateTime());
+        }, 1000);
+
+        setTimeLeft(calculateTime());
+        return () => clearInterval(timer);
+    }, [expiry]);
+
+    return (
+        <div className="bg-primary/10 border-b border-primary/20 py-2 px-6 flex items-center justify-center gap-2 overflow-hidden">
+            <Clock className="w-4 h-4 text-primary animate-pulse" />
+            <span className="text-xs font-bold text-primary uppercase tracking-[0.2em]">
+                Trial Access: <span className="font-mono">{timeLeft}</span>
+            </span>
+        </div>
+    );
+};
 
 const SidebarLink = ({ to, icon: Icon, children, isCollapsed }: { to: string; icon: any; children: React.ReactNode; isCollapsed: boolean }) => (
     <NavLink
@@ -111,6 +151,7 @@ const DashboardLayout: React.FC = () => {
                     <SidebarLink to="/dashboard" icon={LayoutDashboard} isCollapsed={isCollapsed}>Dashboard</SidebarLink>
                     <SidebarLink to="/curriculum" icon={BookOpen} isCollapsed={isCollapsed}>Curriculum</SidebarLink>
                     <SidebarLink to="/projects" icon={FolderKanban} isCollapsed={isCollapsed}>Projects</SidebarLink>
+                    <SidebarLink to="/feedback" icon={MessageSquare} isCollapsed={isCollapsed}>Feedback</SidebarLink>
                     <SidebarLink to="/ai-assistant" icon={Bot} isCollapsed={isCollapsed}>AI Assistant</SidebarLink>
                     {user?.role === 'admin' && (
                         <SidebarLink to="/admin" icon={LayoutDashboard} isCollapsed={isCollapsed}>
@@ -120,17 +161,40 @@ const DashboardLayout: React.FC = () => {
                     <SidebarLink to="/settings" icon={Settings} isCollapsed={isCollapsed}>Settings</SidebarLink>
                 </nav>
 
-                <div className="p-4 mt-auto border-t border-white/5 mx-3 mb-4 rounded-2xl bg-white/5 overflow-hidden">
-                    <div className={`flex items-center gap-3 transition-all duration-300 ${isCollapsed ? "justify-center" : ""}`}>
-                        <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-zinc-700 to-zinc-600 flex items-center justify-center text-sm font-bold text-white shrink-0 ring-2 ring-black/20">
-                            {user?.name.charAt(0)}
+                <div className="p-4 mt-auto border-t border-white/5 mx-3 mb-4 rounded-2xl bg-white/5 overflow-hidden group/user">
+                    <div className="flex items-center justify-between">
+                        <div className={`flex items-center gap-3 transition-all duration-300 ${isCollapsed ? "justify-center w-full" : ""}`}>
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-zinc-700 to-zinc-600 flex items-center justify-center text-sm font-bold text-white shrink-0 ring-2 ring-black/20">
+                                {user?.name.charAt(0)}
+                            </div>
+
+                            <div className={`flex flex-col overflow-hidden transition-all duration-300 ${isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"}`}>
+                                <span className="text-sm font-medium text-white truncate">{user?.name}</span>
+                                <span className="text-xs text-muted-foreground truncate">{user?.username}</span>
+                            </div>
                         </div>
 
-                        <div className={`flex flex-col overflow-hidden transition-all duration-300 ${isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"}`}>
-                            <span className="text-sm font-medium text-white truncate">{user?.name}</span>
-                            <span className="text-xs text-muted-foreground truncate">{user?.username}</span>
-                        </div>
+                        {!isCollapsed && (
+                            <button
+                                onClick={handleLogout}
+                                className="p-2 mr-[-8px] text-muted-foreground hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors group/logout"
+                                title="Logout"
+                            >
+                                <LogOut className="w-4 h-4" />
+                            </button>
+                        )}
                     </div>
+
+                    {/* Collapsed logout overlay or button */}
+                    {isCollapsed && (
+                        <button
+                            onClick={handleLogout}
+                            className="absolute inset-0 z-10 w-full h-full opacity-0 hover:opacity-100 bg-red-500/10 flex items-center justify-center text-red-400 transition-opacity"
+                            title="Logout"
+                        >
+                            <LogOut className="w-5 h-5" />
+                        </button>
+                    )}
                 </div>
             </motion.aside>
 
@@ -153,9 +217,48 @@ const DashboardLayout: React.FC = () => {
                     </button>
                 </header>
 
+                {/* Trial Countdown Indicator */}
+                {user?.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED' && !user.isPaid && (
+                    <TrialCountdown expiry={user.trialExpiresAt} />
+                )}
+
                 <div className="p-4 md:p-6 max-w-7xl mx-auto pb-24 w-full">
                     <Outlet />
                 </div>
+
+                {/* Trial Expired Overlay */}
+                {user?.trialExpiresAt === 'EXPIRED' && !user.isPaid && (
+                    <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-xl flex items-center justify-center p-6">
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className="max-w-md w-full bg-zinc-900 border border-white/10 p-8 rounded-[2.5rem] text-center shadow-2xl relative overflow-hidden"
+                        >
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 via-primary to-red-500 animate-pulse" />
+                            <div className="w-20 h-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                                <Clock className="w-10 h-10 text-red-400" />
+                            </div>
+                            <h2 className="text-3xl font-black mb-4">Trial Ended</h2>
+                            <p className="text-muted-foreground mb-8 text-sm leading-relaxed">
+                                Your trial period has expired. We hope you enjoyed the content! To continue your mastery journey, please upgrade to a full account.
+                            </p>
+                            <div className="space-y-4">
+                                <button
+                                    onClick={() => navigate('/curriculum')}
+                                    className="w-full py-4 bg-white text-black font-black rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-white/10"
+                                >
+                                    Get Full Access
+                                </button>
+                                <button
+                                    onClick={handleLogout}
+                                    className="w-full py-2 text-muted-foreground hover:text-white text-sm font-bold transition-colors"
+                                >
+                                    Logout & Start Over
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
             </main>
 
             {/* Mobile Menu Overlay */}
@@ -182,6 +285,7 @@ const DashboardLayout: React.FC = () => {
                             <MobileSidebarLink to="/dashboard" icon={LayoutDashboard} onClick={() => setIsMobileMenuOpen(false)}>Dashboard</MobileSidebarLink>
                             <MobileSidebarLink to="/curriculum" icon={BookOpen} onClick={() => setIsMobileMenuOpen(false)}>Curriculum</MobileSidebarLink>
                             <MobileSidebarLink to="/projects" icon={FolderKanban} onClick={() => setIsMobileMenuOpen(false)}>Projects</MobileSidebarLink>
+                            <MobileSidebarLink to="/feedback" icon={MessageSquare} onClick={() => setIsMobileMenuOpen(false)}>Feedback</MobileSidebarLink>
                             <MobileSidebarLink to="/ai-assistant" icon={Bot} onClick={() => setIsMobileMenuOpen(false)}>AI Assistant</MobileSidebarLink>
                             {user?.role === 'admin' && (
                                 <MobileSidebarLink to="/admin" icon={LayoutDashboard} onClick={() => setIsMobileMenuOpen(false)}>

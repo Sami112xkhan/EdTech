@@ -16,6 +16,10 @@ interface AuthContextType {
     markLessonComplete: (lessonId: string) => void;
     verifyEmail: (email: string, code: string) => { success: boolean; message: string };
     resendVerificationCode: (email: string) => void;
+    // Trial System
+    generateAccessCode: (type: '3days' | '5mins') => string;
+    redeemCode: (code: string) => { success: boolean; message: string };
+    getAllAccessCodes: () => import("../types").AccessCode[];
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,19 +31,121 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     useEffect(() => {
         const storedUser = localStorage.getItem("user");
         if (storedUser) {
-            setUser(JSON.parse(storedUser));
+            const parsedUser = JSON.parse(storedUser);
+            setUser(parsedUser);
             setIsAuthenticated(true);
+
+            // Check trial expiry on load
+            if (parsedUser.trialExpiresAt && !parsedUser.isPaid) {
+                const now = new Date();
+                const expiry = new Date(parsedUser.trialExpiresAt);
+                if (now > expiry) {
+                    const expiredUser = { ...parsedUser, trialExpiresAt: 'EXPIRED' };
+                    setUser(expiredUser);
+                    localStorage.setItem("user", JSON.stringify(expiredUser));
+
+                    // Update DB as well
+                    const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
+                    const updatedDb = usersDb.map((u: User) => u.email === parsedUser.email ? expiredUser : u);
+                    localStorage.setItem("users_db", JSON.stringify(updatedDb));
+                }
+            }
         }
     }, []);
 
+    // Periodic check for trial expiry (every 10 seconds)
+    useEffect(() => {
+        if (!user || user.isPaid || !user.trialExpiresAt || user.trialExpiresAt === 'EXPIRED') return;
 
-    // Initialize mock users if empty
+        const interval = setInterval(() => {
+            const now = new Date();
+            const expiry = new Date(user.trialExpiresAt!);
+            if (now > expiry) {
+                const expiredUser = { ...user, trialExpiresAt: 'EXPIRED' };
+                setUser(expiredUser);
+                localStorage.setItem("user", JSON.stringify(expiredUser));
+
+                const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
+                const updatedDb = usersDb.map((u: User) => u.email === user.email ? expiredUser : u);
+                localStorage.setItem("users_db", JSON.stringify(updatedDb));
+
+                clearInterval(interval);
+            }
+        }, 10000);
+
+        return () => clearInterval(interval);
+    }, [user]);
+
+    // Initialize databases if empty
     useEffect(() => {
         const storedUsers = localStorage.getItem("users_db");
         if (!storedUsers) {
             localStorage.setItem("users_db", JSON.stringify([]));
         }
+
+        const storedCodes = localStorage.getItem("codes_db");
+        if (!storedCodes) {
+            localStorage.setItem("codes_db", JSON.stringify([]));
+        }
     }, []);
+
+    const generateAccessCode = (type: '3days' | '5mins') => {
+        const codesDb = JSON.parse(localStorage.getItem("codes_db") || '[]');
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Avoid ambiguous chars 0,O,1,I
+        let code = '';
+        for (let i = 0; i < 8; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+
+        const newCode: import("../types").AccessCode = {
+            code,
+            type,
+            createdAt: new Date().toISOString(),
+            isUsed: false
+        };
+
+        localStorage.setItem("codes_db", JSON.stringify([...codesDb, newCode]));
+        return code;
+    };
+
+    const redeemCode = (code: string) => {
+        if (!user) return { success: false, message: "Please login first" };
+
+        const codesDb = JSON.parse(localStorage.getItem("codes_db") || '[]');
+        const codeIndex = codesDb.findIndex((c: any) => c.code === code.toUpperCase() && !c.isUsed);
+
+        if (codeIndex === -1) {
+            return { success: false, message: "Invalid or already used code" };
+        }
+
+        const accessCode = codesDb[codeIndex];
+
+        // Calculate expiry
+        const now = new Date();
+        const duration = accessCode.type === '3days' ? (3 * 24 * 60 * 60 * 1000) : (5 * 60 * 1000);
+        const trialExpiresAt = new Date(now.getTime() + duration).toISOString();
+
+        // Update User
+        const updatedUser = { ...user, trialExpiresAt };
+        setUser(updatedUser);
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+
+        // Update User DB
+        const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
+        const updatedUserDb = usersDb.map((u: User) => u.email === user.email ? updatedUser : u);
+        localStorage.setItem("users_db", JSON.stringify(updatedUserDb));
+
+        // Update Codes DB
+        accessCode.isUsed = true;
+        accessCode.usedBy = user.email;
+        localStorage.setItem("codes_db", JSON.stringify(codesDb));
+
+        return { success: true, message: `Access granted for ${accessCode.type === '3days' ? '3 days' : '5 minutes'}` };
+    };
+
+    const getAllAccessCodes = () => {
+        return JSON.parse(localStorage.getItem("codes_db") || '[]');
+    };
 
     const login = (userData: User) => {
         // Admin Check
@@ -275,7 +381,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     return (
-        <AuthContext.Provider value={{ user, isAuthenticated, login, signup, logout, completePurchase, getAllUsers, updateUserStatus, deleteUser, markLessonComplete, verifyEmail, resendVerificationCode }}>
+        <AuthContext.Provider value={{
+            user,
+            isAuthenticated,
+            login,
+            signup,
+            logout,
+            completePurchase,
+            getAllUsers,
+            updateUserStatus,
+            deleteUser,
+            markLessonComplete,
+            verifyEmail,
+            resendVerificationCode,
+            generateAccessCode,
+            redeemCode,
+            getAllAccessCodes
+        }}>
             {children}
         </AuthContext.Provider>
     );

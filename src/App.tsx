@@ -19,38 +19,43 @@ import AdminDashboard from "./pages/AdminDashboard";
 import CoursePlayer from "./pages/CoursePlayer";
 import Projects from "./pages/Projects";
 import Settings from "./pages/Settings";
+import Feedback from "./pages/Feedback";
+import { FeedbackProvider } from "./context/FeedbackContext";
 
 function App() {
     return (
         <BrowserRouter>
             <AuthProvider>
-                <Routes>
-                    <Route element={<RootLayout />}>
-                        {/* Public Routes */}
-                        <Route path="/" element={<Landing />} />
-                        <Route path="/login" element={<Login />} />
-                        <Route path="/signup" element={<Signup />} />
+                <FeedbackProvider>
+                    <Routes>
+                        <Route element={<RootLayout />}>
+                            {/* Public Routes */}
+                            <Route path="/" element={<Landing />} />
+                            <Route path="/login" element={<Login />} />
+                            <Route path="/signup" element={<Signup />} />
 
-                        {/* Protected Routes (Auth Required) */}
-                        <Route element={<ProtectedRoute />}>
-                            <Route path="/checkout" element={<Checkout />} />
-                            <Route path="/admin" element={<AdminDashboard />} />
+                            {/* Protected Routes (Auth Required) */}
+                            <Route element={<ProtectedRoute />}>
+                                <Route path="/checkout" element={<Checkout />} />
+                                <Route path="/admin" element={<AdminDashboard />} />
 
-                            {/* Payment Required Routes */}
-                            <Route element={<ProtectedRoute requirePayment />}>
-                                <Route element={<DashboardLayout />}>
-                                    <Route path="/dashboard" element={<Dashboard />} />
-                                    <Route path="/curriculum" element={<CurriculumPage />} />
-                                    <Route path="/learn/:moduleId/:lessonId" element={<CoursePlayer />} />
-                                    <Route path="/projects" element={<Projects />} />
-                                    <Route path="/settings" element={<Settings />} />
-                                    {/* AI Assistant will be a modal, but could have a page if needed */}
-                                    <Route path="/ai-assistant" element={<Dashboard />} />
+                                {/* Payment Required Routes */}
+                                <Route element={<ProtectedRoute requirePayment />}>
+                                    <Route element={<DashboardLayout />}>
+                                        <Route path="/dashboard" element={<Dashboard />} />
+                                        <Route path="/curriculum" element={<CurriculumPage />} />
+                                        <Route path="/learn/:moduleId/:lessonId" element={<CoursePlayer />} />
+                                        <Route path="/projects" element={<Projects />} />
+                                        <Route path="/settings" element={<Settings />} />
+                                        <Route path="/feedback" element={<Feedback />} />
+                                        {/* AI Assistant will be a modal, but could have a page if needed */}
+                                        <Route path="/ai-assistant" element={<Dashboard />} />
+                                    </Route>
                                 </Route>
                             </Route>
                         </Route>
-                    </Route>
-                </Routes>
+                    </Routes>
+                </FeedbackProvider>
             </AuthProvider>
         </BrowserRouter>
     );

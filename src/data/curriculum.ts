@@ -5,6 +5,7 @@ export interface Lesson {
   duration: string;
   youtubeId: string;
   free: boolean;
+  notesPath?: string;
 }
 
 export interface Module {
@@ -26,13 +27,14 @@ export const curriculum: Module[] = [
         duration: "15:00",
         youtubeId: "vA5TTz6BXhY",
         free: true,
+        notesPath: "/notes/Git & GitHub/Git & GitHub.pdf"
       },
     ],
   },
   {
     id: "phase-1",
-    title: "Phase 1 — Python",
-    description: "Master Python from scratch to advanced concepts.",
+    title: "Phase 1 — Python & Java",
+    description: "Master Python from scratch and explore Java DSA.",
     lessons: [
       {
         id: "python-intro",
@@ -49,18 +51,19 @@ export const curriculum: Module[] = [
         free: false,
       },
       {
-        id: "python-projects",
-        title: "Python Projects",
-        duration: "30:00",
-        youtubeId: "NpmFbWO6HPU",
+        id: "dsa-java",
+        title: "DSA In JAVA Mastery",
+        duration: "45:00",
+        youtubeId: "vLqTf2b6GZw",
         free: false,
-      },
+        notesPath: "/notes/DSA In JAVA/DSA In JAVA.pdf"
+      }
     ],
   },
   {
     id: "phase-2",
-    title: "Phase 2 — Web Basics",
-    description: "The foundation of the web: HTML, CSS, and JavaScript.",
+    title: "Phase 2 — Web Foundation",
+    description: "The foundation of the web: HTML, CSS, and modern frameworks.",
     lessons: [
       {
         id: "html",
@@ -68,13 +71,15 @@ export const curriculum: Module[] = [
         duration: "18:00",
         youtubeId: "G3e-cpL7ofc",
         free: false,
+        notesPath: "/notes/HTML_In_One_Shot/HTML Tutorial for Beginners.pdf"
       },
       {
-        id: "css",
-        title: "CSS Mastery",
+        id: "tailwind",
+        title: "Tailwind CSS Mastery",
         duration: "22:00",
-        youtubeId: "K1naz9wBwKU",
+        youtubeId: "lCxcTsOHrjo",
         free: false,
+        notesPath: "/notes/Tailwind CSS/🎬 Tailwind CSS Mastery Course.pdf"
       },
       {
         id: "javascript",
@@ -84,96 +89,90 @@ export const curriculum: Module[] = [
         free: false,
       },
       {
-        id: "dom",
-        title: "DOM Manipulation",
-        duration: "15:00",
-        youtubeId: "uoII7VSDF3k",
+        id: "js-oops",
+        title: "JavaScript OOPS & Advanced",
+        duration: "20:00",
+        youtubeId: "BS9v-YmG1vM",
         free: false,
-      },
-      {
-        id: "web-project",
-        title: "Web Development Project",
-        duration: "40:00",
-        youtubeId: "J_r6hBo9lO4",
-        free: false,
-      },
+        notesPath: "/notes/JavaScript_OOPS/JavaScript_OOPS.pdf"
+      }
     ],
   },
   {
     id: "phase-3",
-    title: "Phase 3 — Backend & Database",
-    description: "Building robust backends with Python, APIs, and Databases.",
+    title: "Phase 3 — React & State Management",
+    description: "Building modern UIs with React and Redux.",
     lessons: [
       {
-        id: "backend-course",
-        title: "Complete Backend Course",
+        id: "react-complete",
+        title: "React.JS Complete Tutorial",
         duration: "50:00",
-        youtubeId: "rOpEN1JDaD0",
+        youtubeId: "bMknfKXIFA8",
         free: false,
+        notesPath: "/notes/React.JS Complete Tutorial/React.JS Complete Tutorial.pdf"
       },
       {
-        id: "rest-api",
-        title: "REST API Design",
-        duration: "20:00",
-        youtubeId: "-mN3VyJuCjM",
-        free: false,
-      },
-      {
-        id: "auth-fundamentals",
-        title: "Authentication Fundamentals",
+        id: "react-hooks",
+        title: "All React Hooks In One Shot",
         duration: "25:00",
-        youtubeId: "fbSVgC8nGz4",
+        youtubeId: "LlvBzyy-558",
         free: false,
+        notesPath: "/notes/All_React_Hooks_In_One_Shot/React Hooks In One Shot.pdf"
       },
       {
-        id: "mongodb",
-        title: "MongoDB Essentials",
+        id: "redux-toolkit",
+        title: "Redux Toolkit Tutorial",
         duration: "30:00",
-        youtubeId: "c2M-rlkkT5o",
+        youtubeId: "EnIRy6_CC_w",
         free: false,
-      },
-      {
-        id: "sql",
-        title: "SQL Full Course",
-        duration: "45:00",
-        youtubeId: "7S_tz1z_5bA",
-        free: false,
-      },
-      {
-        id: "backend-projects",
-        title: "Backend Projects",
-        duration: "55:00",
-        youtubeId: "JmpDGMgRFfo",
-        free: false,
-      },
+        notesPath: "/notes/Redux_Toolkit_In_One_Shot/Redux Toolkit.pdf"
+      }
     ],
   },
   {
     id: "phase-4",
-    title: "Phase 4 — Deployment",
-    description: "Taking your application live.",
+    title: "Phase 4 — Backend & Modern DB",
+    description: "Building robust backends with Node/Python and MongoDB.",
     lessons: [
       {
-        id: "env-vars",
-        title: "Environment Variables",
-        duration: "12:00",
-        youtubeId: "v5n96CX339g",
+        id: "mongodb-essentials",
+        title: "MongoDB Essentials & Cheat Sheet",
+        duration: "30:00",
+        youtubeId: "c2M-rlkkT5o",
         free: false,
+        notesPath: "/notes/MongoDB Cheat Sheet/MongoDB Cheat Sheet.pdf"
       },
+      {
+        id: "backend-mastery",
+        title: "Full Stack Master Course",
+        duration: "60:00",
+        youtubeId: "rOpEN1JDaD0",
+        free: false,
+        notesPath: "/notes/Full Stack Web Development Mastery Course In Hindi/Web Dev Mastery Course.pdf"
+      }
     ],
   },
   {
     id: "phase-5",
-    title: "Phase 5 — AI Dashboard",
-    description: "Building an AI-powered dashboard with Streamlit.",
+    title: "Phase 5 — C++ & Programming Foundations",
+    description: "Deep dive into C++ and object-oriented programming.",
     lessons: [
       {
-        id: "streamlit",
-        title: "Streamlit Dashboard",
-        duration: "35:00",
-        youtubeId: "D0D4Pa22iG0",
+        id: "cpp-mastery",
+        title: "C++ Mastery Course",
+        duration: "45:00",
+        youtubeId: "vLqTf2b6GZw",
         free: false,
+        notesPath: "/notes/C++ Mastery Course/Complete C++ Mastery Course Web Dev Mastery.pdf"
       },
-    ],
-  },
+      {
+        id: "cpp-oops",
+        title: "C++ OOPs Concepts",
+        duration: "25:00",
+        youtubeId: "JGNvVAbM-is",
+        free: false,
+        notesPath: "/notes/C++ OOPs/C++ OOPs.pdf"
+      }
+    ]
+  }
 ];

@@ -7,8 +7,10 @@ import { PlayCircle, Award, Clock, Lock } from "lucide-react";
 
 const Dashboard: React.FC = () => {
     const [searchParams] = useSearchParams();
-    const { completePurchase, user } = useAuth();
+    const { completePurchase, user, redeemCode } = useAuth();
     const location = useLocation();
+    const [accessCode, setAccessCode] = React.useState("");
+    const [isRedeeming, setIsRedeeming] = React.useState(false);
 
     // Handle scroll for /curriculum route
     useEffect(() => {
@@ -26,15 +28,29 @@ const Dashboard: React.FC = () => {
         }
     }, [searchParams, completePurchase]);
 
+    const handleRedeem = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!accessCode) return;
+        setIsRedeeming(true);
+        const result = await redeemCode(accessCode);
+        alert(result.message);
+        if (result.success) setAccessCode("");
+        setIsRedeeming(false);
+    };
+
     // Calculate Progress
     const completedLessons = user?.completedLessons || [];
     const totalLessons = curriculum.reduce((acc, phase) => acc + phase.lessons.length, 0);
     const progress = totalLessons > 0 ? Math.round((completedLessons.length / totalLessons) * 100) : 0;
 
+    // Trial Stats
+    const isOnTrial = user?.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED';
+    const isExpired = user?.trialExpiresAt === 'EXPIRED';
+
+    // ... rest of logic for nextLesson etc. ...
     // Determine Logic for Locking and Next Lesson
     let nextLesson = null;
     let nextPhaseId = null;
-    let currentLockedPhaseIndex = -1; // -1 means no locks encountered yet
 
     // We verify each phase sequentially
     const phasesStatus = curriculum.map((phase, index) => {
@@ -57,7 +73,6 @@ const Dashboard: React.FC = () => {
     }
 
     // Find "Continue Learning" lesson
-    // It should be the first incomplete lesson of the first unlocked-but-incomplete phase
     for (const phase of phasesStatus) {
         if (!phase.locked && !phase.completed) {
             const firstIncomplete = phase.lessons.find(l => !completedLessons.includes(l.id));
@@ -69,11 +84,7 @@ const Dashboard: React.FC = () => {
         }
     }
 
-    // If all complete, maybe show the last lesson or a completion message? 
-    // tailored fallback:
     if (!nextLesson && phasesStatus.every(p => p.completed)) {
-        // All done!
-        // Point to the last lesson of the last phase
         const lastPhase = phasesStatus[phasesStatus.length - 1];
         nextLesson = lastPhase.lessons[lastPhase.lessons.length - 1];
         nextPhaseId = lastPhase.id;
@@ -90,11 +101,47 @@ const Dashboard: React.FC = () => {
                         {progress === 100 ? "You've successfully completed the course!" : "You're making great progress towards becoming a Full Stack Developer."}
                     </p>
                 </div>
-                <div className="bg-gradient-to-r from-primary/20 to-purple-600/20 px-6 py-3 rounded-xl border border-primary/20 flex flex-col items-center">
-                    <span className="text-2xl font-bold text-primary">{progress}%</span>
-                    <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Complete</span>
+                <div className="flex items-center gap-4">
+                    {!user?.isPaid && !isOnTrial && (
+                        <form onSubmit={handleRedeem} className="flex gap-2">
+                            <input
+                                type="text"
+                                placeholder="Enter Access Code"
+                                value={accessCode}
+                                onChange={(e) => setAccessCode(e.target.value)}
+                                className="bg-secondary/30 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary/50 w-40"
+                            />
+                            <button
+                                disabled={isRedeeming}
+                                className="bg-primary hover:bg-primary/80 text-white px-4 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-50"
+                            >
+                                Redeem
+                            </button>
+                        </form>
+                    )}
+                    <div className="bg-gradient-to-r from-primary/20 to-purple-600/20 px-6 py-3 rounded-xl border border-primary/20 flex flex-col items-center">
+                        <span className="text-2xl font-bold text-primary">{progress}%</span>
+                        <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Complete</span>
+                    </div>
                 </div>
             </div>
+
+            {isExpired && (
+                <div className="bg-red-500/10 border border-red-500/20 p-6 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-red-500/20 flex items-center justify-center">
+                            <Clock className="w-6 h-6 text-red-400" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-white">Trial Access Expired</h3>
+                            <p className="text-sm text-muted-foreground">Your trial period has ended. Buy the full course to continue learning.</p>
+                        </div>
+                    </div>
+                    <Link to="/curriculum" className="w-full md:w-auto px-8 py-3 bg-white text-black font-black rounded-2xl flex items-center justify-center gap-2 hover:bg-gray-200 transition-all">
+                        Buy Now
+                    </Link>
+                </div>
+            )}
 
             {/* Continue Learning */}
             {nextLesson && (

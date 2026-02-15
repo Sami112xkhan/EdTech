@@ -11,4 +11,13 @@ export interface User {
     unlockedBy?: string;
     isVerified?: boolean;
     verificationCode?: string;
+    trialExpiresAt?: string; // ISO string
+}
+
+export interface AccessCode {
+    code: string;
+    type: '3days' | '5mins';
+    createdAt: string;
+    isUsed: boolean;
+    usedBy?: string; // User email
 }
