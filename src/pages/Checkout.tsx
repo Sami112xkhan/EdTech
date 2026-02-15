@@ -4,7 +4,38 @@ import { Link } from "react-router-dom";
 import { CheckCircle2, ShieldCheck, CreditCard, Lock } from "lucide-react";
 import Navbar from "../components/Navbar";
 
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { initializePayment } from "../utils/razorpay";
+
 const Checkout: React.FC = () => {
+    const { user, completePurchase } = useAuth();
+    const navigate = useNavigate();
+
+    const handlePayment = async () => {
+        if (!user) {
+            navigate('/login');
+            return;
+        }
+
+        await initializePayment(
+            10000, // Amount in INR
+            {
+                name: user.name,
+                email: user.email,
+            },
+            (response) => {
+                console.log("Payment Success:", response);
+                completePurchase(); // Mark user as paid
+                navigate('/dashboard');
+            },
+            (error) => {
+                console.error("Payment Failed:", error);
+                alert("Payment Failed. Please try again.");
+            }
+        );
+    };
+
     return (
         <div className="min-h-screen relative bg-background">
             <Navbar />
@@ -52,16 +83,14 @@ const Checkout: React.FC = () => {
 
                         <div className="h-px bg-white/10 mb-8" />
 
-                        {/* Simulated Gumroad Button */}
-                        <a
-                            href="https://devmastery1.gumroad.com/l/mobtax"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="w-full py-4 rounded-lg bg-[#ff90e8] hover:bg-[#ff90e8]/90 text-black font-bold text-lg shadow-lg flex items-center justify-center gap-2 transition-transform hover:scale-[1.02]"
+                        {/* Razorpay Button */}
+                        <button
+                            onClick={handlePayment}
+                            className="w-full py-4 rounded-lg bg-[#3b82f6] hover:bg-[#3b82f6]/90 text-white font-bold text-lg shadow-lg flex items-center justify-center gap-2 transition-transform hover:scale-[1.02]"
                         >
                             <CreditCard className="w-5 h-5" />
-                            Secure Your Spot
-                        </a>
+                            Pay Now - ₹10,000
+                        </button>
 
                         <div className="text-center mt-6">
                             <p className="text-sm text-muted-foreground mb-2">Have an access code?</p>

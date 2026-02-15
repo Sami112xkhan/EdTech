@@ -16,6 +16,7 @@ interface AuthContextType {
     markLessonComplete: (lessonId: string) => void;
     verifyEmail: (email: string, code: string) => { success: boolean; message: string };
     resendVerificationCode: (email: string) => void;
+    loginWithGoogle: (credential: string) => void;
     // Trial System
     generateAccessCode: (type: '3days' | '5mins') => string;
     redeemCode: (code: string) => { success: boolean; message: string };
@@ -205,6 +206,64 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
+    const loginWithGoogle = (credential: string) => {
+        try {
+            // Decode the JWT token
+            const base64Url = credential.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(function (c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+
+            const payload = JSON.parse(jsonPayload);
+            const { email, name, picture } = payload;
+
+            const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
+            const existingUser = usersDb.find((u: User) => u.email === email);
+
+            if (existingUser) {
+                // Login existing user
+                const updatedUser = {
+                    ...existingUser,
+                    lastLogin: new Date().toISOString(),
+                    // Update verification status just in case (Google is verified)
+                    isVerified: true
+                };
+                const updatedDb = usersDb.map((u: User) => u.email === email ? updatedUser : u);
+                localStorage.setItem("users_db", JSON.stringify(updatedDb));
+
+                setUser(updatedUser);
+                setIsAuthenticated(true);
+                localStorage.setItem("user", JSON.stringify(updatedUser));
+            } else {
+                // Auto-Signup new user
+                const newUser: User = {
+                    name: name,
+                    username: email.split('@')[0], // Generate username from email
+                    email: email,
+                    isPaid: false,
+                    role: 'user',
+                    status: 'active',
+                    isVerified: true, // Google accounts are verified
+                    verificationCode: undefined,
+                    lastLogin: new Date().toISOString(),
+                    completedLessons: [],
+                    photoURL: picture
+                };
+
+                const newDb = [...usersDb, newUser];
+                localStorage.setItem("users_db", JSON.stringify(newDb));
+
+                setUser(newUser);
+                setIsAuthenticated(true);
+                localStorage.setItem("user", JSON.stringify(newUser));
+            }
+        } catch (error) {
+            console.error("Google Login Error:", error);
+            alert("Failed to login with Google.");
+        }
+    };
+
     const signup = async (userData: User) => {
         const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
 
@@ -349,7 +408,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (user) {
             const updatedUser = { ...user, isPaid: true };
             setUser(updatedUser);
-            localStorage.setItem("user", JSON.stringify(updatedUser));
+            localStorage.setItem("user", JSON.stringify(updatedUser)); // Update session
+
+            // Update DB
+            const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
+            const updatedDb = usersDb.map((u: User) => u.email === user.email ? updatedUser : u);
+            localStorage.setItem("users_db", JSON.stringify(updatedDb));
         }
     };
 
@@ -404,7 +468,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             resendVerificationCode,
             generateAccessCode,
             redeemCode,
-            getAllAccessCodes
+            getAllAccessCodes,
+            loginWithGoogle
         }}>
             {children}
         </AuthContext.Provider>

@@ -7,11 +7,12 @@ import Input from "../components/ui/Input";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import Aurora from "../components/Aurora";
 import GlassSurface from "../components/GlassSurface";
+import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 
 const Signup: React.FC = () => {
     const { register, handleSubmit, formState: { errors }, watch } = useForm();
     const [isLoading, setIsLoading] = useState(false);
-    const { signup } = useAuth();
+    const { signup, loginWithGoogle } = useAuth();
     const navigate = useNavigate();
 
     const password = watch("password", "");
@@ -73,6 +74,32 @@ const Signup: React.FC = () => {
                     <div className="mb-8 text-center">
                         <h1 className="text-3xl font-bold mb-2">Create Account</h1>
                         <p className="text-muted-foreground">Start your journey to Full Stack mastery.</p>
+                    </div>
+
+                    <div className="flex justify-center mb-6">
+                        <GoogleLogin
+                            onSuccess={(credentialResponse) => {
+                                if (credentialResponse.credential) {
+                                    loginWithGoogle(credentialResponse.credential);
+                                    navigate('/checkout');
+                                }
+                            }}
+                            onError={() => {
+                                console.log('Login Failed');
+                            }}
+                            theme="filled_black"
+                            shape="pill"
+                            width="350px"
+                        />
+                    </div>
+
+                    <div className="relative mb-6">
+                        <div className="absolute inset-0 flex items-center">
+                            <span className="w-full border-t border-white/10" />
+                        </div>
+                        <div className="relative flex justify-center text-xs uppercase">
+                            <span className="bg-black px-2 text-muted-foreground">Or continue with</span>
+                        </div>
                     </div>
 
                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

@@ -13,6 +13,7 @@ export interface User {
     isVerified?: boolean;
     verificationCode?: string;
     trialExpiresAt?: string; // ISO string
+    photoURL?: string; // For Google Auth
 }
 
 export interface AccessCode {
