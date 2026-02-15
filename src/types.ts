@@ -23,6 +23,7 @@ export interface User {
     certificateStatus?: 'locked' | 'eligible' | 'pending' | 'approved';
     certificateIssueDate?: string;
     lastSeen?: string; // ISO string
+    usedCodes?: string[]; // Track static codes used
 }
 
 export interface AccessCode {
