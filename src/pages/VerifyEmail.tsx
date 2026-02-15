@@ -15,15 +15,38 @@ const VerifyEmail: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
 
-    // Get email from query param
+    // Get email and code from query params
     const queryParams = new URLSearchParams(location.search);
     const email = queryParams.get("email");
+    const urlCode = queryParams.get("code");
 
     useEffect(() => {
         if (!email) {
             navigate("/login");
         }
     }, [email, navigate]);
+
+    // Auto-verify if code is in URL
+    useEffect(() => {
+        if (email && urlCode && urlCode.length === 6 && !isLoading) {
+            setCode(urlCode);
+            handleAutoVerify(email, urlCode);
+        }
+    }, [email, urlCode]);
+
+    const handleAutoVerify = async (emailAddr: string, verificationCode: string) => {
+        setIsLoading(true);
+        // Add a small delay for visual feedback
+        setTimeout(() => {
+            const result = verifyEmail(emailAddr, verificationCode);
+            if (result.success) {
+                navigate("/dashboard");
+            } else {
+                setError(result.message);
+                setIsLoading(false);
+            }
+        }, 800);
+    };
 
     useEffect(() => {
         if (resendCooldown > 0) {

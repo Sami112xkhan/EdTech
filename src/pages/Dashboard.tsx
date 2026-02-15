@@ -3,7 +3,7 @@ import React, { useEffect } from "react";
 import { useSearchParams, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { curriculum } from "../data/curriculum";
-import { PlayCircle, Award, Clock, Lock } from "lucide-react";
+import { PlayCircle, Award, Clock, Lock, ShieldAlert } from "lucide-react";
 
 const Dashboard: React.FC = () => {
     const [searchParams] = useSearchParams();
@@ -93,6 +93,24 @@ const Dashboard: React.FC = () => {
 
     return (
         <div className="space-y-8">
+            {/* Verification Reminder */}
+            {!user?.isVerified && (
+                <div className="bg-yellow-500/5 border border-yellow-500/20 p-4 rounded-2xl flex items-center justify-between gap-4 relative overflow-hidden animate-in slide-in-from-top duration-500">
+                    <div className="flex items-center gap-4 relative z-10">
+                        <div className="w-10 h-10 rounded-xl bg-yellow-500/20 flex items-center justify-center border border-yellow-500/20">
+                            <ShieldAlert className="w-5 h-5 text-yellow-400" />
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-black text-white uppercase tracking-tight">Email Not Verified</h3>
+                            <p className="text-[10px] text-muted-foreground font-medium">Please verify your email to secure your account and unlock all features.</p>
+                        </div>
+                    </div>
+                    <Link to={`/verify?email=${encodeURIComponent(user?.email || '')}`} className="px-4 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-500 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all">
+                        Verify Now
+                    </Link>
+                </div>
+            )}
+
             {/* Welcome Section */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-2">
                 <div className="space-y-1">
