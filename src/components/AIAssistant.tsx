@@ -17,15 +17,20 @@ const MODELS = [
     { id: "Phi-3-mini-4k-instruct-q4f16_1-MLC", name: "Phi-3 Mini (Browser)", type: "browser" }
 ];
 
-const AIAssistant: React.FC = () => {
-    const [isOpen, setIsOpen] = useState(false);
+interface AIAssistantProps {
+    variant?: 'floating' | 'full';
+}
+
+const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
+    const [isOpen, setIsOpen] = useState(variant === 'full');
     const [input, setInput] = useState("");
     const [messages, setMessages] = useState<Message[]>([
         { id: "1", role: "assistant", content: "Hi! I'm your AI mentor. Ask me anything about Python, React, or your career roadmap." }
     ]);
     const [isTyping, setIsTyping] = useState(false);
     const [showReasoning, setShowReasoning] = useState(false);
-    const [selectedModel, setSelectedModel] = useState(MODELS[0].id);
+    // Default to Phi-3 (Browser) as requested
+    const [selectedModel, setSelectedModel] = useState(MODELS[2].id);
     const [showModelDropdown, setShowModelDropdown] = useState(false);
 
     // Browser Model State
@@ -35,6 +40,11 @@ const AIAssistant: React.FC = () => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const clientRef = useRef<OpenAI | null>(null);
     const engineRef = useRef<MLCEngine | null>(null);
+
+    // Ensure it stays open if full mode
+    useEffect(() => {
+        if (variant === 'full') setIsOpen(true);
+    }, [variant]);
 
     useEffect(() => {
         // Initialize OpenAI Client
@@ -48,6 +58,11 @@ const AIAssistant: React.FC = () => {
                 dangerouslyAllowBrowser: true
             });
         }
+
+        // Eager load Phi-3 model in background
+        const phi3Id = MODELS[2].id;
+        console.log("Starting background load of Phi-3...");
+        initBrowserModel(phi3Id).catch(err => console.error("Background load failed:", err));
     }, []);
 
     const scrollToBottom = () => {
@@ -219,22 +234,30 @@ const AIAssistant: React.FC = () => {
         }
     };
 
+    const isFloating = variant === 'floating';
+
     return (
         <>
-            <button
-                onClick={() => setIsOpen(true)}
-                className={`fixed bottom-6 right-6 p-4 rounded-full bg-primary text-white shadow-2xl hover:scale-110 transition-transform z-50 ${isOpen ? 'hidden' : 'flex'}`}
-            >
-                <Bot className="w-6 h-6" />
-            </button>
+            {isFloating && (
+                <button
+                    onClick={() => setIsOpen(true)}
+                    className={`fixed bottom-6 right-6 p-4 rounded-full bg-primary text-white shadow-2xl hover:scale-110 transition-transform z-50 ${isOpen ? 'hidden' : 'flex'}`}
+                >
+                    <Bot className="w-6 h-6" />
+                </button>
+            )}
 
             <AnimatePresence>
                 {isOpen && (
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                        className="fixed bottom-6 right-6 w-full max-w-sm h-[600px] bg-background/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden"
+                        initial={isFloating ? { opacity: 0, scale: 0.9, y: 20 } : { opacity: 0 }}
+                        animate={isFloating ? { opacity: 1, scale: 1, y: 0 } : { opacity: 1 }}
+                        exit={isFloating ? { opacity: 0, scale: 0.9, y: 20 } : { opacity: 0 }}
+                        className={
+                            isFloating
+                                ? "fixed bottom-6 right-6 w-full max-w-sm h-[600px] bg-background/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden"
+                                : "w-full h-full bg-background/50 backdrop-blur-sm border border-white/10 rounded-2xl flex flex-col overflow-hidden"
+                        }
                     >
                         {/* Header */}
                         <div className="p-4 border-b border-white/10 flex items-center justify-between bg-primary/10">
@@ -285,9 +308,11 @@ const AIAssistant: React.FC = () => {
                                     <Brain className="w-3.5 h-3.5" />
                                     <span>{showReasoning ? 'ON' : 'OFF'}</span>
                                 </button>
-                                <button onClick={() => setIsOpen(false)} className="hover:text-white text-muted-foreground transition-colors">
-                                    <X className="w-5 h-5" />
-                                </button>
+                                {isFloating && (
+                                    <button onClick={() => setIsOpen(false)} className="hover:text-white text-muted-foreground transition-colors">
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                )}
                             </div>
                         </div>
 
@@ -334,19 +359,19 @@ const AIAssistant: React.FC = () => {
                         </div>
 
                         {/* Input Area */}
-                        <div className="p-3 border-t border-white/10 flex gap-2">
+                        <div className="p-3 border-t border-white/10 flex gap-2 bg-background/50 backdrop-blur-lg">
                             <input
                                 type="text"
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                                placeholder="Ask anything..."
-                                className="flex-1 bg-secondary/30 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
+                                placeholder="Ask anything... (e.g., 'Explain React hooks')"
+                                className="flex-1 bg-secondary/30 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 text-white placeholder:text-muted-foreground"
                             />
                             <button
                                 onClick={handleSend}
                                 disabled={!input.trim() || isTyping}
-                                className="p-2 bg-primary rounded-full text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors"
+                                className="p-2 bg-primary rounded-full text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
                             >
                                 <Send className="w-4 h-4" />
                             </button>

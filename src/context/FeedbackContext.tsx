@@ -7,6 +7,7 @@ export interface FeedbackItem {
     userId: string;
     userName: string;
     content: string;
+    type: 'feedback' | 'access_request';
     status: FeedbackStatus;
     createdAt: string;
     reply?: string;
@@ -14,7 +15,7 @@ export interface FeedbackItem {
 
 interface FeedbackContextType {
     feedback: FeedbackItem[];
-    addFeedback: (userId: string, userName: string, content: string) => void;
+    addFeedback: (userId: string, userName: string, content: string, type?: 'feedback' | 'access_request') => void;
     updateFeedbackStatus: (id: string, status: FeedbackStatus) => void;
     replyToFeedback: (id: string, reply: string) => void;
     deleteFeedback: (id: string) => void;
@@ -38,12 +39,13 @@ export const FeedbackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         localStorage.setItem('edtech_feedback', JSON.stringify(feedback));
     }, [feedback]);
 
-    const addFeedback = (userId: string, userName: string, content: string) => {
+    const addFeedback = (userId: string, userName: string, content: string, type: 'feedback' | 'access_request' = 'feedback') => {
         const newFeedback: FeedbackItem = {
             id: Date.now().toString(),
             userId,
             userName,
             content,
+            type,
             status: 'pending',
             createdAt: new Date().toISOString(),
         };

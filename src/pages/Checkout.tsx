@@ -9,8 +9,32 @@ import { useAuth } from "../context/AuthContext";
 import { initializePayment } from "../utils/razorpay";
 
 const Checkout: React.FC = () => {
-    const { user, completePurchase } = useAuth();
+    const { user, completePurchase, redeemCode } = useAuth();
     const navigate = useNavigate();
+    const [accessCode, setAccessCode] = React.useState("");
+    const [loading, setLoading] = React.useState(false);
+    const [redeemMessage, setRedeemMessage] = React.useState("");
+
+    const handleRedeem = async () => {
+        if (!accessCode) return;
+        setLoading(true);
+        setRedeemMessage("");
+
+        // Simulating async delay for effect
+        await new Promise(r => setTimeout(r, 600));
+
+        const result = redeemCode(accessCode);
+        setLoading(false);
+        setRedeemMessage(result.message);
+
+        if (result.success) {
+            // If lifetime, go dashboard
+            // If trial, go dashboard (timer will start)
+            setTimeout(() => {
+                navigate('/dashboard');
+            }, 1000);
+        }
+    };
 
     const handlePayment = async () => {
         if (!user) {
@@ -64,7 +88,7 @@ const Checkout: React.FC = () => {
 
                         <div className="flex items-center gap-2 text-sm text-muted-foreground pt-4">
                             <ShieldCheck className="w-4 h-4" />
-                            <span>Secure payment via Gumroad</span>
+                            <span>Secure payment via Razorpay</span>
                         </div>
                     </div>
 
@@ -94,13 +118,39 @@ const Checkout: React.FC = () => {
 
                         <div className="text-center mt-6">
                             <p className="text-sm text-muted-foreground mb-2">Have an access code?</p>
-                            <Link
-                                to="/login"
-                                className="text-primary hover:underline font-medium inline-flex items-center gap-1"
-                            >
-                                <Lock className="w-3 h-3" />
-                                Login to Redeem Code
-                            </Link>
+                            {user ? (
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            placeholder="Enter Code (e.g. TRIAL5)"
+                                            className="flex-1 bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50"
+                                            value={accessCode}
+                                            onChange={(e) => setAccessCode(e.target.value)}
+                                        />
+                                        <button
+                                            onClick={handleRedeem}
+                                            disabled={loading}
+                                            className="bg-white/10 hover:bg-white/20 text-white rounded-lg px-4 py-2 text-sm transition-colors"
+                                        >
+                                            {loading ? "..." : "Apply"}
+                                        </button>
+                                    </div>
+                                    {redeemMessage && (
+                                        <p className={`text-xs ${redeemMessage.includes("Granted") || redeemMessage.includes("Activated") ? "text-green-400" : "text-red-400"}`}>
+                                            {redeemMessage}
+                                        </p>
+                                    )}
+                                </div>
+                            ) : (
+                                <Link
+                                    to="/login"
+                                    className="text-primary hover:underline font-medium inline-flex items-center gap-1"
+                                >
+                                    <Lock className="w-3 h-3" />
+                                    Login to Redeem Code
+                                </Link>
+                            )}
                         </div>
 
                         <p className="text-center text-xs text-muted-foreground mt-6 border-t border-white/5 pt-4">

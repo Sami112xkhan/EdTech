@@ -21,6 +21,7 @@ interface AuthContextType {
     generateAccessCode: (type: '3days' | '5mins') => string;
     redeemCode: (code: string) => { success: boolean; message: string };
     getAllAccessCodes: () => import("../types").AccessCode[];
+    revokeAccessCode: (code: string) => import("../types").AccessCode[];
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -112,11 +113,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const redeemCode = (code: string) => {
         if (!user) return { success: false, message: "Please login first" };
 
+        const normalizedCode = code.toUpperCase().trim();
+
+        // 1. Static Lifetime Code
+        if (normalizedCode === 'LIFETIME100') {
+            const updatedUser = { ...user, isPaid: true, trialExpiresAt: undefined }; // Clear trial if any
+            setUser(updatedUser);
+            localStorage.setItem("user", JSON.stringify(updatedUser));
+
+            const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
+            const updatedUserDb = usersDb.map((u: User) => u.email === user.email ? updatedUser : u);
+            localStorage.setItem("users_db", JSON.stringify(updatedUserDb));
+
+            return { success: true, message: "Lifetime Access Granted! Welcome to the family." };
+        }
+
+        // 2. Static Trial Code
+        if (normalizedCode === 'TRIAL5') {
+            // Check if user already used a trial? (Optional, but user said "can only be used once per user")
+            // specific logic: if user.trialUsed === true? We might need to add that field. 
+            // For now, let's assume if they are not paid, they can use it, OR we check existing flag.
+            // Let's rely on `trialExpiresAt` being null? 
+            // If they already have `trialExpiresAt` that is in the past, they used it.
+
+            if (user.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED') {
+                return { success: false, message: "Trial already active." };
+            }
+            if (user.trialExpiresAt === 'EXPIRED') {
+                return { success: false, message: "Trial already used and expired." };
+            }
+
+            const now = new Date();
+            const duration = 5 * 60 * 1000; // 5 minutes
+            const trialExpiresAt = new Date(now.getTime() + duration).toISOString();
+
+            const updatedUser = { ...user, trialExpiresAt };
+            setUser(updatedUser);
+            localStorage.setItem("user", JSON.stringify(updatedUser));
+
+            const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
+            const updatedUserDb = usersDb.map((u: User) => u.email === user.email ? updatedUser : u);
+            localStorage.setItem("users_db", JSON.stringify(updatedUserDb));
+
+            return { success: true, message: "5-Minute Trial Activated! Timer started." };
+        }
+
         const codesDb = JSON.parse(localStorage.getItem("codes_db") || '[]');
-        const codeIndex = codesDb.findIndex((c: any) => c.code === code.toUpperCase() && !c.isUsed);
+        const codeIndex = codesDb.findIndex((c: any) => c.code === normalizedCode && !c.isUsed && !c.isRevoked);
 
         if (codeIndex === -1) {
-            return { success: false, message: "Invalid or already used code" };
+            return { success: false, message: "Invalid, used, or revoked code" };
         }
 
         const accessCode = codesDb[codeIndex];
@@ -146,6 +192,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const getAllAccessCodes = () => {
         return JSON.parse(localStorage.getItem("codes_db") || '[]');
+    };
+
+    const revokeAccessCode = (code: string) => {
+        const codesDb = JSON.parse(localStorage.getItem("codes_db") || '[]');
+        const updatedDb = codesDb.map((c: any) =>
+            c.code === code ? { ...c, isRevoked: true } : c
+        );
+        localStorage.setItem("codes_db", JSON.stringify(updatedDb));
+        return updatedDb;
     };
 
     const login = (userData: User) => {
@@ -469,6 +524,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             generateAccessCode,
             redeemCode,
             getAllAccessCodes,
+            revokeAccessCode,
             loginWithGoogle
         }}>
             {children}

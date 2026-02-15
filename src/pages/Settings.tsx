@@ -6,7 +6,7 @@ import Input from '../components/ui/Input';
 import { CreditCard, Save } from 'lucide-react';
 
 const Settings: React.FC = () => {
-    const { user } = useAuth();
+    const { user, deleteUser, logout } = useAuth();
     const navigate = useNavigate();
 
     return (
@@ -63,10 +63,30 @@ const Settings: React.FC = () => {
                     </div>
                     <div>
                         <h3 className="font-semibold">Lifetime Access</h3>
-                        <p className="text-sm text-green-400 font-medium">Active • Paid via Gumroad</p>
+                        <p className="text-sm text-green-400 font-medium">Active • Paid via Razorpay</p>
                     </div>
                 </div>
                 <div className="text-2xl font-bold">₹10,000</div>
+            </div>
+
+            {/* Danger Zone */}
+            <div className="border border-red-500/10 rounded-xl p-6 space-y-4 bg-red-500/5">
+                <h3 className="text-xl font-bold text-red-400">Danger Zone</h3>
+                <p className="text-sm text-muted-foreground">Once you delete your account, there is no going back. Please be certain.</p>
+                <button
+                    onClick={() => {
+                        if (confirm("Are you absolutely sure you want to delete your account? This action cannot be undone.")) {
+                            if (user?.email) {
+                                deleteUser(user.email);
+                                logout();
+                                navigate('/');
+                            }
+                        }
+                    }}
+                    className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg text-sm font-bold transition-colors"
+                >
+                    Delete Account
+                </button>
             </div>
         </div>
     );

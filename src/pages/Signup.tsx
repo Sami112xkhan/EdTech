@@ -62,7 +62,7 @@ const Signup: React.FC = () => {
             </div>
 
             <GlassSurface
-                className="w-full max-w-md p-8 relative z-10 animate-in fade-in zoom-in-95 duration-500"
+                className="w-full max-w-md p-6 md:p-8 relative z-10 animate-in fade-in zoom-in-95 duration-500 my-4"
                 borderRadius={24}
                 opacity={0.6}
             >
@@ -71,26 +71,33 @@ const Signup: React.FC = () => {
                         <ArrowLeft className="w-4 h-4 mr-2" /> Back to Home
                     </Link>
 
-                    <div className="mb-8 text-center">
-                        <h1 className="text-3xl font-bold mb-2">Create Account</h1>
-                        <p className="text-muted-foreground">Start your journey to Full Stack mastery.</p>
+                    <div className="mb-6 text-center">
+                        <h1 className="text-2xl md:text-3xl font-bold mb-2">Create Account</h1>
+                        <p className="text-muted-foreground text-sm md:text-base">Start your journey to Full Stack mastery.</p>
                     </div>
 
-                    <div className="flex justify-center mb-6">
-                        <GoogleLogin
-                            onSuccess={(credentialResponse) => {
-                                if (credentialResponse.credential) {
-                                    loginWithGoogle(credentialResponse.credential);
-                                    navigate('/checkout');
-                                }
-                            }}
-                            onError={() => {
-                                console.log('Login Failed');
-                            }}
-                            theme="filled_black"
-                            shape="pill"
-                            width="350px"
-                        />
+                    <div className="flex justify-center mb-6 w-full">
+                        <div className="w-full flex justify-center">
+                            <GoogleLogin
+                                onSuccess={(credentialResponse) => {
+                                    if (credentialResponse.credential) {
+                                        loginWithGoogle(credentialResponse.credential);
+                                        navigate('/checkout');
+                                    }
+                                }}
+                                onError={() => {
+                                    console.log('Login Failed');
+                                }}
+                                theme="filled_black"
+                                shape="pill"
+                                // Remove fixed width to allow it to be responsive or verify if string "100%" works. 
+                                // Best practice for this lib is often just not setting it or setting a safe max. 
+                                // I'll set it to a safer 250-300px range or use a container trick.
+                                // Actually, passing nothing usually renders a standard size.
+                                // Let's try passing '300' which fits most phones (320px min).
+                                width="300"
+                            />
+                        </div>
                     </div>
 
                     <div className="relative mb-6">

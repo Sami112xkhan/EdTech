@@ -18,7 +18,8 @@ import {
     Users,
     Zap,
     TrendingUp,
-    ShieldCheck
+    ShieldCheck,
+    ShieldAlert
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 
@@ -30,7 +31,8 @@ const AdminDashboard: React.FC = () => {
         deleteUser,
         logout,
         generateAccessCode,
-        getAllAccessCodes
+        getAllAccessCodes,
+        revokeAccessCode
     } = useAuth();
 
     const {
@@ -43,9 +45,10 @@ const AdminDashboard: React.FC = () => {
     const navigate = useNavigate();
     const [users, setUsers] = useState<User[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
-    const [activeTab, setActiveTab] = useState<'users' | 'feedback' | 'codes'>('users');
+    const [activeTab, setActiveTab] = useState<'users' | 'feedback' | 'codes' | 'requests'>('users');
     const [codeType, setCodeType] = useState<'3days' | '5mins'>('3days');
     const [generatedCode, setGeneratedCode] = useState("");
+    const [codes, setCodes] = useState(getAllAccessCodes());
 
     useEffect(() => {
         // Security check
@@ -72,6 +75,7 @@ const AdminDashboard: React.FC = () => {
     const handleGenerateCode = () => {
         const code = generateAccessCode(codeType);
         setGeneratedCode(code);
+        setCodes(getAllAccessCodes()); // Refresh list
     };
 
     const filteredUsers = useMemo(() => {
@@ -160,6 +164,7 @@ const AdminDashboard: React.FC = () => {
                         {[
                             { id: 'users', icon: Users, label: 'Members' },
                             { id: 'feedback', icon: MessageSquare, label: 'Feedback' },
+                            { id: 'requests', icon: ShieldAlert, label: 'Appeals' },
                             { id: 'codes', icon: Zap, label: 'Trials' }
                         ].map((tab) => (
                             <button
@@ -169,6 +174,9 @@ const AdminDashboard: React.FC = () => {
                             >
                                 <tab.icon className="w-4 h-4" />
                                 {tab.label}
+                                {tab.id === 'requests' && feedback.filter(f => f.type === 'access_request' && f.status === 'pending').length > 0 && (
+                                    <span className="ml-2 px-1.5 py-0.5 bg-red-500 text-white text-[9px] rounded-full">{feedback.filter(f => f.type === 'access_request' && f.status === 'pending').length}</span>
+                                )}
                             </button>
                         ))}
                     </div>
@@ -476,6 +484,10 @@ const AdminDashboard: React.FC = () => {
                                                             <div className="flex items-center gap-2 text-muted-foreground/40 font-black text-[10px] uppercase tracking-widest">
                                                                 <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/20" /> Claimed
                                                             </div>
+                                                        ) : c.isRevoked ? (
+                                                            <div className="flex items-center gap-2 text-red-500/50 font-black text-[10px] uppercase tracking-widest">
+                                                                <XCircle className="w-3 h-3" /> Revoked
+                                                            </div>
                                                         ) : (
                                                             <div className="flex items-center gap-2 text-green-400 font-black text-[10px] uppercase tracking-widest animate-pulse">
                                                                 <div className="w-1.5 h-1.5 rounded-full bg-green-400" /> Radiant
@@ -486,16 +498,32 @@ const AdminDashboard: React.FC = () => {
                                                         {new Date(c.createdAt).toLocaleDateString()}
                                                     </td>
                                                     <td className="px-10 py-6">
-                                                        {c.usedBy ? (
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-[10px] font-black text-primary border border-primary/20">
-                                                                    {c.usedBy.charAt(0).toUpperCase()}
+                                                        <div className="flex items-center justify-between">
+                                                            {c.usedBy ? (
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-[10px] font-black text-primary border border-primary/20">
+                                                                        {c.usedBy.charAt(0).toUpperCase()}
+                                                                    </div>
+                                                                    <span className="text-sm font-black text-white/50">{c.usedBy}</span>
                                                                 </div>
-                                                                <span className="text-sm font-black text-white/50">{c.usedBy}</span>
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-muted-foreground/10">—</span>
-                                                        )}
+                                                            ) : (
+                                                                <span className="text-muted-foreground/10">—</span>
+                                                            )}
+
+                                                            {!c.isUsed && !c.isRevoked && (
+                                                                <button
+                                                                    onClick={() => {
+                                                                        if (confirm("Revoke this code? It will become unusable.")) {
+                                                                            revokeAccessCode(c.code);
+                                                                            setCodes(getAllAccessCodes());
+                                                                        }
+                                                                    }}
+                                                                    className="px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors"
+                                                                >
+                                                                    REVOKE
+                                                                </button>
+                                                            )}
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             ))}

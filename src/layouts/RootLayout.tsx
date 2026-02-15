@@ -2,6 +2,7 @@
 import React, { useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import Lenis from "lenis";
+import TrialTimer from "../components/TrialTimer";
 
 const RootLayout: React.FC = () => {
     const location = useLocation();
@@ -39,6 +40,7 @@ const RootLayout: React.FC = () => {
     return (
         <div className="min-h-screen font-sans text-foreground bg-background antialiased selection:bg-primary selection:text-white">
             <Outlet />
+            <TrialTimer />
         </div>
     );
 };

@@ -9,7 +9,7 @@ import GlassSurface from "./GlassSurface";
 const Navbar: React.FC = () => {
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const { isAuthenticated, user } = useAuth();
+    const { isAuthenticated, user, logout } = useAuth();
     const location = useLocation();
 
     useEffect(() => {
@@ -95,25 +95,31 @@ const Navbar: React.FC = () => {
                     {/* CTA Buttons */}
                     <div className="hidden md:flex items-center gap-4">
                         {isAuthenticated ? (
-                            <Link
-                                to="/dashboard"
-                                className="px-5 py-2 rounded-full glass-hover bg-white/5 border border-white/10 text-sm font-medium"
-                            >
-                                Dashboard
-                            </Link>
+                            <div className="flex items-center gap-3">
+                                <Link
+                                    to="/dashboard"
+                                    className="px-5 py-2 rounded-full glass-hover bg-white/5 border border-white/10 text-sm font-medium"
+                                >
+                                    Dashboard
+                                </Link>
+                                <button
+                                    onClick={logout}
+                                    className="px-5 py-2 rounded-full glass-hover bg-red-500/10 border border-red-500/20 text-red-300 text-sm font-medium hover:bg-red-500/20 transition-colors"
+                                >
+                                    Logout
+                                </button>
+                            </div>
                         ) : (
                             <>
                                 <Link to="/login" className="text-sm font-medium text-muted-foreground hover:text-white transition-colors">
                                     Login
                                 </Link>
-                                <a
-                                    href="https://devmastery1.gumroad.com/l/mobtax"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                                <Link
+                                    to="/checkout"
                                     className="px-5 py-2.5 rounded-full bg-primary hover:bg-primary/90 text-white text-sm font-semibold shadow-lg shadow-primary/25 transition-all hover:scale-105"
                                 >
                                     Secure Your Spot
-                                </a>
+                                </Link>
                             </>
                         )}
                     </div>
@@ -142,13 +148,24 @@ const Navbar: React.FC = () => {
                         ))}
                         <div className="h-px bg-white/10 my-2 mx-4" />
                         {isAuthenticated ? (
-                            <Link
-                                to="/dashboard"
-                                className="mx-4 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-center font-bold text-white shadow-lg shadow-purple-500/25"
-                                onClick={() => setIsMobileMenuOpen(false)}
-                            >
-                                Go to Dashboard
-                            </Link>
+                            <div className="flex flex-col gap-3 px-4">
+                                <Link
+                                    to="/dashboard"
+                                    className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-center font-bold text-white shadow-lg shadow-purple-500/25"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                >
+                                    Go to Dashboard
+                                </Link>
+                                <button
+                                    onClick={() => {
+                                        logout();
+                                        setIsMobileMenuOpen(false);
+                                    }}
+                                    className="w-full py-3 rounded-xl bg-red-500/10 text-red-300 border border-red-500/20 font-bold text-center"
+                                >
+                                    Logout
+                                </button>
+                            </div>
                         ) : (
                             <div className="flex flex-col gap-3 px-4">
                                 <Link
@@ -158,14 +175,13 @@ const Navbar: React.FC = () => {
                                 >
                                     Login
                                 </Link>
-                                <a
-                                    href="https://devmastery1.gumroad.com/l/mobtax"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                                <Link
+                                    to="/checkout"
+                                    onClick={() => setIsMobileMenuOpen(false)}
                                     className="w-full py-3 rounded-xl bg-white text-black font-bold text-center shadow-lg hover:bg-gray-100 transition-colors"
                                 >
                                     Secure Your Spot — ₹10,000
-                                </a>
+                                </Link>
                             </div>
                         )}
                     </div>

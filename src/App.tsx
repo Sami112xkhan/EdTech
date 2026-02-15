@@ -20,6 +20,9 @@ import CoursePlayer from "./pages/CoursePlayer";
 import Projects from "./pages/Projects";
 import Settings from "./pages/Settings";
 import Feedback from "./pages/Feedback";
+import AIAssistantPage from "./pages/AIAssistantPage";
+import VerifyEmail from "./pages/VerifyEmail";
+import Suspended from "./pages/Suspended";
 import { FeedbackProvider } from "./context/FeedbackContext";
 
 function App() {
@@ -33,6 +36,7 @@ function App() {
                             <Route path="/" element={<Landing />} />
                             <Route path="/login" element={<Login />} />
                             <Route path="/signup" element={<Signup />} />
+                            <Route path="/verify" element={<VerifyEmail />} />
 
                             {/* Protected Routes (Auth Required) */}
                             <Route element={<ProtectedRoute />}>
@@ -48,8 +52,8 @@ function App() {
                                         <Route path="/projects" element={<Projects />} />
                                         <Route path="/settings" element={<Settings />} />
                                         <Route path="/feedback" element={<Feedback />} />
-                                        {/* AI Assistant will be a modal, but could have a page if needed */}
-                                        <Route path="/ai-assistant" element={<Dashboard />} />
+                                        {/* AI Assistant Page */}
+                                        <Route path="/ai-assistant" element={<AIAssistantPage />} />
                                     </Route>
                                 </Route>
                             </Route>

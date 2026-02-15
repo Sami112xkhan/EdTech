@@ -25,6 +25,11 @@ A modern, high-performance, and visually stunning EdTech platform designed for t
 - **Voice of User**: Enhanced feedback system where users can submit proposals for new features.
 - **Status Tracking**: Users can monitor their submissions' progress (Under Review, Reviewed, Implemented) in real-time.
 
+### 🚫 Account Suspension & Appeals
+- **Instant Revocation**: Admins can instantly revoke access, redirecting users to a locked "Suspended" state.
+- **Appeals Workflow**: Suspended users can submit appeal requests directly from the lockout screen.
+- **Restoration**: Admins can view appeals in a dedicated dashboard tab and restore access with a single click.
+
 ## 🛠️ Tech Stack
 
 - **Frontend**: React 18, TypeScript, Vite

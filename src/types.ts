@@ -22,4 +22,5 @@ export interface AccessCode {
     createdAt: string;
     isUsed: boolean;
     usedBy?: string; // User email
+    isRevoked?: boolean;
 }
