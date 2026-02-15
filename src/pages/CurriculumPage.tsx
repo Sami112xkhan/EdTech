@@ -151,24 +151,23 @@ const CurriculumPage: React.FC = () => {
                     >
                         <div className="flex flex-col md:flex-row gap-6 h-[calc(100vh-280px)] min-h-[500px] overflow-hidden">
                             {/* Phase Navigation (Sidebar) */}
-                            <div 
+                            <div
                                 data-lenis-prevent
-                                className="w-full md:w-72 flex-shrink-0 flex flex-col gap-2 overflow-y-auto pr-2 custom-scrollbar"
+                                className="w-full md:w-72 flex-shrink-0 flex flex-row md:flex-col gap-3 overflow-x-auto md:overflow-x-hidden md:overflow-y-auto pb-4 md:pb-0 pr-0 md:pr-2 custom-scrollbar snap-x"
                             >
                                 <button
                                     onClick={() => {
                                         setActivePhaseId(null);
                                         setNoteSearch("");
                                     }}
-                                    className={`w-full text-left px-5 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${
-                                        !activePhaseId && !noteSearch
+                                    className={`min-w-[200px] md:min-w-0 w-auto md:w-full text-left px-5 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border snap-start ${!activePhaseId && !noteSearch
                                             ? "bg-primary text-white border-primary shadow-lg shadow-primary/20"
                                             : "bg-white/5 text-muted-foreground border-white/5 hover:bg-white/10 hover:text-white"
-                                    }`}
+                                        }`}
                                 >
                                     All Resources
                                 </button>
-                                
+
                                 {phasesStatus.map((phase) => (
                                     <button
                                         key={phase.id}
@@ -178,13 +177,12 @@ const CurriculumPage: React.FC = () => {
                                                 setNoteSearch("");
                                             }
                                         }}
-                                        className={`w-full text-left px-5 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border flex items-center justify-between group ${
-                                            activePhaseId === phase.id
+                                        className={`min-w-[260px] md:min-w-0 w-auto md:w-full text-left px-5 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border flex items-center justify-between group snap-start ${activePhaseId === phase.id
                                                 ? "bg-primary text-white border-primary shadow-lg shadow-primary/20"
                                                 : phase.locked
                                                     ? "bg-zinc-900/50 text-zinc-600 border-white/5 cursor-not-allowed"
                                                     : "bg-white/5 text-muted-foreground border-white/5 hover:bg-white/10 hover:text-white"
-                                        }`}
+                                            }`}
                                     >
                                         <span className="truncate mr-2 font-black">{phase.title.split(" — ")[0]}</span>
                                         {phase.locked ? (
@@ -197,7 +195,7 @@ const CurriculumPage: React.FC = () => {
                             </div>
 
                             {/* Notes Content Grid */}
-                            <div className="flex-1 bg-secondary/10 rounded-[2.5rem] border border-white/5 flex flex-col overflow-hidden backdrop-blur-sm">
+                            <div className="flex-1 bg-secondary/10 rounded-[2.5rem] border border-white/5 flex flex-col overflow-hidden backdrop-blur-sm h-full">
                                 {/* Search Header */}
                                 <div className="p-6 border-b border-white/5 bg-secondary/20">
                                     <div className="relative group">
@@ -216,7 +214,7 @@ const CurriculumPage: React.FC = () => {
                                 </div>
 
                                 {/* Scrollable Grid Area */}
-                                <div 
+                                <div
                                     data-lenis-prevent
                                     className="flex-1 overflow-y-auto p-6 custom-scrollbar"
                                 >
@@ -245,19 +243,19 @@ const CurriculumPage: React.FC = () => {
                                                     initial={{ opacity: 0, scale: 0.95 }}
                                                     animate={{ opacity: 1, scale: 1 }}
                                                     className={`p-5 rounded-3xl border transition-all flex items-center gap-4 group relative overflow-hidden
-                                                        ${note.isLocked 
-                                                            ? 'bg-zinc-900/50 border-white/5 opacity-50 grayscale select-none' 
+                                                        ${note.isLocked
+                                                            ? 'bg-zinc-900/50 border-white/5 opacity-50 grayscale select-none'
                                                             : 'bg-zinc-950/50 border-white/5 hover:border-primary/30 hover:bg-zinc-900/50 hover:shadow-xl hover:shadow-primary/5'
                                                         }`}
                                                 >
                                                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500
-                                                        ${note.isLocked 
-                                                            ? 'bg-zinc-800 text-zinc-600' 
+                                                        ${note.isLocked
+                                                            ? 'bg-zinc-800 text-zinc-600'
                                                             : 'bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white group-hover:shadow-[0_0_20px_rgba(109,40,217,0.4)]'
                                                         }`}>
                                                         {note.isLocked ? <Lock className="w-5 h-5" /> : <FileText className="w-6 h-6" />}
                                                     </div>
-                                                    
+
                                                     <div className="flex-1 min-w-0">
                                                         <h4 className={`font-black text-sm truncate leading-tight tracking-tight ${note.isLocked ? 'text-zinc-600' : 'text-zinc-100'}`}>
                                                             {note.title}
