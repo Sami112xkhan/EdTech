@@ -58,11 +58,6 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
                 dangerouslyAllowBrowser: true
             });
         }
-
-        // Eager load Phi-3 model in background
-        const phi3Id = MODELS[2].id;
-        console.log("Starting background load of Phi-3...");
-        initBrowserModel(phi3Id).catch(err => console.error("Background load failed:", err));
     }, []);
 
     const scrollToBottom = () => {
