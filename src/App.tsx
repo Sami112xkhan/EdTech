@@ -26,6 +26,8 @@ import Suspended from "./pages/Suspended";
 import PlaygroundPage from "./pages/PlaygroundPage";
 import { FeedbackProvider } from "./context/FeedbackContext";
 
+import { Analytics } from "@vercel/analytics/react";
+
 function App() {
     return (
         <BrowserRouter>
@@ -61,6 +63,7 @@ function App() {
                             </Route>
                         </Route>
                     </Routes>
+                    <Analytics />
                 </FeedbackProvider>
             </AuthProvider>
         </BrowserRouter>
