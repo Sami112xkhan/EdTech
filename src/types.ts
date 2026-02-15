@@ -14,6 +14,11 @@ export interface User {
     verificationCode?: string;
     trialExpiresAt?: string; // ISO string
     photoURL?: string; // For Google Auth
+    // Gamification
+    streak?: number;
+    lastLoginDate?: string; // YYYY-MM-DD
+    xp?: number;
+    level?: number;
 }
 
 export interface AccessCode {

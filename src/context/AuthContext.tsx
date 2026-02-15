@@ -22,6 +22,7 @@ interface AuthContextType {
     redeemCode: (code: string) => { success: boolean; message: string };
     getAllAccessCodes: () => import("../types").AccessCode[];
     revokeAccessCode: (code: string) => import("../types").AccessCode[];
+    addXp: (amount: number) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -248,14 +249,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 throw new Error("NOT_VERIFIED:" + existingUser.email);
             }
 
-            // Update last login
-            const updatedUser = { ...existingUser, lastLogin: new Date().toISOString() };
+            // Gamification Logic
+            const today = new Date().toISOString().split('T')[0];
+            const lastLoginDate = existingUser.lastLoginDate;
+            let newStreak = existingUser.streak || 0;
+            let newXp = existingUser.xp || 0;
+            let streakMessage = '';
+
+            if (lastLoginDate !== today) {
+                const yesterday = new Date();
+                yesterday.setDate(yesterday.getDate() - 1);
+                const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+                if (lastLoginDate === yesterdayStr) {
+                    newStreak++;
+                    newXp += 50; // Daily bonus
+                    streakMessage = `Daily Streak: ${newStreak} 🔥 (+50 XP)`;
+                } else {
+                    newStreak = 1; // Reset or start
+                    newXp += 50; // First login bonus
+                    streakMessage = `Streak Started! 🔥 (+50 XP)`;
+                }
+            }
+
+            // Calculate Level
+            const newLevel = Math.floor(newXp / 100) + 1;
+
+            // Update last login and gamification stats
+            const updatedUser: User = {
+                ...existingUser,
+                lastLogin: new Date().toISOString(),
+                lastLoginDate: today,
+                streak: newStreak,
+                xp: newXp,
+                level: newLevel
+            };
+
             const updatedDb = usersDb.map((u: User) => u.email === existingUser.email ? updatedUser : u);
             localStorage.setItem("users_db", JSON.stringify(updatedDb));
 
             setUser(updatedUser);
             setIsAuthenticated(true);
             localStorage.setItem("user", JSON.stringify(updatedUser));
+
+            if (streakMessage) alert(streakMessage);
         } else {
             alert("User not found. Please sign up.");
         }
@@ -277,12 +314,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const existingUser = usersDb.find((u: User) => u.email === email);
 
             if (existingUser) {
+                // Gamification Logic (Duplicate for Google Login to ensure consistency)
+                const today = new Date().toISOString().split('T')[0];
+                const lastLoginDate = existingUser.lastLoginDate;
+                let newStreak = existingUser.streak || 0;
+                let newXp = existingUser.xp || 0;
+                let streakMessage = '';
+
+                if (lastLoginDate !== today) {
+                    const yesterday = new Date();
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+                    if (lastLoginDate === yesterdayStr) {
+                        newStreak++;
+                        newXp += 50;
+                        streakMessage = `Daily Streak: ${newStreak} 🔥 (+50 XP)`;
+                    } else {
+                        newStreak = 1;
+                        newXp += 50;
+                        streakMessage = `Streak Started! 🔥 (+50 XP)`;
+                    }
+                }
+                const newLevel = Math.floor(newXp / 100) + 1;
+
                 // Login existing user
                 const updatedUser = {
                     ...existingUser,
                     lastLogin: new Date().toISOString(),
                     // Update verification status just in case (Google is verified)
-                    isVerified: true
+                    isVerified: true,
+                    lastLoginDate: today,
+                    streak: newStreak,
+                    xp: newXp,
+                    level: newLevel
                 };
                 const updatedDb = usersDb.map((u: User) => u.email === email ? updatedUser : u);
                 localStorage.setItem("users_db", JSON.stringify(updatedDb));
@@ -290,8 +355,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setUser(updatedUser);
                 setIsAuthenticated(true);
                 localStorage.setItem("user", JSON.stringify(updatedUser));
+                if (streakMessage) alert(streakMessage);
             } else {
                 // Auto-Signup new user
+                const today = new Date().toISOString().split('T')[0];
                 const newUser: User = {
                     name: name,
                     username: email.split('@')[0], // Generate username from email
@@ -303,7 +370,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     verificationCode: undefined,
                     lastLogin: new Date().toISOString(),
                     completedLessons: [],
-                    photoURL: picture
+                    photoURL: picture,
+                    // Gamification Init
+                    streak: 1,
+                    lastLoginDate: today,
+                    xp: 50, // Welcome bonus
+                    level: 1
                 };
 
                 const newDb = [...usersDb, newUser];
@@ -312,6 +384,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setUser(newUser);
                 setIsAuthenticated(true);
                 localStorage.setItem("user", JSON.stringify(newUser));
+                alert("Welcome! You earned 50 XP for joining! 🔥");
             }
         } catch (error) {
             console.error("Google Login Error:", error);
@@ -339,7 +412,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             isVerified: false,
             verificationCode: code,
             lastLogin: new Date().toISOString(),
-            completedLessons: [] // Initialize empty
+            completedLessons: [], // Initialize empty
+            // Gamification Init
+            streak: 0,
+            xp: 0,
+            level: 1,
+            lastLoginDate: '' // Not logged in yet
         };
 
         const newDb = [...usersDb, newUser];
@@ -507,6 +585,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem("users_db", JSON.stringify(updatedDb));
     };
 
+
+
+    const addXp = (amount: number) => {
+        if (!user) return;
+
+        const newXp = (user.xp || 0) + amount;
+        const newLevel = Math.floor(newXp / 100) + 1;
+
+        const updatedUser = { ...user, xp: newXp, level: newLevel };
+
+        // Update Local
+        setUser(updatedUser);
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+
+        // Update DB
+        const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
+        const updatedDb = usersDb.map((u: User) => u.email === user.email ? updatedUser : u);
+        localStorage.setItem("users_db", JSON.stringify(updatedDb));
+    };
+
     return (
         <AuthContext.Provider value={{
             user,
@@ -525,7 +623,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             redeemCode,
             getAllAccessCodes,
             revokeAccessCode,
-            loginWithGoogle
+            loginWithGoogle,
+            addXp
         }}>
             {children}
         </AuthContext.Provider>

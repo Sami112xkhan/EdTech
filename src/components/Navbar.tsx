@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X, Terminal } from "lucide-react";
+import { Menu, X, Terminal, Flame } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { motion } from "motion/react";
 import GlassSurface from "./GlassSurface";
@@ -96,6 +96,19 @@ const Navbar: React.FC = () => {
                     <div className="hidden md:flex items-center gap-4">
                         {isAuthenticated ? (
                             <div className="flex items-center gap-3">
+                                {/* Gamification Stats */}
+                                <div className="hidden lg:flex items-center gap-4 mr-2 bg-white/5 px-4 py-1.5 rounded-full border border-white/5">
+                                    <div className="flex items-center gap-1.5" title="Daily Streak">
+                                        <Flame className={`w-4 h-4 ${user?.streak && user.streak > 0 ? 'text-orange-500 fill-orange-500' : 'text-muted-foreground'}`} />
+                                        <span className={`text-sm font-bold ${user?.streak && user.streak > 0 ? 'text-orange-500' : 'text-muted-foreground'}`}>{user?.streak || 0}</span>
+                                    </div>
+                                    <div className="w-px h-4 bg-white/10" />
+                                    <div className="flex items-center gap-1.5" title="Level">
+                                        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">LVL</span>
+                                        <span className="text-sm font-bold text-indigo-400">{user?.level || 1}</span>
+                                    </div>
+                                </div>
+
                                 <Link
                                     to="/dashboard"
                                     className="px-5 py-2 rounded-full glass-hover bg-white/5 border border-white/10 text-sm font-medium"

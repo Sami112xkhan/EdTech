@@ -3,7 +3,7 @@ import React, { useEffect } from "react";
 import { useSearchParams, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { curriculum } from "../data/curriculum";
-import { PlayCircle, Award, Clock, Lock, ShieldAlert } from "lucide-react";
+import { PlayCircle, Award, Clock, Lock, ShieldAlert, Flame } from "lucide-react";
 
 const Dashboard: React.FC = () => {
     const [searchParams] = useSearchParams();
@@ -203,7 +203,7 @@ const Dashboard: React.FC = () => {
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="text-xl font-bold">Quick Stats</h2>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="p-5 rounded-xl border border-white/5 bg-secondary/20">
                         <div className="text-sm text-muted-foreground mb-1">Total Lessons</div>
                         <div className="text-2xl font-bold">{totalLessons}</div>
@@ -213,8 +213,15 @@ const Dashboard: React.FC = () => {
                         <div className="text-2xl font-bold">{completedLessons.length}</div>
                     </div>
                     <div className="p-5 rounded-xl border border-white/5 bg-secondary/20">
-                        <div className="text-sm text-muted-foreground mb-1">Certificate</div>
-                        <div className="text-2xl font-bold text-muted-foreground/50">Locked</div>
+                        <div className="text-sm text-muted-foreground mb-1">Current Streak</div>
+                        <div className="flex items-center gap-2">
+                            <Flame className="w-5 h-5 text-orange-500 fill-orange-500" />
+                            <div className="text-2xl font-bold text-orange-500">{user?.streak || 0}</div>
+                        </div>
+                    </div>
+                    <div className="p-5 rounded-xl border border-white/5 bg-secondary/20">
+                        <div className="text-sm text-muted-foreground mb-1">XP Earned</div>
+                        <div className="text-2xl font-bold text-indigo-400">{user?.xp || 0}</div>
                     </div>
                 </div>
             </div>
