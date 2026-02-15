@@ -9,4 +9,6 @@ export interface User {
     lastLogin?: string;
     completedLessons: string[];
     unlockedBy?: string;
+    isVerified?: boolean;
+    verificationCode?: string;
 }

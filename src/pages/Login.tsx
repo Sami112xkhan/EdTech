@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
@@ -6,6 +5,8 @@ import { useAuth } from "../context/AuthContext";
 import Input from "../components/ui/Input";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { verifyGumroadLicense } from "../utils/gumroad";
+import Aurora from "../components/Aurora";
+import GlassSurface from "../components/GlassSurface";
 
 const Login: React.FC = () => {
     const { register, handleSubmit, formState: { errors } } = useForm();
@@ -114,75 +115,87 @@ const Login: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-            <div className="absolute inset-0 bg-background z-0" />
-            <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[120px]" />
+        <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-black">
+            <div className="absolute inset-0 z-0">
+                <Aurora
+                    colorStops={["#3b82f6", "#8b5cf6", "#6366f1"]}
+                    blend={0.5}
+                    amplitude={1.0}
+                    speed={0.5}
+                />
+            </div>
 
-            <div className="w-full max-w-md bg-secondary/30 backdrop-blur-xl border border-white/10 p-8 rounded-2xl shadow-2xl relative z-10 animate-in fade-in zoom-in-95 duration-500">
-                <Link to="/" className="inline-flex items-center text-sm text-muted-foreground hover:text-white mb-6 transition-colors">
-                    <ArrowLeft className="w-4 h-4 mr-2" /> Back to Home
-                </Link>
+            <GlassSurface
+                className="w-full max-w-md p-8 relative z-10 animate-in fade-in zoom-in-95 duration-500"
+                borderRadius={24}
+                opacity={0.6}
+            >
+                <div className="w-full">
+                    <Link to="/" className="inline-flex items-center text-sm text-muted-foreground hover:text-white mb-6 transition-colors">
+                        <ArrowLeft className="w-4 h-4 mr-2" /> Back to Home
+                    </Link>
 
-                <div className="mb-8 text-center">
-                    <h1 className="text-3xl font-bold mb-2">Welcome Back</h1>
-                    <p className="text-muted-foreground">Continue your learning journey.</p>
-                </div>
-
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                    <Input
-                        label="Username or Email"
-                        type="text"
-                        placeholder="john@example.com or johnwick"
-                        {...register("identifier", { required: "Username or Email is required" })}
-                        error={errors.identifier?.message as string}
-                    />
-
-                    <Input
-                        label="Password"
-                        type="password"
-                        placeholder="••••••••"
-                        {...register("password", { required: "Password is required" })}
-                        error={errors.password?.message as string}
-                    />
-
-                    {showAccessCode && (
-                        <div className="animate-in slide-in-from-top-2 fade-in duration-300">
-                            <Input
-                                label="Access Code"
-                                type="text"
-                                placeholder="Enter your premium code"
-                                {...register("accessCode")}
-                            />
-                            <p className="text-xs text-yellow-500/80 mt-1 ml-1">
-                                * Valid code unlocks Lifetime Premium
-                            </p>
-                        </div>
-                    )}
-
-                    <div className="flex items-center justify-between text-sm">
-                        <button
-                            type="button"
-                            onClick={() => setShowAccessCode(!showAccessCode)}
-                            className="text-primary hover:underline font-medium"
-                        >
-                            {showAccessCode ? "Hide Access Code" : "Have an Access Code?"}
-                        </button>
+                    <div className="mb-8 text-center">
+                        <h1 className="text-3xl font-bold mb-2">Welcome Back</h1>
+                        <p className="text-muted-foreground">Continue your learning journey.</p>
                     </div>
 
-                    <button
-                        type="submit"
-                        disabled={isLoading}
-                        className="w-full py-3 mt-4 rounded-lg bg-primary hover:bg-primary/90 text-white font-medium shadow-lg shadow-primary/25 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center"
-                    >
-                        {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Log In"}
-                    </button>
-                </form>
+                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                        <Input
+                            label="Username or Email"
+                            type="text"
+                            placeholder="john@example.com or johnwick"
+                            {...register("identifier", { required: "Username or Email is required" })}
+                            error={errors.identifier?.message as string}
+                        />
 
-                <div className="mt-6 text-center text-sm">
-                    <span className="text-muted-foreground">Don't have an account? </span>
-                    <Link to="/signup" className="text-primary hover:underline">Sign up</Link>
+                        <Input
+                            label="Password"
+                            type="password"
+                            placeholder="••••••••"
+                            {...register("password", { required: "Password is required" })}
+                            error={errors.password?.message as string}
+                        />
+
+                        {showAccessCode && (
+                            <div className="animate-in slide-in-from-top-2 fade-in duration-300">
+                                <Input
+                                    label="Access Code"
+                                    type="text"
+                                    placeholder="Enter your premium code"
+                                    {...register("accessCode")}
+                                />
+                                <p className="text-xs text-yellow-500/80 mt-1 ml-1">
+                                    * Valid code unlocks Lifetime Premium
+                                </p>
+                            </div>
+                        )}
+
+                        <div className="flex items-center justify-between text-sm">
+                            <button
+                                type="button"
+                                onClick={() => setShowAccessCode(!showAccessCode)}
+                                className="text-primary hover:underline font-medium"
+                            >
+                                {showAccessCode ? "Hide Access Code" : "Have an Access Code?"}
+                            </button>
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="w-full py-3 mt-4 rounded-lg bg-primary hover:bg-primary/90 text-white font-medium shadow-lg shadow-primary/25 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center"
+                        >
+                            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Log In"}
+                        </button>
+                    </form>
+
+                    <div className="mt-6 text-center text-sm">
+                        <span className="text-muted-foreground">Don't have an account? </span>
+                        <Link to="/signup" className="text-primary hover:underline">Sign up</Link>
+                    </div>
                 </div>
-            </div>
+            </GlassSurface>
         </div>
     );
 };

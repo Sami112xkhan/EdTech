@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { User } from "../types"; // Will create types next
+import emailjs from '@emailjs/browser';
 
 interface AuthContextType {
     user: User | null;
@@ -13,6 +14,8 @@ interface AuthContextType {
     updateUserStatus: (email: string, status: 'active' | 'inactive') => User[];
     deleteUser: (email: string) => User[];
     markLessonComplete: (lessonId: string) => void;
+    verifyEmail: (email: string, code: string) => { success: boolean; message: string };
+    resendVerificationCode: (email: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -48,6 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 isPaid: true,
                 role: 'admin',
                 status: 'active',
+                isVerified: true,
                 lastLogin: new Date().toISOString(),
                 completedLessons: []
             };
@@ -66,6 +70,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 alert("Account is inactive. Contact admin.");
                 return;
             }
+
+            // Check verification status
+            if (existingUser.isVerified === false) {
+                // If not verified, generate new code and alert
+                const newCode = Math.floor(100000 + Math.random() * 900000).toString();
+                const updatedUser = { ...existingUser, verificationCode: newCode };
+                const updatedDb = usersDb.map((u: User) => u.email === existingUser.email ? updatedUser : u);
+                localStorage.setItem("users_db", JSON.stringify(updatedDb));
+
+                alert(`Account not verified! A new verification code has been sent to your email (Mock): ${newCode}`);
+
+                // We should redirect to verify page, but we can't easily do that from here without navigate
+                // For now, we'll throw an error that the UI can catch to redirect
+                throw new Error("NOT_VERIFIED:" + existingUser.email);
+            }
+
             // Update last login
             const updatedUser = { ...existingUser, lastLogin: new Date().toISOString() };
             const updatedDb = usersDb.map((u: User) => u.email === existingUser.email ? updatedUser : u);
@@ -75,23 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setIsAuthenticated(true);
             localStorage.setItem("user", JSON.stringify(updatedUser));
         } else {
-            // Auto-signup for demo simplicity if not found? Or force signup?
-            // Let's assume login only logs in existing. But previous logic was auto-set.
-            // We'll keep previous behavior but add to DB if not exists (implicit signup on login for demo)
-            const newUser: User = {
-                ...userData,
-                isPaid: false,
-                role: 'user',
-                status: 'active',
-                lastLogin: new Date().toISOString(),
-                completedLessons: [] // Initialize empty
-            };
-            const newDb = [...usersDb, newUser];
-            localStorage.setItem("users_db", JSON.stringify(newDb));
-
-            setUser(newUser);
-            setIsAuthenticated(true);
-            localStorage.setItem("user", JSON.stringify(newUser));
+            alert("User not found. Please sign up.");
         }
     };
 
@@ -104,21 +108,121 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return;
         }
 
+        // Generate 6-digit code
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+
         const newUser: User = {
             ...userData,
             isPaid: false,
             role: 'user',
             status: 'active',
+            isVerified: false,
+            verificationCode: code,
             lastLogin: new Date().toISOString(),
             completedLessons: [] // Initialize empty
         };
 
         const newDb = [...usersDb, newUser];
+
         localStorage.setItem("users_db", JSON.stringify(newDb));
 
-        setUser(newUser);
-        setIsAuthenticated(true);
-        localStorage.setItem("user", JSON.stringify(newUser));
+        // Real Email Sending via EmailJS
+        const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+        const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+        const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+
+        if (serviceId && templateId && publicKey) {
+            emailjs.send(serviceId, templateId, {
+                to_email: userData.email,
+                to_name: userData.name,
+                code: code,
+            }, publicKey).then(
+                (response) => {
+                    console.log('SUCCESS!', response.status, response.text);
+                    // alert(`Verification code sent to ${userData.email}`);
+                },
+                (error) => {
+                    console.log('FAILED...', error);
+                    alert('Failed to send email. Please try again or check console if you are a developer.');
+                },
+            );
+        } else {
+            // Fallback for dev without keys
+            console.warn("EmailJS keys missing in .env");
+            alert(`[DEV MODE] Verification code: ${code}`);
+        }
+
+        // DO NOT LOGIN YET
+        // Redirect logic will be handled in Signup.tsx
+    };
+
+    const verifyEmail = (email: string, code: string) => {
+        const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
+        const userIndex = usersDb.findIndex((u: User) => u.email === email);
+
+        if (userIndex === -1) {
+            return { success: false, message: "User not found" };
+        }
+
+        const user = usersDb[userIndex];
+
+        if (user.isVerified) {
+            return { success: true, message: "Already verified" };
+        }
+
+        if (user.verificationCode === code) {
+            // Success!
+            const updatedUser = { ...user, isVerified: true, verificationCode: undefined };
+            usersDb[userIndex] = updatedUser;
+            localStorage.setItem("users_db", JSON.stringify(usersDb));
+
+            // Log them in
+            setUser(updatedUser);
+            setIsAuthenticated(true);
+            localStorage.setItem("user", JSON.stringify(updatedUser));
+
+            return { success: true, message: "Email verified successfully!" };
+        } else {
+            return { success: false, message: "Invalid verification code" };
+        }
+    };
+
+    const resendVerificationCode = (email: string) => {
+        const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
+        const userIndex = usersDb.findIndex((u: User) => u.email === email);
+
+        if (userIndex === -1) return;
+
+        const newCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const updatedUser = { ...usersDb[userIndex], verificationCode: newCode };
+
+        usersDb[userIndex] = updatedUser;
+        usersDb[userIndex] = updatedUser;
+        localStorage.setItem("users_db", JSON.stringify(usersDb));
+
+        // Real Email Sending via EmailJS
+        const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+        const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+        const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+
+        if (serviceId && templateId && publicKey) {
+            emailjs.send(serviceId, templateId, {
+                to_email: email,
+                code: newCode,
+            }, publicKey).then(
+                (response) => {
+                    console.log('SUCCESS!', response.status, response.text);
+                    alert(`New verification code sent to ${email}`);
+                },
+                (error) => {
+                    console.log('FAILED...', error);
+                    alert('Failed to send email.');
+                },
+            );
+        } else {
+            console.warn("EmailJS keys missing in .env");
+            alert(`[DEV MODE] New verification code: ${newCode}`);
+        }
     };
 
     const logout = () => {
@@ -171,7 +275,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     return (
-        <AuthContext.Provider value={{ user, isAuthenticated, login, signup, logout, completePurchase, getAllUsers, updateUserStatus, deleteUser, markLessonComplete }}>
+        <AuthContext.Provider value={{ user, isAuthenticated, login, signup, logout, completePurchase, getAllUsers, updateUserStatus, deleteUser, markLessonComplete, verifyEmail, resendVerificationCode }}>
             {children}
         </AuthContext.Provider>
     );
