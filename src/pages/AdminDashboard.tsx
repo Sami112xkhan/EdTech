@@ -155,17 +155,17 @@ const AdminDashboard: React.FC = () => {
                 </div>
 
                 {/* Tab Navigation */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-white/5 pb-6">
-                    <div className="flex p-1.5 bg-secondary/30 rounded-2xl border border-white/5 w-fit h-fit">
+                <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 border-b border-white/5 pb-8">
+                    <div className="flex p-1.5 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-xl w-full xl:w-fit overflow-x-auto no-scrollbar">
                         {[
-                            { id: 'users', icon: Users, label: 'Membership' },
-                            { id: 'feedback', icon: MessageSquare, label: 'Voice of User' },
-                            { id: 'codes', icon: Zap, label: 'Trial Factory' }
+                            { id: 'users', icon: Users, label: 'Members' },
+                            { id: 'feedback', icon: MessageSquare, label: 'Feedback' },
+                            { id: 'codes', icon: Zap, label: 'Trials' }
                         ].map((tab) => (
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id as any)}
-                                className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-black transition-all ${activeTab === tab.id ? 'bg-primary text-white shadow-xl shadow-primary/20 scale-[1.05]' : 'text-muted-foreground hover:text-white hover:bg-white/5'}`}
+                                className={`flex-1 xl:flex-none flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-[10px] whitespace-nowrap font-black uppercase tracking-widest transition-all ${activeTab === tab.id ? 'bg-primary text-white shadow-xl shadow-primary/20' : 'text-muted-foreground hover:text-white hover:bg-white/5'}`}
                             >
                                 <tab.icon className="w-4 h-4" />
                                 {tab.label}
@@ -174,12 +174,12 @@ const AdminDashboard: React.FC = () => {
                     </div>
 
                     {activeTab === 'users' && (
-                        <div className="flex items-center gap-4 bg-secondary/20 px-5 py-3 rounded-2xl border border-white/5 group focus-within:border-primary/50 transition-all flex-1 md:max-w-md">
+                        <div className="flex items-center gap-4 bg-white/5 px-6 py-4 rounded-2xl border border-white/10 group focus-within:border-primary/40 transition-all w-full xl:max-w-md shadow-inner">
                             <Search className="w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
                             <input
                                 type="text"
-                                placeholder="Search by name or identity..."
-                                className="bg-transparent border-none outline-none text-sm w-full placeholder:text-muted-foreground/50 font-bold"
+                                placeholder="ACCESS IDENTIFIER SEARCH..."
+                                className="bg-transparent border-none outline-none text-[10px] font-black tracking-widest uppercase w-full placeholder:text-muted-foreground/30"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
@@ -197,14 +197,14 @@ const AdminDashboard: React.FC = () => {
                             className="bg-secondary/10 rounded-[2.5rem] border border-white/5 overflow-hidden shadow-2xl"
                         >
                             <div className="overflow-x-auto">
-                                <table className="w-full text-left">
+                                <table className="w-full text-left min-w-[900px]">
                                     <thead className="bg-white/5 border-b border-white/5">
                                         <tr>
-                                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Entity Details</th>
-                                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Status</th>
-                                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Privilege</th>
-                                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Temporal Access</th>
-                                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground text-right">Direct Actions</th>
+                                            <th className="px-6 md:px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Entity Details</th>
+                                            <th className="px-6 md:px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Status</th>
+                                            <th className="px-6 md:px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Privilege</th>
+                                            <th className="px-6 md:px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Temporal Access</th>
+                                            <th className="px-6 md:px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground text-right">Direct Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-white/5">
@@ -311,8 +311,8 @@ const AdminDashboard: React.FC = () => {
                                             </div>
                                         </div>
                                         <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] shadow-sm ${item.status === 'implemented' ? 'bg-green-500/10 text-green-400 border border-green-500/20' :
-                                                item.status === 'ignored' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
-                                                    'bg-blue-500/10 text-blue-400 border border-blue-500/20 animate-pulse'
+                                            item.status === 'ignored' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                                                'bg-blue-500/10 text-blue-400 border border-blue-500/20 animate-pulse'
                                             }`}>
                                             {item.status}
                                         </span>
@@ -378,66 +378,65 @@ const AdminDashboard: React.FC = () => {
                             className="space-y-12"
                         >
                             {/* Generation Tool */}
-                            <div className="bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-12 rounded-[3.5rem] border border-primary/20 shadow-2xl relative overflow-hidden">
-                                <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-[100px] -mr-48 -mt-48" />
-                                <div className="absolute bottom-0 left-0 w-64 h-64 bg-secondary/5 rounded-full blur-[80px] -ml-32 -mb-32" />
+                            <div className="bg-white/5 backdrop-blur-3xl p-8 md:p-14 rounded-[3.5rem] border border-white/10 shadow-3xl relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px] -mr-64 -mt-64" />
 
                                 <div className="relative z-10 max-w-4xl mx-auto">
-                                    <div className="text-center mb-10">
-                                        <div className="inline-flex p-4 bg-primary/20 rounded-3xl border border-primary/20 mb-6 shadow-xl shadow-primary/10">
-                                            <Award className="w-10 h-10 text-primary" />
+                                    <div className="text-center mb-12">
+                                        <div className="inline-flex p-5 md:p-6 bg-primary/10 rounded-3xl border border-primary/20 mb-8 shadow-2xl shadow-primary/10 rotate-3">
+                                            <Zap className="w-10 h-10 md:w-12 md:h-12 text-primary" />
                                         </div>
-                                        <h3 className="text-4xl font-black text-white mb-2 tracking-tight">Access Progenitor</h3>
-                                        <p className="text-muted-foreground text-lg font-bold">Transmute standard users into elite learners.</p>
+                                        <h3 className="text-3xl md:text-5xl font-black text-white mb-3 tracking-tighter uppercase">PROGENITOR <span className="text-primary italic">X</span></h3>
+                                        <p className="text-muted-foreground text-sm md:text-lg font-medium opacity-60">Authorize high-sync architectural access across the grid.</p>
                                     </div>
 
-                                    <div className="flex flex-col md:flex-row items-center justify-center gap-8 bg-black/40 p-10 rounded-[2.5rem] border border-white/10">
-                                        <div className="flex p-2 bg-zinc-900 rounded-[2rem] border border-white/5 w-full md:w-auto">
+                                    <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-center gap-6 bg-black/40 p-6 md:p-8 rounded-[2.5rem] border border-white/5 shadow-inner">
+                                        <div className="flex p-1.5 bg-white/5 rounded-2xl border border-white/5 w-full lg:w-auto">
                                             {[
-                                                { id: '3days', label: '72 HOURS' },
-                                                { id: '5mins', label: '5 MINUTES' }
+                                                { id: '3days', label: '72H LEVEL' },
+                                                { id: '5mins', label: '5M FLASH' }
                                             ].map(t => (
                                                 <button
                                                     key={t.id}
                                                     onClick={() => setCodeType(t.id as any)}
-                                                    className={`px-10 py-5 rounded-2xl text-xs font-black tracking-widest transition-all ${codeType === t.id ? 'bg-primary text-white shadow-2xl shadow-primary/30 scale-105' : 'text-muted-foreground hover:text-white'}`}
+                                                    className={`flex-1 lg:flex-none px-8 py-5 rounded-xl text-[10px] font-black tracking-widest transition-all ${codeType === t.id ? 'bg-primary text-white shadow-2xl shadow-primary/30' : 'text-muted-foreground hover:text-white'}`}
                                                 >
                                                     {t.label}
                                                 </button>
                                             ))}
                                         </div>
 
-                                        <div className="w-px h-12 bg-white/10 hidden md:block" />
+                                        <div className="hidden lg:block w-px h-12 bg-white/10" />
 
                                         <button
                                             onClick={handleGenerateCode}
-                                            className="w-full md:w-auto px-12 py-6 bg-white text-black font-black rounded-[2rem] hover:scale-[1.05] active:scale-[0.95] transition-all shadow-[0_20px_40px_-10px_rgba(255,255,255,0.2)] flex items-center justify-center gap-4 text-xs uppercase tracking-widest"
+                                            className="px-10 py-5 bg-white text-black font-black rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-2xl shadow-white/10 flex items-center justify-center gap-3 text-[10px] uppercase tracking-[0.2em]"
                                         >
-                                            Generate Essence <Zap className="w-5 h-5" />
+                                            REVEAL ESSENCE <Zap className="w-4 h-4" />
                                         </button>
                                     </div>
 
                                     <AnimatePresence>
                                         {generatedCode && (
                                             <motion.div
-                                                initial={{ opacity: 0, scale: 0.8, y: 40 }}
+                                                initial={{ opacity: 0, scale: 0.9, y: 30 }}
                                                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                                                className="mt-12 p-8 bg-primary/20 border-2 border-primary/40 rounded-[3rem] shadow-2xl flex flex-col items-center gap-8"
+                                                className="mt-12 p-8 md:p-12 bg-primary/5 border border-primary/20 rounded-[3rem] shadow-inner flex flex-col items-center gap-8 text-center"
                                             >
-                                                <div className="text-center">
-                                                    <span className="text-[10px] uppercase font-black text-primary tracking-[0.5em] mb-4 block">Cryptographic Key Authorized</span>
-                                                    <div className="text-6xl font-black font-mono tracking-[0.4em] text-white bg-black/60 px-12 py-6 rounded-3xl border border-white/10 select-all shadow-inner">
+                                                <div>
+                                                    <span className="text-[10px] uppercase font-black text-primary tracking-[0.5em] mb-6 block opacity-80">Access Sequence Confirmed</span>
+                                                    <div className="text-3xl md:text-6xl font-black font-mono tracking-[0.3em] text-white bg-black/60 px-8 md:px-12 py-6 md:py-8 rounded-3xl border border-white/5 select-all shadow-2xl">
                                                         {generatedCode}
                                                     </div>
                                                 </div>
                                                 <button
                                                     onClick={() => {
                                                         navigator.clipboard.writeText(generatedCode);
-                                                        alert("Key captured. Ready for transmission.");
+                                                        alert("Sequence stored in buffer.");
                                                     }}
-                                                    className="px-16 py-6 bg-primary text-white font-black rounded-2xl text-sm uppercase tracking-[0.2em] hover:bg-primary/80 transition-all shadow-xl shadow-primary/40 active:scale-95"
+                                                    className="w-full md:w-auto px-16 py-5 bg-primary text-white font-black rounded-2xl text-[10px] uppercase tracking-[0.3em] hover:bg-primary/80 transition-all shadow-2xl shadow-primary/40 active:scale-95"
                                                 >
-                                                    Secure Copy
+                                                    COPY SEQUENCE
                                                 </button>
                                             </motion.div>
                                         )}
@@ -452,14 +451,14 @@ const AdminDashboard: React.FC = () => {
                                     <span className="text-[10px] font-black text-primary/60 uppercase tracking-widest">{getAllAccessCodes().length} Entries Recorded</span>
                                 </div>
                                 <div className="overflow-x-auto">
-                                    <table className="w-full text-left">
+                                    <table className="w-full text-left min-w-[700px]">
                                         <thead>
                                             <tr className="bg-white/5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 border-b border-white/5">
-                                                <th className="px-10 py-6">Unique identifier</th>
-                                                <th className="px-10 py-6">Potency</th>
-                                                <th className="px-10 py-6">State</th>
-                                                <th className="px-10 py-6">Timelog</th>
-                                                <th className="px-10 py-6">Linked Entity</th>
+                                                <th className="px-8 py-6">Unique identifier</th>
+                                                <th className="px-8 py-6">Potency</th>
+                                                <th className="px-8 py-6">State</th>
+                                                <th className="px-8 py-6">Timelog</th>
+                                                <th className="px-8 py-6">Linked Entity</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-white/5">

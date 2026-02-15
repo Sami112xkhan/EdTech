@@ -94,51 +94,59 @@ const Dashboard: React.FC = () => {
     return (
         <div className="space-y-8">
             {/* Welcome Section */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Welcome back, {user?.name.split(" ")[0]}!</h1>
-                    <p className="text-muted-foreground mt-1">
-                        {progress === 100 ? "You've successfully completed the course!" : "You're making great progress towards becoming a Full Stack Developer."}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-2">
+                <div className="space-y-1">
+                    <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white leading-tight">
+                        Command: <span className="text-primary italic">Welcome</span>, {user?.name.split(" ")[0]}
+                    </h1>
+                    <p className="text-sm text-muted-foreground font-medium leading-relaxed max-w-xl">
+                        {progress === 100 ? "Level Max! You've mastered the entire architecture." : "Your trajectory as a Full Stack Developer is looking exceptional."}
                     </p>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full md:w-auto">
                     {!user?.isPaid && !isOnTrial && (
-                        <form onSubmit={handleRedeem} className="flex gap-2">
+                        <form onSubmit={handleRedeem} className="flex flex-1 sm:flex-none gap-2">
                             <input
                                 type="text"
-                                placeholder="Enter Access Code"
+                                placeholder="ACCESS CODE"
                                 value={accessCode}
                                 onChange={(e) => setAccessCode(e.target.value)}
-                                className="bg-secondary/30 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary/50 w-40"
+                                className="flex-1 sm:w-40 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-primary/50 focus:bg-white/10 transition-all placeholder:opacity-30"
                             />
                             <button
                                 disabled={isRedeeming}
-                                className="bg-primary hover:bg-primary/80 text-white px-4 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-50"
+                                className="bg-primary hover:bg-primary/80 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50 active:scale-95 shadow-lg shadow-primary/20"
                             >
-                                Redeem
+                                ACTIVATE
                             </button>
                         </form>
                     )}
-                    <div className="bg-gradient-to-r from-primary/20 to-purple-600/20 px-6 py-3 rounded-xl border border-primary/20 flex flex-col items-center">
-                        <span className="text-2xl font-bold text-primary">{progress}%</span>
-                        <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Complete</span>
+                    <div className="p-1 px-4 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl flex items-center gap-4 shadow-xl">
+                        <div className="flex flex-col">
+                            <span className="text-[10px] text-muted-foreground font-black uppercase tracking-tighter">System Progress</span>
+                            <span className="text-xl font-black text-primary leading-none">{progress}%</span>
+                        </div>
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
+                            <Award className="w-5 h-5 text-primary" />
+                        </div>
                     </div>
                 </div>
             </div>
 
             {isExpired && (
-                <div className="bg-red-500/10 border border-red-500/20 p-6 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-red-500/20 flex items-center justify-center">
-                            <Clock className="w-6 h-6 text-red-400" />
+                <div className="bg-red-500/5 border border-red-500/20 p-6 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-red-500/40 to-transparent" />
+                    <div className="flex items-center gap-5 relative z-10">
+                        <div className="w-14 h-14 rounded-2xl bg-red-500/20 flex items-center justify-center border border-red-500/20 shadow-lg shadow-red-500/10">
+                            <Clock className="w-7 h-7 text-red-400" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-white">Trial Access Expired</h3>
-                            <p className="text-sm text-muted-foreground">Your trial period has ended. Buy the full course to continue learning.</p>
+                            <h3 className="text-xl font-black text-white uppercase tracking-tight">Access Locked</h3>
+                            <p className="text-xs text-muted-foreground font-medium mt-1">Trial period expired. Restore access to continue your journey.</p>
                         </div>
                     </div>
-                    <Link to="/curriculum" className="w-full md:w-auto px-8 py-3 bg-white text-black font-black rounded-2xl flex items-center justify-center gap-2 hover:bg-gray-200 transition-all">
-                        Buy Now
+                    <Link to="/curriculum" className="w-full md:w-auto px-8 py-4 bg-white text-black font-black uppercase tracking-widest text-xs rounded-2xl flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-white/5">
+                        Upgrade Now
                     </Link>
                 </div>
             )}

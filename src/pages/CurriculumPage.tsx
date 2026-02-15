@@ -49,31 +49,31 @@ const CurriculumPage: React.FC = () => {
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500 max-w-7xl mx-auto pb-20">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                <div>
-                    <h1 className="text-4xl font-extrabold tracking-tight mb-2 bg-clip-text text-transparent bg-gradient-to-r from-white via-zinc-200 to-zinc-500">
-                        Course Curriculum
+            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 px-2 md:px-0">
+                <div className="space-y-2">
+                    <h1 className="text-3xl md:text-5xl font-black tracking-tighter text-white leading-none">
+                        CURRICULUM <span className="text-primary italic">CORE</span>
                     </h1>
-                    <p className="text-muted-foreground max-w-2xl leading-relaxed">
-                        Master Full Stack Development with our structured roadmap and comprehensive study materials.
+                    <p className="text-sm text-muted-foreground max-w-xl font-medium leading-relaxed opacity-80">
+                        Master the full stack architecture through our structured, performance-driven transition roadmap.
                     </p>
                 </div>
 
                 {/* View Switcher */}
-                <div className="flex p-1 bg-secondary/30 rounded-xl border border-white/5 backdrop-blur-sm">
+                <div className="flex p-1 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-xl shadow-2xl w-full lg:w-auto">
                     <button
                         onClick={() => setActiveView('roadmap')}
-                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeView === 'roadmap' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-muted-foreground hover:text-white'}`}
+                        className={`flex-1 lg:flex-none px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${activeView === 'roadmap' ? 'bg-primary text-white shadow-xl shadow-primary/20' : 'text-muted-foreground hover:text-white hover:bg-white/5'}`}
                     >
                         <BookOpen className="w-4 h-4" />
                         Roadmap
                     </button>
                     <button
                         onClick={() => setActiveView('notes')}
-                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeView === 'notes' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-muted-foreground hover:text-white'}`}
+                        className={`flex-1 lg:flex-none px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${activeView === 'notes' ? 'bg-primary text-white shadow-xl shadow-primary/20' : 'text-muted-foreground hover:text-white hover:bg-white/5'}`}
                     >
                         <FileText className="w-4 h-4" />
-                        Notes Library
+                        Library
                     </button>
                 </div>
             </div>
