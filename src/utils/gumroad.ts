@@ -19,6 +19,12 @@ export const verifyGumroadLicense = async (licenseKey: string) => {
             })
         });
 
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error("Gumroad API Error:", response.status, errorText);
+            return { valid: false, message: `Gumroad error (${response.status}). Please verify the key or try later.` };
+        }
+
         const data = await response.json();
 
         if (data.success && !data.purchase.refunded && !data.purchase.chargebacked) {

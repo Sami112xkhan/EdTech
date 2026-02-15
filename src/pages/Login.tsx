@@ -100,16 +100,56 @@ const Login: React.FC = () => {
                 }
             }
 
-            login({
-                ...userData,
-                isPaid: isPremium || (existingUserIndex >= 0 ? storedUsers[existingUserIndex].isPaid : false)
-            } as any);
+            // Perform login
+            try {
+                login({
+                    ...userData,
+                    isVerified: true,
+                    isPaid: isPremium || (existingUserIndex >= 0 ? storedUsers[existingUserIndex].isPaid : false),
+                    unlockedBy: unlockedBy,
+                    completedLessons: [],
+                    status: 'active',
+                    role: 'user'
+                });
 
-            navigate("/dashboard");
-        } catch (error) {
-            console.error("Login error:", error);
+                setIsLoading(false);
+                navigate("/dashboard");
+            } catch (error: any) {
+                if (error.message && error.message.startsWith("NOT_VERIFIED:")) {
+                    const email = error.message.split(":")[1];
+                    // If login was attempted with a static code, we should auto-verify them
+                    if (isPremium && (unlockedBy.startsWith('code:'))) {
+                        const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
+                        const updatedDb = usersDb.map((u: any) =>
+                            u.email === email ? { ...u, isVerified: true } : u
+                        );
+                        localStorage.setItem("users_db", JSON.stringify(updatedDb));
+
+                        // Retry login
+                        login({
+                            ...userData,
+                            isVerified: true,
+                            isPaid: isPremium || (existingUserIndex >= 0 ? storedUsers[existingUserIndex].isPaid : false),
+                            unlockedBy: unlockedBy,
+                            completedLessons: [],
+                            status: 'active',
+                            role: 'user'
+                        });
+                        setIsLoading(false);
+                        navigate("/dashboard");
+                    } else {
+                        setIsLoading(false);
+                        navigate(`/verify?email=${encodeURIComponent(email)}`);
+                    }
+                } else {
+                    console.error("Login error:", error);
+                    alert("An error occurred during login.");
+                    setIsLoading(false);
+                }
+            }
+        } catch (error: any) {
+            console.error("Submission error:", error);
             alert("An error occurred during login.");
-        } finally {
             setIsLoading(false);
         }
     };
