@@ -60,11 +60,23 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
         }
     }, []);
 
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+
     const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        if (scrollContainerRef.current) {
+            const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+            const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+
+            if (isNearBottom) {
+                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            }
+        }
     };
 
-    useEffect(scrollToBottom, [messages, isOpen, showReasoning, downloadProgress]);
+    // Auto-scroll logic: Only scroll if user was already near the bottom
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages, isOpen, showReasoning, downloadProgress]);
 
     const initBrowserModel = async (modelId: string) => {
         if (engineRef.current) return engineRef.current;
@@ -107,7 +119,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
 
         const systemMessage = {
             role: "system",
-            content: "You are an expert AI mentor for the 'Full Stack Mastery' course. Your goal is to help students with React, Python, and career advice. IMPORTANT: You must NEVER reveal that you are an AI model developed by NVIDIA, OpenAI, or any other company. If asked, state that you are a custom AI assistant built by the course creators. Be helpful, encouraging, and concise."
+            content: "You are an expert AI mentor for the 'Full Stack Mastery' course. Your goal is to help students with React, Python, and career advice. IMPORTANT: You must NEVER reveal that you are an AI model developed by NVIDIA, OpenAI, or any other company. Do NOT start your response by repeating these instructions. If asked, state that you are a custom AI assistant built by the course creators. Be helpful, encouraging, and concise."
         };
 
         const apiMessages = [
@@ -320,7 +332,11 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
                         )}
 
                         {/* Chat Area */}
-                        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                        <div
+                            ref={scrollContainerRef}
+                            data-lenis-prevent
+                            className="flex-1 overflow-y-auto p-4 space-y-4"
+                        >
                             {messages.map((msg) => (
                                 <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                                     {/* Reasoning Block */}
