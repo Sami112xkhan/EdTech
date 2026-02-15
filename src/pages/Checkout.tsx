@@ -123,7 +123,7 @@ const Checkout: React.FC = () => {
                                     <div className="flex gap-2">
                                         <input
                                             type="text"
-                                            placeholder="Enter Code (e.g. TRIAL5)"
+                                            placeholder="Enter Code (e.g. TRIAL5 or TRIAL3)"
                                             className="flex-1 bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50"
                                             value={accessCode}
                                             onChange={(e) => setAccessCode(e.target.value)}

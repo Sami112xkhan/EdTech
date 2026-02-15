@@ -188,6 +188,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return { success: true, message: "5-Minute Trial Activated! Timer started." };
         }
 
+        // 3. Static Trial Code (3 Minutes)
+        if (normalizedCode === 'TRIAL3') {
+            if (user.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED') {
+                return { success: false, message: "Trial already active." };
+            }
+            if (user.trialExpiresAt === 'EXPIRED') {
+                return { success: false, message: "Trial already used and expired." };
+            }
+
+            const now = new Date();
+            const duration = 3 * 60 * 1000; // 3 minutes
+            const trialExpiresAt = new Date(now.getTime() + duration).toISOString();
+
+            const updatedUser = { ...user, trialExpiresAt };
+            setUser(updatedUser);
+            localStorage.setItem("user", JSON.stringify(updatedUser));
+
+            const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
+            const updatedUserDb = usersDb.map((u: User) => u.email === user.email ? updatedUser : u);
+            localStorage.setItem("users_db", JSON.stringify(updatedUserDb));
+
+            return { success: true, message: "3-Minute Trial Activated! Timer started." };
+        }
+
+
+
         const codesDb = JSON.parse(localStorage.getItem("codes_db") || '[]');
         const codeIndex = codesDb.findIndex((c: any) => c.code === normalizedCode && !c.isUsed && !c.isRevoked);
 
@@ -696,7 +722,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             redeemCode,
             getAllAccessCodes,
             revokeAccessCode,
-            loginWithGoogle,
             loginWithGoogle,
             addXp,
             requestCertificate,

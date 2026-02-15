@@ -116,37 +116,51 @@ const Feedback: React.FC = () => {
                                 key={item.id}
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                className="p-6 rounded-3xl bg-secondary/5 border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:bg-white/[0.02] transition-all"
+                                className="p-6 rounded-3xl bg-secondary/5 border border-white/5 flex flex-col gap-4 group hover:bg-white/[0.02] transition-all"
                             >
-                                <div className="space-y-1">
-                                    <p className="text-sm text-zinc-300 font-medium group-hover:text-white transition-colors">
-                                        {item.content}
-                                    </p>
-                                    <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">
-                                        Submitted {new Date(item.createdAt).toLocaleDateString()}
-                                    </span>
+                                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                                    <div className="space-y-2 w-full">
+                                        <p className="text-sm text-zinc-300 font-medium group-hover:text-white transition-colors">
+                                            {item.content}
+                                        </p>
+                                        <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest block">
+                                            Submitted {new Date(item.createdAt).toLocaleDateString()}
+                                        </span>
+                                    </div>
+
+                                    <div className="flex items-center gap-4 shrink-0">
+                                        {item.status === 'implemented' ? (
+                                            <div className="px-3 py-1 bg-green-500/10 text-green-400 border border-green-500/20 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                                                <CheckCircle2 className="w-3 h-3" /> Implemented
+                                            </div>
+                                        ) : item.status === 'ignored' ? (
+                                            <div className="px-3 py-1 bg-zinc-800 text-zinc-500 border border-white/5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                                                <AlertCircle className="w-3 h-3" /> Reviewed
+                                            </div>
+                                        ) : (
+                                            <div className="px-3 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 animate-pulse">
+                                                <Clock className="w-3 h-3" /> Under Review
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-4">
-                                    {item.status === 'implemented' ? (
-                                        <div className="px-3 py-1 bg-green-500/10 text-green-400 border border-green-500/20 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                                            <CheckCircle2 className="w-3 h-3" /> Implemented
+
+                                {item.reply && (
+                                    <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 w-full animate-in fade-in slide-in-from-top-2">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                                            <span className="text-[10px] uppercase font-black text-primary tracking-[0.2em]">Official Response</span>
                                         </div>
-                                    ) : item.status === 'ignored' ? (
-                                        <div className="px-3 py-1 bg-zinc-800 text-zinc-500 border border-white/5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                                            <AlertCircle className="w-3 h-3" /> Reviewed
-                                        </div>
-                                    ) : (
-                                        <div className="px-3 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 animate-pulse">
-                                            <Clock className="w-3 h-3" /> Under Review
-                                        </div>
-                                    )}
-                                </div>
+                                        <p className="text-xs text-zinc-400 font-bold leading-relaxed">{item.reply}</p>
+                                    </div>
+                                )}
                             </motion.div>
                         ))}
                     </div>
                 </div>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 };
 
