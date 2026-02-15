@@ -22,6 +22,15 @@ import {
     ShieldAlert
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
+import { curriculum } from "../data/curriculum";
+import { getPhasesStatus } from "../utils/progress";
+
+// Helper to check online status (within last 5 mins)
+const isOnline = (lastSeen?: string) => {
+    if (!lastSeen) return false;
+    const diff = new Date().getTime() - new Date(lastSeen).getTime();
+    return diff < 5 * 60 * 1000; // 5 minutes
+};
 
 const AdminDashboard: React.FC = () => {
     const {
@@ -168,7 +177,6 @@ const AdminDashboard: React.FC = () => {
                             { id: 'feedback', icon: MessageSquare, label: 'Feedback' },
                             { id: 'requests', icon: ShieldAlert, label: 'Appeals' },
                             { id: 'codes', icon: Zap, label: 'Trials' },
-                            { id: 'content', icon: Award, label: 'Progress' },
                             { id: 'content', icon: Award, label: 'Progress' }
                         ].map((tab) => (
                             <button
@@ -213,10 +221,10 @@ const AdminDashboard: React.FC = () => {
                                     <thead className="bg-white/5 border-b border-white/5">
                                         <tr>
                                             <th className="px-6 md:px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Entity Details</th>
-                                            <th className="px-6 md:px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Status</th>
-                                            <th className="px-6 md:px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Privilege</th>
-                                            <th className="px-6 md:px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Temporal Access</th>
-                                            <th className="px-6 md:px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground text-right">Direct Actions</th>
+                                            <th className="px-6 md:px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Activity</th>
+                                            <th className="px-6 md:px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Current Phase</th>
+                                            <th className="px-6 md:px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Progress</th>
+                                            <th className="px-6 md:px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground text-right">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-white/5">
@@ -234,21 +242,39 @@ const AdminDashboard: React.FC = () => {
                                                     </div>
                                                 </td>
                                                 <td className="px-8 py-6">
-                                                    <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${u.status === 'active' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-                                                        <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${u.status === 'active' ? 'bg-green-400' : 'bg-red-400'}`} />
-                                                        {u.status}
+                                                    <div className="flex flex-col gap-1">
+                                                        <div className={`inline-flex items-center gap-2 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest w-fit ${isOnline(u.lastSeen) ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-white/5 text-muted-foreground border border-white/5'}`}>
+                                                            <div className={`w-1.5 h-1.5 rounded-full ${isOnline(u.lastSeen) ? 'bg-green-400 animate-pulse' : 'bg-gray-500'}`} />
+                                                            {isOnline(u.lastSeen) ? 'Online' : 'Offline'}
+                                                        </div>
+                                                        <span className="text-[10px] text-muted-foreground font-mono">
+                                                            {u.lastSeen ? new Date(u.lastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Never'}
+                                                        </span>
                                                     </div>
                                                 </td>
                                                 <td className="px-8 py-6">
-                                                    {u.isPaid ? (
-                                                        <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/10 text-primary rounded-xl border border-primary/20 font-black text-xs shadow-lg shadow-primary/5">
-                                                            <Award className="w-4 h-4" /> PRO ELITE
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-xs font-black text-muted-foreground/40 italic">BASIC TIER</span>
-                                                    )}
+                                                    <div className="text-xs font-bold text-white">
+                                                        {(() => {
+                                                            const stats = getPhasesStatus(curriculum, u.completedLessons);
+                                                            const current = stats.find(p => !p.locked && !p.completed) || stats[stats.length - 1]; // Fallback to last
+                                                            // If all complete?
+                                                            if (stats.every(p => p.completed)) return <span className="text-primary">GRADUATED</span>;
+                                                            return current?.title.split(" — ")[0] || "Phase 0";
+                                                        })()}
+                                                    </div>
                                                 </td>
                                                 <td className="px-8 py-6">
+                                                    <div className="flex items-center gap-1">
+                                                        {getPhasesStatus(curriculum, u.completedLessons).map((p, i) => (
+                                                            <div
+                                                                key={i}
+                                                                className={`w-1.5 h-6 rounded-full transition-all ${p.completed ? 'bg-primary shadow-[0_0_8px_rgba(59,130,246,0.5)]' : p.locked ? 'bg-white/5' : 'bg-white/20 animate-pulse'}`}
+                                                                title={p.title}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                </td>
+                                                <td className="px-8 py-6 text-right">
                                                     {u.trialExpiresAt ? (
                                                         u.trialExpiresAt === 'EXPIRED' ? (
                                                             <div className="flex items-center gap-2 text-rose-400/50 font-black text-[10px] uppercase">

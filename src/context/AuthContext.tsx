@@ -32,8 +32,13 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [user, setUser] = useState<User | null>(null);
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [user, setUser] = useState<User | null>(() => {
+        const savedUser = localStorage.getItem('user');
+        return savedUser ? JSON.parse(savedUser) : null;
+    });
+    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+        return !!localStorage.getItem('user');
+    });
 
     useEffect(() => {
         const storedUser = localStorage.getItem("user");
@@ -62,7 +67,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Periodic check for trial expiry (every 10 seconds)
     useEffect(() => {
-        if (!user || user.isPaid || !user.trialExpiresAt || user.trialExpiresAt === 'EXPIRED') return;
+        if (!user) return;
+
+        // Heartbeat for lastSeen (every 1 minute)
+        const heartbeatInterval = setInterval(() => {
+            const now = new Date().toISOString();
+            const updatedUser = { ...user, lastSeen: now };
+            setUser(updatedUser);
+            localStorage.setItem("user", JSON.stringify(updatedUser));
+
+            // Allow this to silently update DB
+            const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
+            const updatedDb = usersDb.map((u: User) => u.email === user.email ? { ...u, lastSeen: now } : u);
+            localStorage.setItem("users_db", JSON.stringify(updatedDb));
+        }, 60000);
+
+        if (user.isPaid || !user.trialExpiresAt || user.trialExpiresAt === 'EXPIRED') {
+            return () => clearInterval(heartbeatInterval);
+        }
 
         const interval = setInterval(() => {
             const now = new Date();
@@ -80,7 +102,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
         }, 10000);
 
-        return () => clearInterval(interval);
+        return () => {
+            clearInterval(interval);
+            clearInterval(heartbeatInterval);
+        };
     }, [user]);
 
     // Initialize databases if empty

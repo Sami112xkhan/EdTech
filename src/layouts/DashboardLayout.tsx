@@ -199,7 +199,7 @@ const DashboardLayout: React.FC = () => {
             </motion.aside>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-auto relative flex flex-col">
+            <main data-lenis-prevent className="flex-1 overflow-y-auto relative flex flex-col h-full w-full">
                 {/* Mobile Header */}
                 <header className="md:hidden flex items-center justify-between p-4 border-b border-white/5 bg-background/80 backdrop-blur-md sticky top-0 z-40">
                     <div className="flex items-center gap-2">
@@ -222,7 +222,7 @@ const DashboardLayout: React.FC = () => {
                     <TrialCountdown expiry={user.trialExpiresAt} />
                 )}
 
-                <div className="p-4 md:p-6 max-w-7xl mx-auto pb-24 w-full">
+                <div className="p-4 md:p-6 max-w-7xl mx-auto pb-40 w-full">
                     <Outlet />
                 </div>
 

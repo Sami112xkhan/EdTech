@@ -3,9 +3,10 @@ import React, { useEffect } from "react";
 import { useSearchParams, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { curriculum } from "../data/curriculum";
+import { getPhasesStatus } from "../utils/progress";
 import { PlayCircle, Award, Clock, Lock, ShieldAlert, Flame, Download } from "lucide-react";
 import { jsPDF } from "jspdf";
-import { jsPDF } from "jspdf";
+
 
 const Dashboard: React.FC = () => {
     const [searchParams] = useSearchParams();
@@ -22,50 +23,132 @@ const Dashboard: React.FC = () => {
             format: [1200, 800]
         });
 
-        // Background
-        doc.setFillColor(10, 10, 20); // Dark background
+        // --- Palette ---
+        const deepBlue = [10, 25, 47];       // Sidebar (Dark Navy)
+        const gold = [212, 175, 55];         // Badge Gold
+        const textDark = [33, 33, 33];      // Main Text
+        const textLight = [255, 255, 255];  // Sidebar Text
+        const textMuted = [100, 100, 100];  // Secondary Text
+
+        // 1. Background (White)
+        doc.setFillColor(255, 255, 255);
         doc.rect(0, 0, 1200, 800, 'F');
 
-        // Border
-        doc.setDrawColor(255, 215, 0); // Gold
-        doc.setLineWidth(5);
-        doc.rect(20, 20, 1160, 760);
+        // 2. Sidebar (Left Panel)
+        doc.setFillColor(deepBlue[0], deepBlue[1], deepBlue[2]);
+        doc.rect(0, 0, 350, 800, 'F'); // 350px width
 
-        // Header
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(60);
-        doc.setFont("helvetica", "bold");
-        doc.text("CERTIFICATE OF MASTERY", 600, 150, { align: 'center' });
-
-        // Subheader
-        doc.setFontSize(30);
-        doc.setFont("helvetica", "normal");
-        doc.text("This is to certify that", 600, 250, { align: 'center' });
-
-        // Name
-        doc.setTextColor(255, 215, 0); // Gold
-        doc.setFontSize(80);
-        doc.setFont("times", "bolditalic");
-        doc.text(user.name, 600, 350, { align: 'center' });
-
-        // Course Name
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(30);
-        doc.setFont("helvetica", "normal");
-        doc.text("Has successfully completed the", 600, 450, { align: 'center' });
-
+        // Sidebar Content - Logo Area
+        doc.setTextColor(textLight[0], textLight[1], textLight[2]);
         doc.setFontSize(40);
         doc.setFont("helvetica", "bold");
-        doc.text("Full Stack Developer Architecture", 600, 520, { align: 'center' });
+        doc.text("DMA", 175, 100, { align: 'center' }); // Logo shortcut
 
-        // Footer
-        doc.setFontSize(20);
-        doc.setTextColor(150, 150, 150);
+        doc.setFontSize(16);
+        doc.setFont("helvetica", "normal");
+        doc.setCharSpace(2);
+        doc.text("DEVMASTERY", 175, 130, { align: 'center' });
+        doc.text("ACADEMY", 175, 150, { align: 'center' });
+
+        // Sidebar Content - QR Code Placeholder
+        doc.setFillColor(255, 255, 255);
+        doc.rect(100, 600, 150, 150, 'F');
+        // Simple QR Pattern Mock
+        doc.setFillColor(deepBlue[0], deepBlue[1], deepBlue[2]);
+        doc.rect(110, 610, 50, 50, 'F'); doc.rect(190, 610, 50, 50, 'F');
+        doc.rect(110, 690, 50, 50, 'F');
+        doc.circle(215, 715, 20, 'F');
+
+        // 3. Main Content Area (Right Side)
+        const contentX = 775; // Center of the remaining 850px area (350 + 850/2)
+
+        // Certificate Title
+        doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+        doc.setFontSize(65);
+        doc.setFont("times", "bold"); // Serif
+        doc.text("CERTIFICATE", contentX, 150, { align: 'center' });
+
+        doc.setFontSize(30);
+        doc.setFont("helvetica", "normal");
+        doc.setCharSpace(3);
+        doc.text("OF COMPLETION", contentX, 200, { align: 'center' });
+
+        // Presented To
+        doc.setTextColor(textMuted[0], textMuted[1], textMuted[2]);
+        doc.setFontSize(22);
+        doc.setCharSpace(0);
+        doc.text("We proudly present this certificate to", contentX, 300, { align: 'center' });
+
+        // Recipients Name
+        doc.setTextColor(deepBlue[0], deepBlue[1], deepBlue[2]); // Name in Brand Color
+        doc.setFontSize(70);
+        doc.setFont("times", "italic");
+        doc.text(user.name, contentX, 380, { align: 'center' });
+        doc.setLineWidth(1);
+        doc.setDrawColor(textMuted[0], textMuted[1], textMuted[2]);
+        doc.line(contentX - 250, 390, contentX + 250, 390); // Underline
+
+        // Course Info
+        doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+        doc.setFontSize(22);
+        doc.setFont("helvetica", "normal");
+        doc.text("For successfully completing the comprehensive course:", contentX, 460, { align: 'center' });
+
+        doc.setFontSize(35);
+        doc.setFont("helvetica", "bold");
+        doc.text("Full Stack Developer Architecture", contentX, 510, { align: 'center' });
+
+        // 4. Gold Badge (Top Right)
+        doc.setFillColor(gold[0], gold[1], gold[2]);
+        doc.circle(1050, 120, 60, 'F'); // Main Circle
+        doc.setDrawColor(255, 255, 255);
+        doc.setLineWidth(2);
+        doc.circle(1050, 120, 54, 'S'); // Inner Ring
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.text("DEVMASTERY", 1050, 100, { align: 'center' });
+        doc.text("AWARDED", 1050, 155, { align: 'center' });
+        doc.setFontSize(30);
+        doc.text("2026", 1050, 130, { align: 'center' });
+
+        // Ribbons for Badge
+        doc.setFillColor(deepBlue[0], deepBlue[1], deepBlue[2]);
+        // Left Ribbon
+        doc.triangle(1020, 170, 1050, 170, 1010, 240, 'F');
+        // Right Ribbon
+        doc.triangle(1050, 170, 1080, 170, 1090, 240, 'F');
+
+        // 5. Signatures
+        const sigY = 680;
+
+        // Left Sig
+        doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+        doc.setFont("times", "italic");
+        doc.setFontSize(30);
+        doc.text("Sami Khan", 550, sigY, { align: 'center' }); // Mock Sig
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(12);
+        doc.setTextColor(textMuted[0], textMuted[1], textMuted[2]);
+        doc.text("SAMI KHAN", 550, sigY + 20, { align: 'center' });
+        doc.text("HEAD INSTRUCTOR", 550, sigY + 35, { align: 'center' });
+
+        // Right Sig
+        doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+        doc.setFont("times", "italic");
+        doc.setFontSize(30);
+        doc.text("DevMastery", 950, sigY, { align: 'center' }); // Mock Sig
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(12);
+        doc.setTextColor(textMuted[0], textMuted[1], textMuted[2]);
+        doc.text("DEVMASTERY ACADEMY", 950, sigY + 20, { align: 'center' });
+        doc.text("OFFICIAL CERTIFICATION", 950, sigY + 35, { align: 'center' });
+
         const date = user.certificateIssueDate ? new Date(user.certificateIssueDate).toLocaleDateString() : new Date().toLocaleDateString();
-        doc.text(`Issued On: ${date}`, 200, 700);
-        doc.text("DevMastery Academy", 1000, 700, { align: 'right' });
+        doc.text(`Issued: ${date}`, contentX, 750, { align: 'center' });
 
-        doc.save(`${user.name.split(' ')[0]}_Certificate.pdf`);
+        doc.save(`${user.name.split(' ')[0]}_Certificate_Premium.pdf`);
     };
 
     // Handle scroll for /curriculum route
@@ -95,6 +178,7 @@ const Dashboard: React.FC = () => {
     };
 
     // Calculate Progress
+    // Calculate Progress
     const completedLessons = user?.completedLessons || [];
     const totalLessons = curriculum.reduce((acc, phase) => acc + phase.lessons.length, 0);
     const progress = totalLessons > 0 ? Math.round((completedLessons.length / totalLessons) * 100) : 0;
@@ -109,24 +193,7 @@ const Dashboard: React.FC = () => {
     let nextPhaseId = null;
 
     // We verify each phase sequentially
-    const phasesStatus = curriculum.map((phase, index) => {
-        // Phase 0 is always unlocked
-        if (index === 0) return { ...phase, locked: false, completed: isPhaseComplete(phase) };
-
-        // For subsequent phases, check if previous phase is complete
-        const prevPhase = curriculum[index - 1];
-        const isPrevComplete = isPhaseComplete(prevPhase);
-
-        return {
-            ...phase,
-            locked: !isPrevComplete,
-            completed: isPhaseComplete(phase)
-        };
-    });
-
-    function isPhaseComplete(phase: typeof curriculum[0]) {
-        return phase.lessons.every(l => completedLessons.includes(l.id));
-    }
+    const phasesStatus = getPhasesStatus(curriculum, completedLessons);
 
     // Find "Continue Learning" lesson
     for (const phase of phasesStatus) {
@@ -230,8 +297,14 @@ const Dashboard: React.FC = () => {
                 <div className="bg-secondary/30 backdrop-blur-xl border border-white/10 p-6 rounded-2xl relative overflow-hidden group">
                     <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                     <div className="relative z-10 flex flex-col md:flex-row gap-6 items-center">
-                        <div className="w-full md:w-64 h-36 bg-black rounded-lg flex items-center justify-center border border-white/10 shrink-0">
-                            <PlayCircle className="w-12 h-12 text-white/50" />
+                        <div className="w-full md:w-64 h-36 bg-black rounded-lg flex items-center justify-center border border-white/10 shrink-0 relative overflow-hidden group-hover:scale-[1.02] transition-transform duration-500">
+                            <img
+                                src={`https://img.youtube.com/vi/${nextLesson.youtubeId}/hqdefault.jpg`}
+                                alt={nextLesson.title}
+                                className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                            <PlayCircle className="w-12 h-12 text-white relative z-10 drop-shadow-lg group-hover:scale-110 transition-transform" />
                         </div>
                         <div className="flex-1 space-y-2">
                             <div className="text-xs font-semibold text-primary uppercase tracking-wider">Continue Learning</div>

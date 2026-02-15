@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import { curriculum } from "../data/curriculum";
-import { ChevronLeft, ChevronRight, CheckCircle, FileText, Save } from "lucide-react";
+import { getPhasesStatus } from "../utils/progress";
+import { ChevronLeft, ChevronRight, CheckCircle, FileText, Save, Lock } from "lucide-react";
 
 const CoursePlayer: React.FC = () => {
+    const { user } = useAuth();
     const { moduleId, lessonId } = useParams<{ moduleId: string; lessonId: string }>();
     const [note, setNote] = useState("");
     const [activeTab, setActiveTab] = useState<"notes" | "material">("notes");
@@ -12,6 +15,11 @@ const CoursePlayer: React.FC = () => {
     const currentModule = curriculum.find(m => m.id === moduleId);
     const currentLessonIndex = currentModule?.lessons.findIndex(l => l.id === lessonId) ?? -1;
     const currentLesson = currentModule?.lessons[currentLessonIndex];
+
+    // Check if phase is locked
+    const phasesStatus = user ? getPhasesStatus(curriculum, user.completedLessons) : [];
+    const currentPhaseStatus = phasesStatus.find(p => p.id === moduleId);
+    const isPhaseLocked = currentPhaseStatus?.locked ?? false;
 
     // Navigation logic
     const nextLesson = currentModule?.lessons[currentLessonIndex + 1];
@@ -147,21 +155,35 @@ const CoursePlayer: React.FC = () => {
                                             </p>
                                         </div>
                                         <div className="flex flex-col gap-3 px-4">
-                                            <a
-                                                href={currentLesson.notesPath}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="w-full py-4 bg-primary text-white rounded-2xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
-                                            >
-                                                View Online
-                                            </a>
-                                            <a
-                                                href={currentLesson.notesPath}
-                                                download
-                                                className="w-full py-4 bg-white/5 text-white rounded-2xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 border border-white/10 hover:bg-white/10 transition-all active:scale-[0.98]"
-                                            >
-                                                Download PDF
-                                            </a>
+                                            {!user?.isPaid || isPhaseLocked ? (
+                                                <div className="w-full py-6 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center justify-center gap-2 group relative overflow-hidden">
+                                                    <div className="absolute inset-0 bg-black/40 z-10" />
+                                                    <Lock className="w-6 h-6 text-white/50 relative z-20 mb-1" />
+                                                    <span className="text-xs font-black uppercase tracking-widest text-white/70 relative z-20">Downloads Locked</span>
+                                                    <p className="text-[10px] text-muted-foreground relative z-20">
+                                                        {!user?.isPaid ? "Available in Full Version" : "Complete previous phases to unlock"}
+                                                    </p>
+                                                    <Link to="/curriculum" className="absolute inset-0 z-30" />
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <a
+                                                        href={currentLesson.notesPath}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="w-full py-4 bg-primary text-white rounded-2xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                                                    >
+                                                        View Online
+                                                    </a>
+                                                    <a
+                                                        href={currentLesson.notesPath}
+                                                        download
+                                                        className="w-full py-4 bg-white/5 text-white rounded-2xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 border border-white/10 hover:bg-white/10 transition-all active:scale-[0.98]"
+                                                    >
+                                                        Download PDF
+                                                    </a>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
                                 ) : (

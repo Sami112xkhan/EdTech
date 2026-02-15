@@ -22,6 +22,7 @@ export interface User {
     // Certificate
     certificateStatus?: 'locked' | 'eligible' | 'pending' | 'approved';
     certificateIssueDate?: string;
+    lastSeen?: string; // ISO string
 }
 
 export interface AccessCode {
