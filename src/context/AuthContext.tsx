@@ -16,7 +16,7 @@ interface AuthContextType {
     markLessonComplete: (lessonId: string) => void;
     verifyEmail: (email: string, code: string) => { success: boolean; message: string };
     resendVerificationCode: (email: string) => void;
-    loginWithGoogle: (credential: string) => void;
+    loginWithGoogle: (credential: string) => Promise<void>;
     // Trial System
     generateAccessCode: (type: '3days' | '5mins') => string;
     redeemCode: (code: string) => { success: boolean; message: string };
@@ -39,6 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
         return !!localStorage.getItem('user');
     });
+    const [sessionId, setSessionId] = useState<string | null>(() => localStorage.getItem('sessionId'));
 
     useEffect(() => {
         const storedUser = localStorage.getItem("user");
@@ -102,9 +103,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
         }, 10000);
 
+        // Heartbeat for SQL Backend Session
+        const sqlHeartbeatInterval = setInterval(async () => {
+            if (sessionId) {
+                try {
+                    await fetch('http://localhost:3001/api/auth/heartbeat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sessionId }),
+                    });
+                } catch (e) {
+                    console.error("SQL heartbeat failed", e);
+                }
+            }
+        }, 60000); // Every 1 minute
+
         return () => {
             clearInterval(interval);
             clearInterval(heartbeatInterval);
+            clearInterval(sqlHeartbeatInterval);
         };
     }, [user]);
 
@@ -359,7 +376,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
-    const loginWithGoogle = (credential: string) => {
+    const loginWithGoogle = async (credential: string) => {
         try {
             // Decode the JWT token
             const base64Url = credential.split('.')[1];
@@ -446,6 +463,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setIsAuthenticated(true);
                 localStorage.setItem("user", JSON.stringify(newUser));
                 alert("Welcome! You earned 50 XP for joining! 🔥");
+            }
+
+            // --- HOOK INTO BACKEND AFTER SUCCESSFUL GOOGLE AUTH ---
+            try {
+                const response = await fetch('http://localhost:3001/api/auth/google', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ credential }),
+                });
+                const data = await response.json();
+                if (data.sessionId) {
+                    setSessionId(data.sessionId);
+                    localStorage.setItem('sessionId', data.sessionId);
+                }
+            } catch (e) {
+                console.error("Failed to sync with SQL backend", e);
+                // We don't block the user if the analytics backend is down
             }
         } catch (error) {
             console.error("Google Login Error:", error);
@@ -592,10 +626,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
-    const logout = () => {
+    const logout = async () => {
+        if (sessionId) {
+            try {
+                await fetch('http://localhost:3001/api/auth/logout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sessionId }),
+                });
+            } catch (e) {
+                console.error("Backend logout failed", e);
+            }
+        }
         setUser(null);
         setIsAuthenticated(false);
+        setSessionId(null);
         localStorage.removeItem("user");
+        localStorage.removeItem("sessionId");
     };
 
     const completePurchase = () => {

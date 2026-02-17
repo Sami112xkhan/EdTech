@@ -56,10 +56,32 @@ const AdminDashboard: React.FC = () => {
     const navigate = useNavigate();
     const [users, setUsers] = useState<User[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
-    const [activeTab, setActiveTab] = useState<'users' | 'feedback' | 'codes' | 'requests' | 'content'>('users');
+    const [activeTab, setActiveTab] = useState<'users' | 'feedback' | 'codes' | 'requests' | 'content' | 'activity'>('users');
     const [codeType, setCodeType] = useState<'3days' | '5mins'>('3days');
     const [generatedCode, setGeneratedCode] = useState("");
     const [codes, setCodes] = useState(getAllAccessCodes());
+    const [sqlStats, setSqlStats] = useState<{
+        totalUsers: number;
+        activeUsers: number;
+        newToday: number;
+        recentLogins: any[];
+    } | null>(null);
+
+    useEffect(() => {
+        const fetchSqlStats = async () => {
+            try {
+                const response = await fetch('http://localhost:3001/api/admin/stats');
+                const data = await response.json();
+                setSqlStats(data);
+            } catch (e) {
+                console.error("Failed to fetch SQL stats", e);
+            }
+        };
+
+        fetchSqlStats();
+        const interval = setInterval(fetchSqlStats, 30000); // Pulse every 30s
+        return () => clearInterval(interval);
+    }, []);
 
     useEffect(() => {
         // Security check
@@ -105,10 +127,10 @@ const AdminDashboard: React.FC = () => {
         const usedCodes = getAllAccessCodes().filter(c => c.isUsed).length;
 
         return [
-            { label: 'Total Members', value: totalUsers, icon: Users, color: 'indigo', trend: '+12%' },
+            { label: 'Total Members', value: sqlStats?.totalUsers ?? totalUsers, icon: Users, color: 'indigo', trend: sqlStats ? 'SQL' : '+12%' },
             { label: 'PRO Members', value: proUsers, icon: Award, color: 'primary', trend: '+5%' },
-            { label: 'Active Trials', value: activeTrials, icon: Clock, color: 'amber', trend: 'Live' },
-            { label: 'Pending Feedback', value: pendingFeedback, icon: MessageSquare, color: 'rose', trend: 'Action' }
+            { label: 'Live Active', value: sqlStats?.activeUsers ?? activeTrials, icon: Clock, color: 'amber', trend: 'Live' },
+            { label: 'New Today', value: sqlStats?.newToday ?? pendingFeedback, icon: MessageSquare, color: 'rose', trend: 'Today' }
         ];
     }, [users, feedback, getAllAccessCodes]);
 
@@ -177,7 +199,8 @@ const AdminDashboard: React.FC = () => {
                             { id: 'feedback', icon: MessageSquare, label: 'Feedback' },
                             { id: 'requests', icon: ShieldAlert, label: 'Appeals' },
                             { id: 'codes', icon: Zap, label: 'Trials' },
-                            { id: 'content', icon: Award, label: 'Progress' }
+                            { id: 'content', icon: Award, label: 'Progress' },
+                            { id: 'activity', icon: TrendingUp, label: 'Activity' }
                         ].map((tab) => (
                             <button
                                 key={tab.id}
@@ -764,6 +787,57 @@ const AdminDashboard: React.FC = () => {
                                         </div>
                                     )}
                                 </div>
+                            </div>
+                        </motion.div>
+                    )}
+                    {activeTab === 'activity' && (
+                        <motion.div
+                            key="activity"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            className="bg-secondary/10 rounded-[2.5rem] border border-white/5 overflow-hidden shadow-2xl"
+                        >
+                            <div className="p-8 border-b border-white/5 flex items-center justify-between">
+                                <h3 className="text-sm font-black uppercase tracking-[0.3em] text-primary">Live SQL Stream</h3>
+                                <div className="flex items-center gap-2 px-3 py-1 bg-green-500/10 text-green-400 rounded-full text-[9px] font-black uppercase border border-green-500/20">
+                                    <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse" />
+                                    Synchronized
+                                </div>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left">
+                                    <thead className="bg-white/5">
+                                        <tr className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
+                                            <th className="px-8 py-5">Entity</th>
+                                            <th className="px-8 py-5">Email</th>
+                                            <th className="px-8 py-5">Access Log</th>
+                                            <th className="px-8 py-5 text-right">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/5">
+                                        {sqlStats?.recentLogins.map((log: any, i: number) => (
+                                            <tr key={i} className="group hover:bg-white/[0.02] transition-colors">
+                                                <td className="px-8 py-5 font-bold text-white uppercase text-xs">{log.name}</td>
+                                                <td className="px-8 py-5 font-mono text-zinc-500 text-[10px]">{log.email}</td>
+                                                <td className="px-8 py-5 text-xs text-zinc-400 font-medium">
+                                                    {new Date(log.loginTime).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                                                </td>
+                                                <td className="px-8 py-5 text-right">
+                                                    <span className="px-2 py-0.5 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded text-[9px] font-black uppercase tracking-widest">
+                                                        SESSION_START
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                {(!sqlStats || sqlStats.recentLogins.length === 0) && (
+                                    <div className="p-20 text-center opacity-30">
+                                        <Clock className="w-12 h-12 mx-auto mb-4" />
+                                        <p className="text-xs font-black uppercase tracking-widest italic">Signal buffer empty.</p>
+                                    </div>
+                                )}
                             </div>
                         </motion.div>
                     )}

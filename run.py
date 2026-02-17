@@ -22,7 +22,11 @@ def main():
     print("\n📦 Installing dependencies (npm install)...")
     run_command("npm install", cwd=project_dir)
 
-    # 2. Start Dev Server & Open Browser
+    # 2. Start Backend Server
+    print("\n📦 Starting Backend Analytics Server...")
+    server_process = subprocess.Popen("npm run server", shell=True, cwd=project_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    # 3. Start Dev Server & Open Browser
     print("\n🌐 Starting Development Server...")
     
     # Start npm run dev in a non-blocking subprocess
