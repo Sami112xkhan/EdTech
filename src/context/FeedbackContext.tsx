@@ -26,46 +26,85 @@ const FeedbackContext = createContext<FeedbackContextType | undefined>(undefined
 export const FeedbackProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [feedback, setFeedback] = useState<FeedbackItem[]>([]);
 
-    // Load from localStorage on mount
-    useEffect(() => {
-        const storedFeedback = localStorage.getItem('edtech_feedback');
-        if (storedFeedback) {
-            setFeedback(JSON.parse(storedFeedback));
+    const fetchFeedback = async () => {
+        try {
+            const response = await fetch('/api/feedback');
+            if (response.ok) {
+                const data = await response.json();
+                setFeedback(data);
+            }
+        } catch (error) {
+            console.error('Failed to fetch feedback:', error);
         }
+    };
+
+    // Load from SQL on mount
+    useEffect(() => {
+        fetchFeedback();
+        // Poll every 30 seconds for new feedback in admin panel
+        const interval = setInterval(fetchFeedback, 30000);
+        return () => clearInterval(interval);
     }, []);
 
-    // Save to localStorage on change
-    useEffect(() => {
-        localStorage.setItem('edtech_feedback', JSON.stringify(feedback));
-    }, [feedback]);
-
-    const addFeedback = (userId: string, userName: string, content: string, type: 'feedback' | 'access_request' = 'feedback') => {
-        const newFeedback: FeedbackItem = {
-            id: Date.now().toString(),
-            userId,
-            userName,
-            content,
-            type,
-            status: 'pending',
-            createdAt: new Date().toISOString(),
-        };
-        setFeedback(prev => [newFeedback, ...prev]);
+    const addFeedback = async (userId: string, userName: string, content: string, type: 'feedback' | 'access_request' = 'feedback') => {
+        try {
+            const response = await fetch('/api/feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, userName, content, type }),
+            });
+            if (response.ok) {
+                const newItem = await response.json();
+                setFeedback(prev => [newItem, ...prev]);
+            }
+        } catch (error) {
+            console.error('Failed to add feedback:', error);
+        }
     };
 
-    const updateFeedbackStatus = (id: string, status: FeedbackStatus) => {
-        setFeedback(prev => prev.map(item =>
-            item.id === id ? { ...item, status } : item
-        ));
+    const updateFeedbackStatus = async (id: string, status: FeedbackStatus) => {
+        try {
+            const response = await fetch(`/api/feedback/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status }),
+            });
+            if (response.ok) {
+                const updatedItem = await response.json();
+                setFeedback(prev => prev.map(item => item.id === id ? updatedItem : item));
+            }
+        } catch (error) {
+            console.error('Failed to update feedback status:', error);
+        }
     };
 
-    const replyToFeedback = (id: string, reply: string) => {
-        setFeedback(prev => prev.map(item =>
-            item.id === id ? { ...item, reply } : item
-        ));
+    const replyToFeedback = async (id: string, reply: string) => {
+        try {
+            const response = await fetch(`/api/feedback/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reply }),
+            });
+            if (response.ok) {
+                const updatedItem = await response.json();
+                setFeedback(prev => prev.map(item => item.id === id ? updatedItem : item));
+            }
+        } catch (error) {
+            console.error('Failed to reply to feedback:', error);
+        }
     };
 
-    const deleteFeedback = (id: string) => {
-        setFeedback(prev => prev.filter(item => item.id !== id));
+    const deleteFeedback = async (id: string) => {
+        try {
+            const response = await fetch(`/api/feedback/${id}`, {
+                method: 'DELETE',
+            });
+            if (response.ok) {
+                setFeedback(prev => prev.filter(item => item.id !== id));
+            }
+        } catch (error) {
+            console.error('Failed to delete feedback:', error);
+        }
     };
 
     return (

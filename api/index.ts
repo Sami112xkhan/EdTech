@@ -3,8 +3,8 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { OAuth2Client } from "google-auth-library";
 import { db } from "../server/db";
-import { users, sessions } from "../server/db/schema";
-import { eq, and, gte, sql } from "drizzle-orm";
+import { users, sessions, feedback as feedbackTable } from "../server/db/schema";
+import { eq, and, gte, sql, desc } from "drizzle-orm";
 
 dotenv.config();
 
@@ -96,14 +96,69 @@ app.post("/api/auth/heartbeat", async (req, res) => {
     }
 });
 
+// Feedback Endpoints
+app.get("/api/feedback", async (req, res) => {
+    try {
+        const items = await db.select().from(feedbackTable).orderBy(desc(feedbackTable.createdAt));
+        res.json(items);
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch feedback" });
+    }
+});
+
+app.post("/api/feedback", async (req, res) => {
+    const { userId, userName, content, type } = req.body;
+    try {
+        const [item] = await db.insert(feedbackTable).values({
+            userId,
+            userName,
+            content,
+            type: type || "feedback",
+        }).returning();
+        res.json(item);
+    } catch (error) {
+        res.status(500).json({ error: "Failed to add feedback" });
+    }
+});
+
+app.patch("/api/feedback/:id", async (req, res) => {
+    const { id } = req.params;
+    const { status, reply } = req.body;
+    try {
+        const [item] = await db.update(feedbackTable)
+            .set({ status, reply })
+            .where(eq(feedbackTable.id, id as any))
+            .returning();
+        res.json(item);
+    } catch (error) {
+        res.status(500).json({ error: "Failed to update feedback" });
+    }
+});
+
+app.delete("/api/feedback/:id", async (req, res) => {
+    const { id } = req.params;
+    try {
+        await db.delete(feedbackTable).where(eq(feedbackTable.id, id as any));
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: "Failed to delete feedback" });
+    }
+});
+
 // Admin Stats
 app.get("/api/admin/stats", async (req, res) => {
     try {
         const totalUsers = await db.select({ count: sql<number>`count(*)` }).from(users);
+        // Active Users (Heartbeat in last 5 mins or isActive is true)
         const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000);
-        const activeUsers = await db.select({ count: sql<number>`count(distinct user_id)` })
+        const activeUsersCount = await db.select({ count: sql<number>`count(distinct user_id)` })
             .from(sessions)
             .where(and(eq(sessions.isActive, true), gte(sessions.lastHeartbeat, fiveMinsAgo)));
+
+        // New Feedback Pending Today
+        const pendingFeedbackCount = await db.select({ count: sql<number>`count(*)` })
+            .from(feedbackTable)
+            .where(eq(feedbackTable.status, "pending"));
 
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
@@ -123,8 +178,9 @@ app.get("/api/admin/stats", async (req, res) => {
 
         res.json({
             totalUsers: Number(totalUsers[0].count),
-            activeUsers: Number(activeUsers[0].count),
+            activeUsers: Number(activeUsersCount[0].count),
             newToday: Number(newToday[0].count),
+            pendingFeedback: Number(pendingFeedbackCount[0].count),
             recentLogins,
         });
     } catch (error) {
