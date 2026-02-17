@@ -378,33 +378,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const loginWithGoogle = async (credential: string) => {
         try {
-            // Decode the JWT token
-            const base64Url = credential.split('.')[1];
-            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-            const jsonPayload = decodeURIComponent(atob(base64).split('').map(function (c) {
-                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-            }).join(''));
+            // 1. Decode JWT safely
+            let payload: any;
+            try {
+                const base64Url = credential.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(function (c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                payload = JSON.parse(jsonPayload);
+            } catch (decodeError) {
+                console.error("JWT Decode Error:", decodeError);
+                throw new Error("Invalid login token. Please try again or use another method.");
+            }
 
-            const payload = JSON.parse(jsonPayload);
             const { email, name, picture } = payload;
-
             const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
             const existingUser = usersDb.find((u: User) => u.email === email);
+            const today = new Date().toISOString().split('T')[0];
+
+            let activeUser: User;
 
             if (existingUser) {
-                // Gamification Logic (Duplicate for Google Login to ensure consistency)
-                const today = new Date().toISOString().split('T')[0];
-                const lastLoginDate = existingUser.lastLoginDate;
+                // Login existing user
                 let newStreak = existingUser.streak || 0;
                 let newXp = existingUser.xp || 0;
                 let streakMessage = '';
 
-                if (lastLoginDate !== today) {
+                if (existingUser.lastLoginDate !== today) {
                     const yesterday = new Date();
                     yesterday.setDate(yesterday.getDate() - 1);
                     const yesterdayStr = yesterday.toISOString().split('T')[0];
 
-                    if (lastLoginDate === yesterdayStr) {
+                    if (existingUser.lastLoginDate === yesterdayStr) {
                         newStreak++;
                         newXp += 50;
                         streakMessage = `Daily Streak: ${newStreak} 🔥 (+50 XP)`;
@@ -416,74 +422,68 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
                 const newLevel = Math.floor(newXp / 100) + 1;
 
-                // Login existing user
-                const updatedUser = {
+                activeUser = {
                     ...existingUser,
                     lastLogin: new Date().toISOString(),
-                    // Update verification status just in case (Google is verified)
                     isVerified: true,
                     lastLoginDate: today,
                     streak: newStreak,
                     xp: newXp,
                     level: newLevel
                 };
-                const updatedDb = usersDb.map((u: User) => u.email === email ? updatedUser : u);
+                const updatedDb = usersDb.map((u: User) => u.email === email ? activeUser : u);
                 localStorage.setItem("users_db", JSON.stringify(updatedDb));
-
-                setUser(updatedUser);
-                setIsAuthenticated(true);
-                localStorage.setItem("user", JSON.stringify(updatedUser));
                 if (streakMessage) alert(streakMessage);
             } else {
                 // Auto-Signup new user
-                const today = new Date().toISOString().split('T')[0];
-                const newUser: User = {
-                    name: name,
-                    username: email.split('@')[0], // Generate username from email
+                activeUser = {
+                    name: name || 'Learner',
+                    username: email.split('@')[0],
                     email: email,
                     isPaid: false,
                     role: 'user',
                     status: 'active',
-                    isVerified: true, // Google accounts are verified
-                    verificationCode: undefined,
+                    isVerified: true,
                     lastLogin: new Date().toISOString(),
                     completedLessons: [],
                     photoURL: picture,
-                    // Gamification Init
                     streak: 1,
                     lastLoginDate: today,
-                    xp: 50, // Welcome bonus
+                    xp: 50,
                     level: 1
                 };
-
-                const newDb = [...usersDb, newUser];
-                localStorage.setItem("users_db", JSON.stringify(newDb));
-
-                setUser(newUser);
-                setIsAuthenticated(true);
-                localStorage.setItem("user", JSON.stringify(newUser));
+                localStorage.setItem("users_db", JSON.stringify([...usersDb, activeUser]));
                 alert("Welcome! You earned 50 XP for joining! 🔥");
             }
 
-            // --- HOOK INTO BACKEND AFTER SUCCESSFUL GOOGLE AUTH ---
+            // Set local state immediately for instant login
+            setUser(activeUser);
+            setIsAuthenticated(true);
+            localStorage.setItem("user", JSON.stringify(activeUser));
+
+            // 2. Sync with Analytics Backend (Non-blocking)
             try {
                 const response = await fetch('/api/auth/google', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ credential }),
                 });
-                const data = await response.json();
-                if (data.sessionId) {
-                    setSessionId(data.sessionId);
-                    localStorage.setItem('sessionId', data.sessionId);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.sessionId) {
+                        setSessionId(data.sessionId);
+                        localStorage.setItem('sessionId', data.sessionId);
+                    }
+                } else {
+                    console.warn("Backend sync returned status:", response.status);
                 }
-            } catch (e) {
-                console.error("Failed to sync with SQL backend", e);
-                // We don't block the user if the analytics backend is down
+            } catch (syncError) {
+                console.warn("Failed to sync with SQL backend - continuing in local mode.", syncError);
             }
-        } catch (error) {
-            console.error("Google Login Error:", error);
-            alert("Failed to login with Google.");
+
+        } catch (error: any) {
+            console.error("Critical Google Login Error:", error);
+            alert(`Google Login Failure: ${error.message || 'Unknown Error'}`);
         }
     };
 
