@@ -9,16 +9,16 @@ import { isPhaseComplete } from "../utils/progress";
 interface AuthContextType {
     user: User | null;
     isAuthenticated: boolean;
-    login: (userData: User) => void;
-    signup: (userData: User) => void;
+    login: (userData: User) => Promise<void>;
+    signup: (userData: User) => Promise<void>;
     logout: () => void;
     completePurchase: () => void;
     getAllUsers: () => Promise<any[]>;
     updateUserStatus: (email: string, status: 'active' | 'inactive') => Promise<void>;
     deleteUser: (email: string) => Promise<void>;
     markLessonComplete: (lessonId: string) => void;
-    verifyEmail: (email: string, code: string) => { success: boolean; message: string };
-    resendVerificationCode: (email: string) => void;
+    verifyEmail: (email: string, code: string) => Promise<{ success: boolean; message: string }>;
+    resendVerificationCode: (email: string) => Promise<void>;
     loginWithGoogle: (credential: string) => Promise<void>;
     // Trial System
     generateAccessCode: (type: '3days' | '5mins') => Promise<string>;
@@ -297,8 +297,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
-    const login = (userData: User) => {
-        // Admin Check
+    const login = async (userData: User) => {
+        // Admin Check (Keep hardcoded for safety)
         if (userData.username === 'admin' && (userData as any).password === 'admin@12345') {
             const adminUser: User = {
                 name: 'Administrator',
@@ -317,77 +317,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return;
         }
 
-        // Regular User Logic
-        const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
-        const existingUser = usersDb.find((u: User) => u.email === userData.email || u.username === userData.username);
+        try {
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: userData.email, password: userData.password }),
+            });
+            const data = await response.json();
 
-        if (existingUser) {
-            if (existingUser.status === 'inactive') {
-                alert("Account is inactive. Contact admin.");
-                return;
+            if (response.ok) {
+                setUser(data.user);
+                setIsAuthenticated(true);
+                setSessionId(data.sessionId);
+                localStorage.setItem("user", JSON.stringify(data.user));
+                localStorage.setItem("sessionId", data.sessionId);
+                toast.success(`Welcome back, ${data.user.name}!`);
+            } else {
+                toast.error(data.error || "Login failed");
             }
-
-            // Check verification status
-            if (existingUser.isVerified === false) {
-                // If not verified, generate new code and alert
-                const newCode = Math.floor(100000 + Math.random() * 900000).toString();
-                const updatedUser = { ...existingUser, verificationCode: newCode };
-                const updatedDb = usersDb.map((u: User) => u.email === existingUser.email ? updatedUser : u);
-                localStorage.setItem("users_db", JSON.stringify(updatedDb));
-
-                alert(`Account not verified! A new verification code has been sent to your email (Mock): ${newCode}`);
-
-                // We should redirect to verify page, but we can't easily do that from here without navigate
-                // For now, we'll throw an error that the UI can catch to redirect
-                throw new Error("NOT_VERIFIED:" + existingUser.email);
-            }
-
-            // Gamification Logic
-            const today = new Date().toISOString().split('T')[0];
-            const lastLoginDate = existingUser.lastLoginDate;
-            let newStreak = existingUser.streak || 0;
-            let newXp = existingUser.xp || 0;
-            let streakMessage = '';
-
-            if (lastLoginDate !== today) {
-                const yesterday = new Date();
-                yesterday.setDate(yesterday.getDate() - 1);
-                const yesterdayStr = yesterday.toISOString().split('T')[0];
-
-                if (lastLoginDate === yesterdayStr) {
-                    newStreak++;
-                    newXp += 50; // Daily bonus
-                    streakMessage = `Daily Streak: ${newStreak} 🔥 (+50 XP)`;
-                } else {
-                    newStreak = 1; // Reset or start
-                    newXp += 50; // First login bonus
-                    streakMessage = `Streak Started! 🔥 (+50 XP)`;
-                }
-            }
-
-            // Calculate Level
-            const newLevel = Math.floor(newXp / 100) + 1;
-
-            // Update last login and gamification stats
-            const updatedUser: User = {
-                ...existingUser,
-                lastLogin: new Date().toISOString(),
-                lastLoginDate: today,
-                streak: newStreak,
-                xp: newXp,
-                level: newLevel
-            };
-
-            const updatedDb = usersDb.map((u: User) => u.email === existingUser.email ? updatedUser : u);
-            localStorage.setItem("users_db", JSON.stringify(updatedDb));
-
-            setUser(updatedUser);
-            setIsAuthenticated(true);
-            localStorage.setItem("user", JSON.stringify(updatedUser));
-
-            if (streakMessage) alert(streakMessage);
-        } else {
-            alert("User not found. Please sign up.");
+        } catch (error) {
+            console.error("Login failed:", error);
+            toast.error("Login failed. Please check your connection.");
         }
     };
 
@@ -543,141 +493,101 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const signup = async (userData: User) => {
-        const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
-
-        // Check if user already exists
-        if (usersDb.some((u: User) => u.email === userData.email)) {
-            alert("User already exists with this email.");
-            return;
-        }
-
-        // Generate 6-digit code
-        const code = Math.floor(100000 + Math.random() * 900000).toString();
-
-        const newUser: User = {
-            ...userData,
-            isPaid: false,
-            role: 'user',
-            status: 'active',
-            isVerified: false,
-            verificationCode: code,
-            lastLogin: new Date().toISOString(),
-            completedLessons: [], // Initialize empty
-            // Gamification Init
-            streak: 0,
-            xp: 0,
-            level: 1,
-            lastLoginDate: '' // Not logged in yet
-        };
-
-        const newDb = [...usersDb, newUser];
-
-        localStorage.setItem("users_db", JSON.stringify(newDb));
-
-        // Real Email Sending via EmailJS
-        const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID;
-        const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
-        const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
-
-        console.log("Attempting to send verification email:", {
-            to: userData.email,
-            serviceId: serviceId ? 'Present' : 'Missing',
-            templateId: templateId ? 'Present' : 'Missing',
-            publicKey: publicKey ? 'Present' : 'Missing'
-        });
-
-        if (serviceId && templateId && publicKey) {
-            try {
-                const response = await emailjs.send(serviceId, templateId, {
-                    to_email: userData.email,
-                    to_name: userData.name,
+        try {
+            const response = await fetch('/api/auth/signup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
                     email: userData.email,
-                    passcode: code, // Matches user's template {{passcode}}
-                    time: new Date(Date.now() + 15 * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), // Matches {{time}}
-                    verify_url: `${window.location.origin}/verify?email=${encodeURIComponent(userData.email)}&code=${code}`
-                }, publicKey);
+                    password: userData.password,
+                    name: userData.name
+                }),
+            });
+            const data = await response.json();
 
-                console.log('EMAILJS SUCCESS!', response.status, response.text);
-            } catch (error) {
-                console.error('EMAILJS FAILED...', error);
-                alert('Failed to send verification email. Please check your internet connection or try again later.');
-                // throw error; // Optional: propagate error to caller
+            if (response.ok) {
+                // Send Verification Email via EmailJS
+                const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+                const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+                const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+
+                if (serviceId && templateId && publicKey) {
+                    emailjs.send(serviceId, templateId, {
+                        to_email: userData.email,
+                        to_name: userData.name,
+                        email: userData.email,
+                        passcode: data.verificationCode,
+                        time: new Date(Date.now() + 15 * 60000).toLocaleTimeString(),
+                        verify_url: `${window.location.origin}/verify?email=${encodeURIComponent(userData.email)}&code=${data.verificationCode}`
+                    }, publicKey).catch(err => console.error("EmailJS Failed", err));
+                } else {
+                    alert(`[DEV MODE] Verification Code: ${data.verificationCode}`);
+                }
+            } else {
+                toast.error(data.error || "Signup failed");
+                throw new Error(data.error);
             }
-        } else {
-            // Fallback for dev without keys
-            console.warn("EmailJS keys missing in .env");
-            alert(`[DEV MODE] Verification code: ${code}`);
+        } catch (error: any) {
+            console.error("Signup error:", error);
+            throw error;
         }
-
-        // DO NOT LOGIN YET
-        // Redirect logic will be handled in Signup.tsx
     };
 
-    const verifyEmail = (email: string, code: string) => {
-        const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
-        const userIndex = usersDb.findIndex((u: User) => u.email === email);
+    const verifyEmail = async (email: string, code: string) => {
+        try {
+            const response = await fetch('/api/auth/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, code }),
+            });
+            const data = await response.json();
 
-        if (userIndex === -1) {
-            return { success: false, message: "User not found" };
-        }
-
-        const user = usersDb[userIndex];
-
-        if (user.isVerified) {
-            return { success: true, message: "Already verified" };
-        }
-
-        if (user.verificationCode === code) {
-            // Success!
-            const updatedUser = { ...user, isVerified: true, verificationCode: undefined };
-            usersDb[userIndex] = updatedUser;
-            localStorage.setItem("users_db", JSON.stringify(usersDb));
-
-            // Log them in
-            setUser(updatedUser);
-            setIsAuthenticated(true);
-            localStorage.setItem("user", JSON.stringify(updatedUser));
-
-            return { success: true, message: "Email verified successfully!" };
-        } else {
-            return { success: false, message: "Invalid verification code" };
+            if (response.ok && data.success) {
+                setUser(data.user);
+                setIsAuthenticated(true);
+                setSessionId(data.sessionId);
+                localStorage.setItem("user", JSON.stringify(data.user));
+                localStorage.setItem("sessionId", data.sessionId);
+                return { success: true, message: "Email verified successfully!" };
+            } else {
+                return { success: false, message: data.error || "Verification failed" };
+            }
+        } catch (error) {
+            return { success: false, message: "Connection error" };
         }
     };
 
     const resendVerificationCode = async (email: string) => {
-        const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
-        const userIndex = usersDb.findIndex((u: User) => u.email === email);
-        if (userIndex === -1) return;
+        try {
+            const response = await fetch('/api/auth/resend', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email }),
+            });
+            const data = await response.json();
 
-        const newCode = Math.floor(100000 + Math.random() * 900000).toString();
-        const updatedUser = { ...usersDb[userIndex], verificationCode: newCode };
-        usersDb[userIndex] = updatedUser;
-        localStorage.setItem("users_db", JSON.stringify(usersDb));
+            if (response.ok) {
+                const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+                const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+                const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
 
-        // Real Email Sending via EmailJS
-        const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID;
-        const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
-        const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
-
-        if (serviceId && templateId && publicKey) {
-            try {
-                await emailjs.send(serviceId, templateId, {
-                    to_email: email,
-                    email: email,
-                    passcode: newCode, // Matches user's template {{passcode}}
-                    time: new Date(Date.now() + 15 * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), // Matches {{time}}
-                    verify_url: `${window.location.origin}/verify?email=${encodeURIComponent(email)}&code=${newCode}`
-                }, publicKey);
-
-                console.log('RESEND SUCCESS!');
-                alert(`New verification code sent to ${email}`);
-            } catch (error) {
-                console.error('RESEND FAILED...', error);
-                alert('Failed to send verification email. Please try again.');
+                if (serviceId && templateId && publicKey) {
+                    await emailjs.send(serviceId, templateId, {
+                        to_email: email,
+                        email: email,
+                        passcode: data.verificationCode,
+                        time: new Date(Date.now() + 15 * 60000).toLocaleTimeString(),
+                        verify_url: `${window.location.origin}/verify?email=${encodeURIComponent(email)}&code=${data.verificationCode}`
+                    }, publicKey);
+                    toast.success("New verification code sent!");
+                } else {
+                    alert(`[DEV] New Code: ${data.verificationCode}`);
+                }
+            } else {
+                toast.error(data.error || "Failed to resend");
             }
-        } else {
-            console.warn("EmailJS keys missing in .env");
-            alert(`[DEV MODE] New verification code: ${newCode}`);
+        } catch (error) {
+            toast.error("Failed to resend code");
         }
     };
 

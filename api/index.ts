@@ -5,6 +5,7 @@ import { OAuth2Client } from "google-auth-library";
 import { db } from "../server/db";
 import { users, sessions, feedback as feedbackTable, accessCodes, userNotes, playgroundProjects, aiChats } from "../server/db/schema";
 import { eq, and, gte, sql, desc, ne } from "drizzle-orm";
+import bcrypt from "bcryptjs";
 
 dotenv.config();
 
@@ -68,6 +69,135 @@ app.post("/api/auth/google", async (req, res) => {
     } catch (error) {
         console.error("Auth sync error:", error);
         res.status(500).json({ error: "Failed to sync auth" });
+    }
+});
+
+// Email Signup Hook
+app.post("/api/auth/signup", async (req, res) => {
+    const { email, password, name } = req.body;
+    if (!email || !password || !name) return res.status(400).json({ error: "Missing required fields" });
+
+    try {
+        const existingUsers = await db.select().from(users).where(eq(users.email, email));
+        if (existingUsers.length > 0) return res.status(400).json({ error: "User already exists" });
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+        const [newUser] = await db.insert(users).values({
+            email,
+            password: hashedPassword,
+            name,
+            role: "student",
+            verificationCode,
+            isVerified: false,
+            googleId: null, // Explicitly null for email users
+        }).returning();
+
+        // Used by frontend to send email
+        res.json({ user: newUser, verificationCode });
+    } catch (error) {
+        console.error("Signup error:", error);
+        res.status(500).json({ error: "Signup failed" });
+    }
+});
+
+// Email Login Hook
+app.post("/api/auth/login", async (req, res) => {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: "Missing credentials" });
+
+    try {
+        const [user] = await db.select().from(users).where(eq(users.email, email));
+
+        if (!user) return res.status(400).json({ error: "User not found" });
+
+        // If user exists but has no password (Google auth only), block email login
+        if (!user.password) return res.status(400).json({ error: "Please login with Google" });
+
+        const validPassword = await bcrypt.compare(password, user.password);
+        if (!validPassword) return res.status(400).json({ error: "Invalid credentials" });
+
+        // Update Login Stats
+        const today = new Date();
+        await db.update(users).set({ lastLoginAt: today }).where(eq(users.id, user.id));
+
+        // Create Session
+        await db.update(sessions)
+            .set({ isActive: false })
+            .where(and(eq(sessions.userId, user.id), eq(sessions.isActive, true)));
+
+        const [session] = await db.insert(sessions).values({
+            userId: user.id,
+            isActive: true,
+        }).returning();
+
+        res.json({ user, sessionId: session.id, isPaid: user.isPaid });
+    } catch (error) {
+        console.error("Login error:", error);
+        res.status(500).json({ error: "Login failed" });
+    }
+});
+
+// Email Verify Hook
+app.post("/api/auth/verify", async (req, res) => {
+    const { email, code } = req.body;
+    if (!email || !code) return res.status(400).json({ error: "Missing parameters" });
+
+    try {
+        const [user] = await db.select().from(users).where(eq(users.email, email));
+        if (!user) return res.status(404).json({ error: "User not found" });
+
+        if (user.isVerified) return res.json({ success: true, message: "Already verified", user });
+
+        if (user.verificationCode !== code) return res.status(400).json({ error: "Invalid code" });
+
+        // Update User
+        const [updatedUser] = await db.update(users)
+            .set({ isVerified: true, verificationCode: null, lastLoginAt: new Date() })
+            .where(eq(users.id, user.id))
+            .returning();
+
+        // Create Session
+        await db.update(sessions)
+            .set({ isActive: false })
+            .where(and(eq(sessions.userId, user.id), eq(sessions.isActive, true)));
+
+        const [session] = await db.insert(sessions).values({
+            userId: user.id,
+            isActive: true,
+        }).returning();
+
+        res.json({ success: true, user: updatedUser, sessionId: session.id });
+    } catch (error) {
+        console.error("Verify error:", error);
+        res.status(500).json({ error: "Verification failed" });
+    }
+});
+
+
+
+// Resend Verification Code Hook
+app.post("/api/auth/resend", async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "Email required" });
+
+    try {
+        const [user] = await db.select().from(users).where(eq(users.email, email));
+        if (!user) return res.status(404).json({ error: "User not found" });
+
+        if (user.isVerified) return res.status(400).json({ error: "User already verified" });
+
+        const newCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+        await db.update(users)
+            .set({ verificationCode: newCode })
+            .where(eq(users.id, user.id));
+
+        res.json({ success: true, verificationCode: newCode });
+    } catch (error) {
+        console.error("Resend error:", error);
+        res.status(500).json({ error: "Failed to resend code" });
     }
 });
 

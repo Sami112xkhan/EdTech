@@ -3,8 +3,9 @@ import { sql } from "drizzle-orm";
 
 export const users = pgTable("users", {
     id: uuid("id").defaultRandom().primaryKey(),
-    googleId: text("google_id").unique().notNull(),
+    googleId: text("google_id").unique(), // Nullable for email auth
     email: text("email").notNull(),
+    password: text("password"), // Hashed password
     name: text("name").notNull(),
     username: text("username"),
     picture: text("picture"),
@@ -17,6 +18,8 @@ export const users = pgTable("users", {
     xp: integer("xp").default(0).notNull(),
     level: integer("level").default(1).notNull(),
     status: text("status").default("active").notNull(), // 'active' or 'inactive'
+    isVerified: boolean("is_verified").default(false).notNull(),
+    verificationCode: text("verification_code"),
     certificateStatus: text("certificate_status").default("locked").notNull(), // 'locked','eligible','pending','approved'
     certificateIssueDate: timestamp("certificate_issue_date"),
 });

@@ -37,16 +37,18 @@ const VerifyEmail: React.FC = () => {
 
     const handleAutoVerify = async (emailAddr: string, verificationCode: string) => {
         setIsLoading(true);
-        // Add a small delay for visual feedback
-        setTimeout(() => {
-            const result = verifyEmail(emailAddr, verificationCode);
+        try {
+            const result = await verifyEmail(emailAddr, verificationCode);
             if (result.success) {
                 navigate(redirectTo);
             } else {
                 setError(result.message);
                 setIsLoading(false);
             }
-        }, 800);
+        } catch (err) {
+            setError("Verification failed");
+            setIsLoading(false);
+        }
     };
 
     useEffect(() => {
@@ -63,9 +65,8 @@ const VerifyEmail: React.FC = () => {
 
         if (!email) return;
 
-        // Simulate network delay
-        setTimeout(() => {
-            const result = verifyEmail(email, code);
+        try {
+            const result = await verifyEmail(email, code);
 
             if (result.success) {
                 navigate(redirectTo);
@@ -73,7 +74,10 @@ const VerifyEmail: React.FC = () => {
                 setError(result.message);
                 setIsLoading(false);
             }
-        }, 1000);
+        } catch (err) {
+            setError("Verification failed");
+            setIsLoading(false);
+        }
     };
 
     const handleResend = () => {
