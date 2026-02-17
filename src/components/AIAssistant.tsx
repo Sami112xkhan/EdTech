@@ -8,6 +8,7 @@ import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import BlurText from "./BlurText";
+import { useAuth } from "../context/AuthContext";
 
 interface Message {
     id: string;
@@ -27,11 +28,13 @@ interface AIAssistantProps {
 }
 
 const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
+    const { user } = useAuth();
     const [isOpen, setIsOpen] = useState(variant === 'full');
     const [input, setInput] = useState("");
     const [messages, setMessages] = useState<Message[]>([
         { id: "1", role: "assistant", content: "Hi! I'm your AI mentor. Ask me anything about Python, React, or your career roadmap." }
     ]);
+    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
     const [isTyping, setIsTyping] = useState(false);
     const [showReasoning, setShowReasoning] = useState(false);
     // Default to Phi-3 (Browser) as requested
@@ -64,6 +67,52 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
             });
         }
     }, []);
+
+    // Load Chat History from SQL
+    useEffect(() => {
+        const loadHistory = async () => {
+            if (!user?.email) return;
+            setIsLoadingHistory(true);
+            try {
+                const response = await fetch(`/api/ai/chat/history?email=${encodeURIComponent(user.email)}`);
+                if (response.ok) {
+                    const history = await response.json();
+                    if (history.length > 0) {
+                        setMessages(history.map((m: any) => ({
+                            id: m.id,
+                            role: m.role,
+                            content: m.content,
+                            reasoning: m.reasoning
+                        })));
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to load chat history:", error);
+            } finally {
+                setIsLoadingHistory(false);
+            }
+        };
+
+        loadHistory();
+    }, [user?.email]);
+
+    const saveMessage = async (role: string, content: string, reasoning?: string) => {
+        if (!user?.email) return;
+        try {
+            await fetch('/api/ai/chat/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: user.email,
+                    role,
+                    content,
+                    reasoning
+                })
+            });
+        } catch (error) {
+            console.error("Failed to save chat message:", error);
+        }
+    };
 
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -112,11 +161,24 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
     const abortControllerRef = useRef<AbortController | null>(null);
     const isRequestInProgress = useRef(false);
 
-    const handleClearChat = () => {
-        if (isTyping) return;
-        setMessages([
-            { id: "1", role: "assistant", content: "Chat cleared. How can I help you with Python or React today?" }
-        ]);
+    const handleClearChat = async () => {
+        if (isTyping || !user?.email) return;
+
+        try {
+            const response = await fetch('/api/ai/chat/clear', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: user.email })
+            });
+
+            if (response.ok) {
+                setMessages([
+                    { id: "1", role: "assistant", content: "Chat cleared. How can I help you with Python or React today?" }
+                ]);
+            }
+        } catch (error) {
+            console.error("Failed to clear chat history:", error);
+        }
     };
 
     const handleSend = async () => {
@@ -139,6 +201,9 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
             const userMsg: Message = { id: `user-${Date.now()}`, role: "user", content: input };
             setMessages(prev => [...prev, userMsg]);
             setInput("");
+
+            // Sync User Message to DB
+            saveMessage("user", input);
 
             let fullContent = "";
             let fullReasoning = "";
@@ -294,6 +359,8 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
                     throw err1; // No fallback path defined or initial model was the only option and failed
                 }
             }
+            // Sync Assistant Response to DB after successful completion (of any model in the chain)
+            saveMessage("assistant", fullContent, fullReasoning);
         } catch (error: any) {
             if (error.name === 'AbortError' || error.message === 'Aborted') {
                 console.log("AI generation aborted.");

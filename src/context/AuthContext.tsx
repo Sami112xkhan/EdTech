@@ -2,6 +2,9 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { User } from "../types"; // Will create types next
 import emailjs from '@emailjs/browser';
+import { toast } from "sonner";
+import { curriculum } from "../data/curriculum";
+import { isPhaseComplete } from "../utils/progress";
 
 interface AuthContextType {
     user: User | null;
@@ -10,23 +13,24 @@ interface AuthContextType {
     signup: (userData: User) => void;
     logout: () => void;
     completePurchase: () => void;
-    getAllUsers: () => User[];
-    updateUserStatus: (email: string, status: 'active' | 'inactive') => User[];
-    deleteUser: (email: string) => User[];
+    getAllUsers: () => Promise<any[]>;
+    updateUserStatus: (email: string, status: 'active' | 'inactive') => Promise<void>;
+    deleteUser: (email: string) => Promise<void>;
     markLessonComplete: (lessonId: string) => void;
     verifyEmail: (email: string, code: string) => { success: boolean; message: string };
     resendVerificationCode: (email: string) => void;
     loginWithGoogle: (credential: string) => Promise<void>;
     // Trial System
-    generateAccessCode: (type: '3days' | '5mins') => string;
-    redeemCode: (code: string) => { success: boolean; message: string };
-    getAllAccessCodes: () => import("../types").AccessCode[];
-    revokeAccessCode: (code: string) => import("../types").AccessCode[];
+    generateAccessCode: (type: '3days' | '5mins') => Promise<string>;
+    redeemCode: (code: string) => Promise<{ success: boolean; message: string }>;
+    getAllAccessCodes: () => Promise<any[]>;
+    revokeAccessCode: (code: string) => Promise<void>;
     addXp: (amount: number) => void;
+    updateProfile: (updates: Partial<User>) => Promise<void>;
     // Certificate System
-    requestCertificate: () => void;
-    approveCertificate: (email: string) => void;
-    rejectCertificate: (email: string) => void;
+    requestCertificate: () => Promise<void>;
+    approveCertificate: (email: string) => Promise<void>;
+    rejectCertificate: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -71,17 +75,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!user) return;
 
         // Heartbeat for lastSeen (every 1 minute)
-        const heartbeatInterval = setInterval(() => {
+        const heartbeatInterval = setInterval(async () => {
             const now = new Date().toISOString();
             const updatedUser = { ...user, lastSeen: now };
             setUser(updatedUser);
             localStorage.setItem("user", JSON.stringify(updatedUser));
 
-            // Allow this to silently update DB
+            // Sync with SQL Backend
+            const storedSessionId = localStorage.getItem('sessionId');
+            if (storedSessionId) {
+                try {
+                    await fetch('/api/auth/heartbeat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sessionId: storedSessionId }),
+                    });
+                } catch (e) {
+                    console.warn("Heartbeat sync failed", e);
+                }
+            }
+
+            // Local DB fallback
             const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
             const updatedDb = usersDb.map((u: User) => u.email === user.email ? { ...u, lastSeen: now } : u);
             localStorage.setItem("users_db", JSON.stringify(updatedDb));
-        }, 60000);
+        }, 5000);
 
         if (user.isPaid || !user.trialExpiresAt || user.trialExpiresAt === 'EXPIRED') {
             return () => clearInterval(heartbeatInterval);
@@ -116,7 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     console.error("SQL heartbeat failed", e);
                 }
             }
-        }, 60000); // Every 1 minute
+        }, 5000); // Every 5 seconds
 
         return () => {
             clearInterval(interval);
@@ -138,26 +156,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     }, []);
 
-    const generateAccessCode = (type: '3days' | '5mins') => {
-        const codesDb = JSON.parse(localStorage.getItem("codes_db") || '[]');
-        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Avoid ambiguous chars 0,O,1,I
-        let code = '';
-        for (let i = 0; i < 8; i++) {
-            code += chars.charAt(Math.floor(Math.random() * chars.length));
+    const generateAccessCode = async (type: '3days' | '5mins'): Promise<string> => {
+        try {
+            const response = await fetch('/api/admin/codes/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type }),
+            });
+            if (response.ok) {
+                const newCode = await response.json();
+                return newCode.code;
+            }
+            return '';
+        } catch (error) {
+            console.error('Failed to generate code:', error);
+            return '';
         }
-
-        const newCode: import("../types").AccessCode = {
-            code,
-            type,
-            createdAt: new Date().toISOString(),
-            isUsed: false
-        };
-
-        localStorage.setItem("codes_db", JSON.stringify([...codesDb, newCode]));
-        return code;
     };
 
-    const redeemCode = (code: string) => {
+    const redeemCode = async (code: string): Promise<{ success: boolean; message: string }> => {
         if (!user) return { success: false, message: "Please login first" };
 
         const normalizedCode = code.toUpperCase().trim();
@@ -237,49 +254,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             localStorage.setItem("users_db", JSON.stringify(updatedUserDb));
 
             return { success: true, message: "3-Minute Trial Activated! Timer started." };
-        } const codesDb = JSON.parse(localStorage.getItem("codes_db") || '[]');
-        const codeIndex = codesDb.findIndex((c: any) => c.code === normalizedCode && !c.isUsed && !c.isRevoked);
-
-        if (codeIndex === -1) {
-            return { success: false, message: "Invalid, used, or revoked code" };
         }
 
-        const accessCode = codesDb[codeIndex];
-
-        // Calculate expiry
-        const now = new Date();
-        const duration = accessCode.type === '3days' ? (3 * 24 * 60 * 60 * 1000) : (5 * 60 * 1000);
-        const trialExpiresAt = new Date(now.getTime() + duration).toISOString();
-
-        // Update User
-        const updatedUser = { ...user, trialExpiresAt };
-        setUser(updatedUser);
-        localStorage.setItem("user", JSON.stringify(updatedUser));
-
-        // Update User DB
-        const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
-        const updatedUserDb = usersDb.map((u: User) => u.email === user.email ? updatedUser : u);
-        localStorage.setItem("users_db", JSON.stringify(updatedUserDb));
-
-        // Update Codes DB
-        accessCode.isUsed = true;
-        accessCode.usedBy = user.email;
-        localStorage.setItem("codes_db", JSON.stringify(codesDb));
-
-        return { success: true, message: `Access granted for ${accessCode.type === '3days' ? '3 days' : '5 minutes'}` };
+        // 4. Admin-generated codes — check via API
+        try {
+            const response = await fetch('/api/codes/redeem', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: normalizedCode, email: user.email }),
+            });
+            const data = await response.json();
+            if (response.ok && data.success) {
+                // Update local user state with trial expiry
+                const updatedUser = { ...user, trialExpiresAt: data.trialExpiresAt };
+                setUser(updatedUser);
+                localStorage.setItem("user", JSON.stringify(updatedUser));
+                return { success: true, message: data.message };
+            }
+            return { success: false, message: data.error || "Invalid, used, or revoked code" };
+        } catch (error) {
+            console.error('Code redeem failed:', error);
+            return { success: false, message: "Failed to redeem code" };
+        }
     };
 
-    const getAllAccessCodes = () => {
-        return JSON.parse(localStorage.getItem("codes_db") || '[]');
+    const getAllAccessCodes = async (): Promise<any[]> => {
+        try {
+            const response = await fetch('/api/admin/codes');
+            if (response.ok) return await response.json();
+            return [];
+        } catch (error) {
+            console.error('Failed to fetch codes:', error);
+            return [];
+        }
     };
 
-    const revokeAccessCode = (code: string) => {
-        const codesDb = JSON.parse(localStorage.getItem("codes_db") || '[]');
-        const updatedDb = codesDb.map((c: any) =>
-            c.code === code ? { ...c, isRevoked: true } : c
-        );
-        localStorage.setItem("codes_db", JSON.stringify(updatedDb));
-        return updatedDb;
+    const revokeAccessCode = async (code: string): Promise<void> => {
+        try {
+            await fetch(`/api/admin/codes/${code}/revoke`, { method: 'POST' });
+        } catch (error) {
+            console.error('Failed to revoke code:', error);
+        }
     };
 
     const login = (userData: User) => {
@@ -400,7 +415,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             let activeUser: User;
 
             if (existingUser) {
-                // Login existing user
+                // Login existing user - CAUTION: Sync name/picture from Google to avoid "maaz" vs "Sami" conflict
                 let newStreak = existingUser.streak || 0;
                 let newXp = existingUser.xp || 0;
                 let streakMessage = '';
@@ -424,6 +439,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
                 activeUser = {
                     ...existingUser,
+                    name: name || existingUser.name, // Priority: Google Identity
+                    photoURL: picture || existingUser.photoURL,
                     lastLogin: new Date().toISOString(),
                     isVerified: true,
                     lastLoginDate: today,
@@ -461,7 +478,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setIsAuthenticated(true);
             localStorage.setItem("user", JSON.stringify(activeUser));
 
-            // 2. Sync with Analytics Backend (Non-blocking)
+            // 2. Sync with Analytics Backend (Crucial for Roles and Purchase Status)
             try {
                 const response = await fetch('/api/auth/google', {
                     method: 'POST',
@@ -474,10 +491,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         setSessionId(data.sessionId);
                         localStorage.setItem('sessionId', data.sessionId);
                     }
-                    if (data.isPaid !== undefined) {
-                        const paidUser = { ...activeUser, isPaid: data.isPaid };
-                        setUser(paidUser);
-                        localStorage.setItem('user', JSON.stringify(paidUser));
+
+                    // Priority: If backend has detailed user data, update local state
+                    if (data.user) {
+                        const backendUser = data.user;
+
+                        setUser(prev => {
+                            if (!prev) return backendUser;
+
+                            // Merge completed lessons to avoid progress loss
+                            const mergedLessons = Array.from(new Set([
+                                ...(backendUser.completedLessons || []),
+                                ...(prev.completedLessons || [])
+                            ]));
+
+                            const finalUser: User = {
+                                ...prev,
+                                role: backendUser.role || prev.role,
+                                isPaid: backendUser.isPaid !== undefined ? backendUser.isPaid : prev.isPaid,
+                                status: backendUser.status || prev.status,
+                                name: backendUser.name || prev.name,
+                                photoURL: backendUser.picture || prev.photoURL,
+                                username: backendUser.username || prev.username,
+                                streak: backendUser.streak !== undefined ? backendUser.streak : prev.streak,
+                                xp: backendUser.xp !== undefined ? backendUser.xp : prev.xp,
+                                level: backendUser.level !== undefined ? backendUser.level : prev.level,
+                                completedLessons: mergedLessons
+                            };
+
+                            localStorage.setItem('user', JSON.stringify(finalUser));
+
+                            // Sync back to users_db for consistency
+                            const currentDb = JSON.parse(localStorage.getItem("users_db") || '[]');
+                            const updatedDb = currentDb.map((u: User) => u.email === email ? finalUser : u);
+                            localStorage.setItem("users_db", JSON.stringify(updatedDb));
+
+                            return finalUser;
+                        });
                     }
                 } else {
                     console.warn("Backend sync returned status:", response.status);
@@ -674,77 +724,215 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
-    const getAllUsers = () => {
+    const getAllUsers = async (): Promise<any[]> => {
+        try {
+            const response = await fetch('/api/admin/users');
+            if (response.ok) {
+                return await response.json();
+            }
+        } catch (error) {
+            console.warn('Failed to fetch users from API, falling back to localStorage', error);
+        }
+        // Fallback to localStorage
         return JSON.parse(localStorage.getItem("users_db") || '[]');
     };
 
-    const updateUserStatus = (email: string, newStatus: 'active' | 'inactive') => {
+    const updateUserStatus = async (email: string, newStatus: 'active' | 'inactive'): Promise<void> => {
+        try {
+            await fetch(`/api/admin/users/${encodeURIComponent(email)}/status`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus }),
+            });
+        } catch (error) {
+            console.warn('Failed to update user status via API', error);
+        }
+        // Also update localStorage for consistency
         const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
         const updatedDb = usersDb.map((u: User) => u.email === email ? { ...u, status: newStatus } : u);
         localStorage.setItem("users_db", JSON.stringify(updatedDb));
-        return updatedDb;
     };
 
-    const deleteUser = (email: string) => {
+    const deleteUser = async (email: string): Promise<void> => {
+        try {
+            await fetch(`/api/admin/users/${encodeURIComponent(email)}`, {
+                method: 'DELETE',
+            });
+        } catch (error) {
+            console.warn('Failed to delete user via API', error);
+        }
+        // Also update localStorage
         const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
         const updatedDb = usersDb.filter((u: User) => u.email !== email);
         localStorage.setItem("users_db", JSON.stringify(updatedDb));
-        return updatedDb;
     };
 
-    const markLessonComplete = (lessonId: string) => {
+    const markLessonComplete = async (lessonId: string) => {
         if (!user) return;
 
-        if (user.completedLessons.includes(lessonId)) return;
+        let wasAlreadyComplete = false;
+        setUser(prev => {
+            if (!prev) return prev;
+            if (prev.completedLessons.includes(lessonId)) {
+                wasAlreadyComplete = true;
+                return prev;
+            }
 
-        const updatedUser = { ...user, completedLessons: [...user.completedLessons, lessonId] };
+            const updatedLessons = [...prev.completedLessons, lessonId];
+            const updatedUser = { ...prev, completedLessons: updatedLessons };
 
-        // Update Local State
-        setUser(updatedUser);
-        localStorage.setItem("user", JSON.stringify(updatedUser));
+            // Update Local Storage & DB
+            localStorage.setItem("user", JSON.stringify(updatedUser));
+            const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
+            const updatedDb = usersDb.map((u: User) => u.email === prev.email ? updatedUser : u);
+            localStorage.setItem("users_db", JSON.stringify(updatedDb));
 
-        // Update DB
-        const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
-        const updatedDb = usersDb.map((u: User) => u.email === user.email ? updatedUser : u);
-        localStorage.setItem("users_db", JSON.stringify(updatedDb));
+            // Visual Feedback
+            toast.success("Lesson Completed! 🔥", {
+                description: "Your progress has been saved to the cloud."
+            });
+
+            // Check if any phases were just completed to show unlock message
+            curriculum.forEach((module, index) => {
+                const nextModule = curriculum[index + 1];
+                if (nextModule && isPhaseComplete(module, updatedLessons)) {
+                    if (!isPhaseComplete(module, prev.completedLessons)) {
+                        toast.success(`Module Unlocked: ${nextModule.title} 🔓`, {
+                            description: "New lessons and materials are now available.",
+                            duration: 5000
+                        });
+                    }
+                }
+            });
+
+            return updatedUser;
+        });
+
+        if (wasAlreadyComplete) {
+            toast.info("Lesson already marked as complete!");
+            return;
+        }
+
+        // Sync with SQL Backend
+        try {
+            await fetch('/api/progress/lesson', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: user.email, lessonId })
+            });
+        } catch (error) {
+            console.warn("Failed to sync lesson completion to SQL backend", error);
+        }
     };
 
 
 
-    const addXp = (amount: number) => {
+    const addXp = async (amount: number) => {
         if (!user) return;
 
-        const newXp = (user.xp || 0) + amount;
-        const newLevel = Math.floor(newXp / 100) + 1;
+        let finalUpdates: Partial<User> = {};
 
-        const updatedUser = { ...user, xp: newXp, level: newLevel };
+        setUser(prev => {
+            if (!prev) return prev;
 
-        // Update Local
-        setUser(updatedUser);
-        localStorage.setItem("user", JSON.stringify(updatedUser));
+            const newXp = (prev.xp || 0) + amount;
+            const newLevel = Math.floor(newXp / 100) + 1;
 
-        // Update DB
-        const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
-        const updatedDb = usersDb.map((u: User) => u.email === user.email ? updatedUser : u);
-        localStorage.setItem("users_db", JSON.stringify(updatedDb));
+            if (newLevel > (prev.level || 1)) {
+                toast.success(`LEVEL UP! You are now Level ${newLevel} 🚀`, {
+                    description: "Keep going to unlock new perks!",
+                    duration: 5000
+                });
+            } else {
+                toast.success(`+${amount} XP Gained! ⚡️`);
+            }
+
+            const updatedUser = { ...prev, xp: newXp, level: newLevel };
+            finalUpdates = { xp: newXp, level: newLevel };
+
+            // Update Local
+            localStorage.setItem("user", JSON.stringify(updatedUser));
+            const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
+            const updatedDb = usersDb.map((u: User) => u.email === prev.email ? updatedUser : u);
+            localStorage.setItem("users_db", JSON.stringify(updatedDb));
+
+            return updatedUser;
+        });
+
+        // Sync with Backend
+        if (finalUpdates.xp !== undefined) {
+            await updateProfile(finalUpdates);
+        }
     };
 
-    const requestCertificate = () => {
+    const updateProfile = async (updates: Partial<User>) => {
+        if (!user) return;
+
+        setUser(prev => {
+            if (!prev) return prev;
+            const updatedUser = { ...prev, ...updates };
+
+            // Update Local
+            localStorage.setItem("user", JSON.stringify(updatedUser));
+            const currentDb = JSON.parse(localStorage.getItem("users_db") || '[]');
+            const updatedDb = currentDb.map((u: User) => u.email === prev.email ? updatedUser : u);
+            localStorage.setItem("users_db", JSON.stringify(updatedDb));
+
+            return updatedUser;
+        });
+
+        // Sync with SQL Backend
+        try {
+            await fetch('/api/auth/profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: user.email,
+                    ...updates
+                })
+            });
+        } catch (error) {
+            console.warn("Failed to sync profile update to SQL backend", error);
+        }
+    };
+
+    const requestCertificate = async () => {
         if (!user) return;
 
         const updatedUser = { ...user, certificateStatus: 'pending' as const };
-
         setUser(updatedUser);
         localStorage.setItem("user", JSON.stringify(updatedUser));
 
+        // Also update localStorage DB
         const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
         const updatedDb = usersDb.map((u: User) => u.email === user.email ? updatedUser : u);
         localStorage.setItem("users_db", JSON.stringify(updatedDb));
+
+        // Sync with API
+        try {
+            await fetch('/api/certificate/request', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: user.email }),
+            });
+        } catch (error) {
+            console.warn('Failed to sync certificate request to API', error);
+        }
 
         alert("Certificate requested! Please wait for admin approval.");
     };
 
-    const approveCertificate = (email: string) => {
+    const approveCertificate = async (email: string) => {
+        // Sync with API
+        try {
+            await fetch(`/api/admin/certificate/${encodeURIComponent(email)}/approve`, {
+                method: 'POST',
+            });
+        } catch (error) {
+            console.warn('Failed to sync certificate approval to API', error);
+        }
+
+        // Also update localStorage
         const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
         const updatedDb = usersDb.map((u: User) => {
             if (u.email === email) {
@@ -754,7 +942,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
         localStorage.setItem("users_db", JSON.stringify(updatedDb));
 
-        // If current user is the one being approved (unlikely as admin does this, but good for consistency)
         if (user && user.email === email) {
             const updatedUser = { ...user, certificateStatus: 'approved' as const, certificateIssueDate: new Date().toISOString() };
             setUser(updatedUser);
@@ -762,11 +949,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
-    const rejectCertificate = (email: string) => {
+    const rejectCertificate = async (email: string) => {
+        // Sync with API
+        try {
+            await fetch(`/api/admin/certificate/${encodeURIComponent(email)}/reject`, {
+                method: 'POST',
+            });
+        } catch (error) {
+            console.warn('Failed to sync certificate rejection to API', error);
+        }
+
+        // Also update localStorage
         const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
         const updatedDb = usersDb.map((u: User) => {
             if (u.email === email) {
-                return { ...u, certificateStatus: 'eligible' as const }; // Reset to eligible so they can request again
+                return { ...u, certificateStatus: 'eligible' as const };
             }
             return u;
         });
@@ -793,6 +990,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             revokeAccessCode,
             loginWithGoogle,
             addXp,
+            updateProfile,
+            // Certificate System
             requestCertificate,
             approveCertificate,
             rejectCertificate

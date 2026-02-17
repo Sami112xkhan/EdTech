@@ -84,7 +84,7 @@ export const curriculum: Module[] = [
         id: "html",
         title: "HTML Crash Course",
         duration: "18:00",
-        youtubeId: "G3e-cpL7ofc",
+        youtubeId: "HGTJBPNC-Gw",
         free: false,
         notesPath: "/notes/HTML_In_One_Shot/HTML Tutorial for Beginners.pdf"
       },
@@ -92,7 +92,7 @@ export const curriculum: Module[] = [
         id: "css-video",
         title: "CSS Video Tutorial",
         duration: "41m",
-        youtubeId: "K1naz9wBwKU",
+        youtubeId: "yfoY53QXEnI",
         free: false,
         notesPath: "/notes/Full Stack Web Development Mastery Course In Hindi/CSS/✅ 📘 CSS Animations – Detailed Notes.pdf"
       },

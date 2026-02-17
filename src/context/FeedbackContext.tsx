@@ -42,7 +42,7 @@ export const FeedbackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     useEffect(() => {
         fetchFeedback();
         // Poll every 30 seconds for new feedback in admin panel
-        const interval = setInterval(fetchFeedback, 30000);
+        const interval = setInterval(fetchFeedback, 5000);
         return () => clearInterval(interval);
     }, []);
 

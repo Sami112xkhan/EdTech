@@ -1,20 +1,24 @@
 import React, { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { curriculum } from "../data/curriculum";
 import { getPhasesStatus } from "../utils/progress";
 import { ChevronLeft, ChevronRight, CheckCircle, FileText, Save, Lock } from "lucide-react";
 
 const CoursePlayer: React.FC = () => {
-    const { user } = useAuth();
+    const { user, markLessonComplete, addXp } = useAuth();
+    const navigate = useNavigate();
     const { moduleId, lessonId } = useParams<{ moduleId: string; lessonId: string }>();
     const [note, setNote] = useState("");
     const [activeTab, setActiveTab] = useState<"notes" | "material">("notes");
+    const [isCompleting, setIsCompleting] = useState(false);
 
     // Find current lesson and module
     const currentModule = curriculum.find(m => m.id === moduleId);
     const currentLessonIndex = currentModule?.lessons.findIndex(l => l.id === lessonId) ?? -1;
     const currentLesson = currentModule?.lessons[currentLessonIndex];
+
+    const isCompleted = user?.completedLessons.includes(lessonId || "");
 
     // Check if phase is locked
     const phasesStatus = user ? getPhasesStatus(curriculum, user.completedLessons) : [];
@@ -26,17 +30,86 @@ const CoursePlayer: React.FC = () => {
     const prevLesson = currentModule?.lessons[currentLessonIndex - 1];
 
     useEffect(() => {
-        // Load note from localstorage
-        const savedNote = localStorage.getItem(`note-${moduleId}-${lessonId}`);
-        if (savedNote) setNote(savedNote);
-        else setNote("");
+        const loadNote = async () => {
+            if (!user?.email || !lessonId) return;
+
+            // 1. Check Local Storage first (for immediate responsiveness)
+            const savedNote = localStorage.getItem(`note-${moduleId}-${lessonId}`);
+            if (savedNote) setNote(savedNote);
+
+            // 2. Fetch from SQL (Source of truth)
+            try {
+                const response = await fetch(`/api/notes/list?email=${encodeURIComponent(user.email)}`);
+                if (response.ok) {
+                    const notes = await response.json();
+                    const currentNote = notes.find((n: any) => n.lessonId === lessonId);
+                    if (currentNote) {
+                        setNote(currentNote.content);
+                        localStorage.setItem(`note-${moduleId}-${lessonId}`, currentNote.content);
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to load note from SQL:", error);
+            }
+        };
+
+        loadNote();
 
         // Default to material tab if lesson has notes
         if (currentLesson?.notesPath) setActiveTab("material");
-    }, [moduleId, lessonId, currentLesson]);
+    }, [moduleId, lessonId, currentLesson, user?.email]);
 
-    const handleSaveNote = () => {
+    const handleSaveNote = async () => {
+        if (!user?.email || !lessonId) return;
+
+        // Save locally for speed
         localStorage.setItem(`note-${moduleId}-${lessonId}`, note);
+
+        // Sync to Backend
+        try {
+            await fetch('/api/notes/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: user.email,
+                    lessonId,
+                    content: note
+                })
+            });
+        } catch (error) {
+            console.warn("Failed to sync note to SQL backend", error);
+        }
+    };
+
+    const handleComplete = async () => {
+        if (!lessonId || isCompleting || isCompleted) return;
+
+        setIsCompleting(true);
+        try {
+            await markLessonComplete(lessonId);
+            await addXp(20);
+
+            // Auto-navigate logic
+            if (nextLesson) {
+                // Next lesson in current module
+                navigate(`/learn/${moduleId}/${nextLesson.id}`);
+            } else {
+                // End of current module, find next module
+                const currentModuleIndex = curriculum.findIndex(m => m.id === moduleId);
+                const nextModule = curriculum[currentModuleIndex + 1];
+
+                if (nextModule && nextModule.lessons.length > 0) {
+                    navigate(`/learn/${nextModule.id}/${nextModule.lessons[0].id}`);
+                } else {
+                    // All modules done or no next module
+                    navigate("/curriculum");
+                }
+            }
+        } catch (error) {
+            console.error("Failed to complete lesson:", error);
+        } finally {
+            setIsCompleting(false);
+        }
     };
 
     if (!currentLesson) return <div className="p-12 text-center text-muted-foreground">Lesson not found</div>;
@@ -69,9 +142,19 @@ const CoursePlayer: React.FC = () => {
                                 {currentLesson.title}
                             </h1>
                         </div>
-                        <button className="w-full md:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 rounded-xl transition-all hover:scale-105 active:scale-95 font-medium text-sm">
-                            <CheckCircle className="w-4 h-4" />
-                            Complete Lesson
+                        <button
+                            disabled={isCompleting || isCompleted}
+                            onClick={handleComplete}
+                            className={`w-full md:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl transition-all hover:scale-105 active:scale-95 font-medium text-sm border
+                                ${isCompleted
+                                    ? "bg-green-500/20 text-green-500 border-green-500/20 cursor-default"
+                                    : "bg-primary/10 hover:bg-primary/20 text-primary border-primary/20"
+                                }
+                                ${isCompleting ? "opacity-50 cursor-wait" : ""}
+                            `}
+                        >
+                            <CheckCircle className={`w-4 h-4 ${isCompleted ? "fill-green-500" : ""}`} />
+                            {isCompleted ? "Lesson Completed" : isCompleting ? "Syncing..." : "Complete Lesson"}
                         </button>
                     </div>
 

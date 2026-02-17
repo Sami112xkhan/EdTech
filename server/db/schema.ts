@@ -1,24 +1,36 @@
-import { pgTable, uuid, text, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, boolean, integer } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const users = pgTable("users", {
     id: uuid("id").defaultRandom().primaryKey(),
     googleId: text("google_id").unique().notNull(),
     email: text("email").notNull(),
     name: text("name").notNull(),
+    username: text("username"),
     picture: text("picture"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     lastLoginAt: timestamp("last_login_at").defaultNow().notNull(),
     role: text("role").default("student").notNull(), // 'student' or 'admin'
     isPaid: boolean("is_paid").default(false).notNull(),
+    completedLessons: text("completed_lessons").array().default(sql`'{}'`).notNull(),
+    streak: integer("streak").default(0).notNull(),
+    xp: integer("xp").default(0).notNull(),
+    level: integer("level").default(1).notNull(),
+    status: text("status").default("active").notNull(), // 'active' or 'inactive'
+    certificateStatus: text("certificate_status").default("locked").notNull(), // 'locked','eligible','pending','approved'
+    certificateIssueDate: timestamp("certificate_issue_date"),
 });
 
 export const sessions = pgTable("sessions", {
     id: uuid("id").defaultRandom().primaryKey(),
     userId: uuid("user_id").references(() => users.id).notNull(),
-    loginTime: timestamp("login_time").defaultNow().notNull(),
-    logoutTime: timestamp("logout_time"),
+    sessionToken: text("session_token"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    expiresAt: timestamp("expires_at"),
     isActive: boolean("is_active").default(true).notNull(),
     lastHeartbeat: timestamp("last_heartbeat").defaultNow().notNull(),
+    ipAddress: text("ip_address"),
+    deviceInfo: text("device_info"),
 });
 
 export const feedback = pgTable("feedback", {
@@ -29,5 +41,44 @@ export const feedback = pgTable("feedback", {
     type: text("type").default("feedback").notNull(), // 'feedback' or 'access_request'
     status: text("status").default("pending").notNull(),
     reply: text("reply"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const accessCodes = pgTable("access_codes", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    code: text("code").unique().notNull(),
+    type: text("type").notNull(), // '3days' or '5mins'
+    isUsed: boolean("is_used").default(false).notNull(),
+    isRevoked: boolean("is_revoked").default(false).notNull(),
+    usedBy: text("used_by"),
+    usedAt: timestamp("used_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    expiresAt: timestamp("expires_at"),
+});
+
+export const userNotes = pgTable("user_notes", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").references(() => users.id).notNull(),
+    lessonId: text("lesson_id").notNull(),
+    content: text("content").notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const playgroundProjects = pgTable("playground_projects", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").references(() => users.id).notNull(),
+    name: text("name").notNull(),
+    type: text("type").notNull(), // 'react', 'nodejs', 'htmlcss'
+    files: text("files").notNull(), // JSON string
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const aiChats = pgTable("ai_chats", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").references(() => users.id).notNull(),
+    role: text("role").notNull(), // 'user', 'assistant'
+    content: text("content").notNull(),
+    reasoning: text("reasoning"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
 });

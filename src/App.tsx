@@ -3,6 +3,7 @@ import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { Toaster } from "sonner";
 
 // Layouts
 import RootLayout from "./layouts/RootLayout";
@@ -64,6 +65,16 @@ function App() {
                         </Route>
                     </Routes>
                     <Analytics />
+                    <Toaster position="top-right" expand={true} richColors theme="dark" toastOptions={{
+                        style: {
+                            background: 'rgba(20, 20, 20, 0.8)',
+                            backdropFilter: 'blur(10px)',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            borderRadius: '1.2rem',
+                            fontSize: '0.8rem',
+                            fontWeight: '600'
+                        }
+                    }} />
                 </FeedbackProvider>
             </AuthProvider>
         </BrowserRouter>
