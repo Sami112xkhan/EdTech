@@ -43,7 +43,7 @@ const Checkout: React.FC = () => {
         }
 
         await initializePayment(
-            10, // Amount in INR
+            10000, // Amount in INR
             {
                 name: user.name,
                 email: user.email,
@@ -100,7 +100,7 @@ const Checkout: React.FC = () => {
                                 <p className="text-sm text-muted-foreground">One-time payment</p>
                             </div>
                             <div className="text-right">
-                                <div className="text-3xl font-bold">₹10</div>
+                                <div className="text-3xl font-bold">₹10,000</div>
                                 <div className="text-xs text-muted-foreground line-through">₹15,000</div>
                             </div>
                         </div>
@@ -113,7 +113,7 @@ const Checkout: React.FC = () => {
                             className="w-full py-4 rounded-lg bg-[#3b82f6] hover:bg-[#3b82f6]/90 text-white font-bold text-lg shadow-lg flex items-center justify-center gap-2 transition-transform hover:scale-[1.02]"
                         >
                             <CreditCard className="w-5 h-5" />
-                            Pay Now - ₹10
+                            Pay Now - ₹10,000
                         </button>
 
                         <div className="text-center mt-6">
