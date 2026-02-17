@@ -39,16 +39,31 @@ export const curriculum: Module[] = [
       {
         id: "python-intro",
         title: "Python Introduction",
-        duration: "20:00",
+        duration: "4h 26s",
         youtubeId: "rfscVS0vtbw",
         free: false,
       },
       {
         id: "python-intermediate",
         title: "Python Intermediate",
-        duration: "25:00",
+        duration: "5h 57m 46s",
         youtubeId: "HGOBQPFzWKo",
         free: false,
+      },
+      {
+        id: "python-project",
+        title: "Python Project: Zero to Hero",
+        duration: "9h 19m",
+        youtubeId: "NpmFbWO6HPU",
+        free: false,
+      },
+      {
+        id: "streamlit",
+        title: "Streamlit Crash Course",
+        duration: "11m",
+        youtubeId: "D0D4Pa22iG0",
+        free: false,
+        notesPath: "https://drive.google.com/drive/u/0/folders/1-wk8nrebq2jM17T9pOkoXmyp83jk8fNo"
       },
       {
         id: "dsa-java",
@@ -74,12 +89,26 @@ export const curriculum: Module[] = [
         notesPath: "/notes/HTML_In_One_Shot/HTML Tutorial for Beginners.pdf"
       },
       {
-        id: "css-mastery",
-        title: "Advanced CSS & Animations",
-        duration: "25:00",
-        youtubeId: "1Rs2ND1ryYc",
+        id: "css-video",
+        title: "CSS Video Tutorial",
+        duration: "41m",
+        youtubeId: "K1naz9wBwKU",
         free: false,
         notesPath: "/notes/Full Stack Web Development Mastery Course In Hindi/CSS/✅ 📘 CSS Animations – Detailed Notes.pdf"
+      },
+      {
+        id: "web-dev-project",
+        title: "Web Development Project",
+        duration: "3h 22m",
+        youtubeId: "J_r6hBo9lO4",
+        free: false,
+      },
+      {
+        id: "javascript-video",
+        title: "JavaScript Video Tutorial",
+        duration: "8h 4m",
+        youtubeId: "a-wVHL0lpb0",
+        free: false,
       },
       {
         id: "tailwind",
@@ -96,13 +125,6 @@ export const curriculum: Module[] = [
         youtubeId: "Jyvffr3aCp0",
         free: false,
         notesPath: "/notes/Bootstrap Mastery Course/🎬 Bootstrap 5 Mastery Course – Web Dev Mastery.pdf"
-      },
-      {
-        id: "javascript",
-        title: "JavaScript Fundamentals",
-        duration: "28:00",
-        youtubeId: "a-wVHL0lpb0",
-        free: false,
       },
       {
         id: "js-oops",
@@ -166,6 +188,20 @@ export const curriculum: Module[] = [
     title: "Phase 4 — Backend & Modern DB",
     description: "Building robust backends with Node/Python and MongoDB.",
     lessons: [
+      {
+        id: "backend-development",
+        title: "Backend Development",
+        duration: "4h 12m",
+        youtubeId: "Q-icS7yZz5k",
+        free: false,
+      },
+      {
+        id: "backend-projects",
+        title: "Backend Projects",
+        duration: "36m",
+        youtubeId: "JmpDGMgRFfo",
+        free: false,
+      },
       {
         id: "mongodb-essentials",
         title: "MongoDB Essentials & Cheat Sheet",

@@ -57,33 +57,73 @@ const TrialCountdown = ({ expiry }: { expiry: string }) => {
     );
 };
 
-const SidebarLink = ({ to, icon: Icon, children, isCollapsed }: { to: string; icon: any; children: React.ReactNode; isCollapsed: boolean }) => (
-    <NavLink
-        to={to}
-        className={({ isActive }: { isActive: boolean }) =>
-            `flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-300 group relative overflow-hidden ${isActive
-                ? "bg-primary text-white shadow-lg shadow-primary/25"
-                : "text-muted-foreground hover:text-white hover:bg-white/10"
-            } ${isCollapsed ? "justify-center" : ""}`
-        }
-    >
-        <Icon className={`w-5 h-5 shrink-0 transition-transform duration-300 ${isCollapsed ? "scale-110" : ""}`} />
+const SidebarLink = ({ to, icon: Icon, children, isCollapsed, isAiAssistant = false }: { to: string; icon: any; children: React.ReactNode; isCollapsed: boolean; isAiAssistant?: boolean }) => {
+    return (
+        <NavLink
+            to={to}
+            className={({ isActive }) =>
+                `relative flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-300 group overflow-hidden ${isCollapsed ? "justify-center" : ""}`
+            }
+        >
+            {({ isActive }) => (
+                <>
+                    {isActive && (
+                        <motion.div
+                            layoutId="activeSidebarItem"
+                            className={`absolute inset-0 bg-primary/10 border border-primary/20 rounded-xl ${isAiAssistant ? "shadow-[0_0_20px_rgba(168,85,247,0.15)]" : "shadow-lg shadow-primary/5"}`}
+                            transition={{
+                                type: "spring",
+                                stiffness: 300,
+                                damping: 30
+                            }}
+                        />
+                    )}
 
-        <div className={`overflow-hidden transition-all duration-300 ${isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"}`}>
-            <span className="font-medium whitespace-nowrap pl-1">
-                {children}
-            </span>
-        </div>
+                    <div className="relative z-10 flex items-center gap-3">
+                        <motion.div
+                            animate={isAiAssistant && !isActive ? {
+                                filter: ["drop-shadow(0 0 0px rgba(168,85,247,0))", "drop-shadow(0 0 8px rgba(168,85,247,0.5))", "drop-shadow(0 0 0px rgba(168,85,247,0))"],
+                            } : {}}
+                            transition={{
+                                duration: 3,
+                                repeat: Infinity,
+                                ease: "easeInOut"
+                            }}
+                        >
+                            <Icon className={`w-5 h-5 shrink-0 transition-all duration-300 ${isActive ? "text-primary scale-110" : "text-muted-foreground group-hover:text-white group-hover:scale-110"
+                                }`} />
+                        </motion.div>
 
-        {/* Tooltip for collapsed state */}
-        {isCollapsed && (
-            <div className="absolute left-full ml-4 px-3 py-1.5 bg-zinc-900 border border-white/10 rounded-lg text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50 whitespace-nowrap pointer-events-none shadow-xl translate-x-2 group-hover:translate-x-0">
-                {children}
-            </div>
-        )}
-    </NavLink>
-);
+                        <motion.div
+                            className={`overflow-hidden transition-all duration-300 ${isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"}`}
+                        >
+                            <span className={`font-medium whitespace-nowrap pl-1 transition-colors ${isActive ? "text-primary" : "text-muted-foreground group-hover:text-white"}`}>
+                                {children}
+                            </span>
+                        </motion.div>
+                    </div>
 
+                    {isActive && isAiAssistant && (
+                        <motion.div
+                            className="absolute inset-0 bg-purple-500/5 rounded-xl z-0"
+                            animate={{ opacity: [0.5, 0.8, 0.5] }}
+                            transition={{ duration: 2, repeat: Infinity }}
+                        />
+                    )}
+
+                    {/* Tooltip for collapsed state */}
+                    {isCollapsed && (
+                        <div className="absolute left-full ml-4 px-3 py-1.5 bg-zinc-900 border border-white/10 rounded-lg text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50 whitespace-nowrap pointer-events-none shadow-xl translate-x-2 group-hover:translate-x-0">
+                            {children}
+                        </div>
+                    )}
+                </>
+            )}
+        </NavLink>
+    );
+};
+
+// ... MobileSidebarLink remains the same ...
 const MobileSidebarLink = ({ to, icon: Icon, children, onClick }: { to: string; icon: any; children: React.ReactNode; onClick: () => void }) => (
     <NavLink
         to={to}
@@ -111,6 +151,17 @@ const DashboardLayout: React.FC = () => {
         navigate("/");
     };
 
+    const sidebarItems = [
+        { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+        { to: "/curriculum", icon: BookOpen, label: "Curriculum" },
+        { to: "/projects", icon: FolderKanban, label: "Projects" },
+        { to: "/playground", icon: Code, label: "Playground" },
+        { to: "/feedback", icon: MessageSquare, label: "Feedback" },
+        { to: "/ai-assistant", icon: Bot, label: "AI Assistant", isAiAssistant: true },
+        ...(user?.role === 'admin' ? [{ to: "/admin", icon: LayoutDashboard, label: "Admin Panel", isAdmin: true }] : []),
+        { to: "/settings", icon: Settings, label: "Settings" }
+    ];
+
     return (
         <div className="flex h-screen bg-background overflow-hidden">
             {/* Sidebar - Desktop */}
@@ -118,7 +169,7 @@ const DashboardLayout: React.FC = () => {
                 initial={false}
                 animate={{ width: isCollapsed ? 84 : 280 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
-                className="hidden md:flex flex-col border-r border-white/5 bg-zinc-950/50 backdrop-blur-2xl relative"
+                className="hidden md:flex flex-col border-r border-white/5 bg-zinc-950/50 backdrop-blur-2xl relative z-50"
             >
                 {/* Header with Toggle */}
                 <div className="flex items-center justify-between px-4 py-6 mb-2">
@@ -139,7 +190,7 @@ const DashboardLayout: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Always Visible Toggle Button - Positioned absolutely to be consistent */}
+                {/* Always Visible Toggle Button */}
                 <button
                     onClick={() => setIsCollapsed(!isCollapsed)}
                     className="absolute top-6 right-[-12px] z-50 p-1.5 rounded-full bg-zinc-900 border border-white/10 text-muted-foreground hover:text-white hover:bg-zinc-800 transition-all shadow-md group"
@@ -148,19 +199,31 @@ const DashboardLayout: React.FC = () => {
                     <PanelLeft className={`w-4 h-4 transition-transform duration-300 ${isCollapsed ? "rotate-180" : ""}`} />
                 </button>
 
-                <nav className="flex-1 space-y-2 px-3 pt-4">
-                    <SidebarLink to="/dashboard" icon={LayoutDashboard} isCollapsed={isCollapsed}>Dashboard</SidebarLink>
-                    <SidebarLink to="/curriculum" icon={BookOpen} isCollapsed={isCollapsed}>Curriculum</SidebarLink>
-                    <SidebarLink to="/projects" icon={FolderKanban} isCollapsed={isCollapsed}>Projects</SidebarLink>
-                    <SidebarLink to="/playground" icon={Code} isCollapsed={isCollapsed}>Playground</SidebarLink>
-                    <SidebarLink to="/feedback" icon={MessageSquare} isCollapsed={isCollapsed}>Feedback</SidebarLink>
-                    <SidebarLink to="/ai-assistant" icon={Bot} isCollapsed={isCollapsed}>AI Assistant</SidebarLink>
-                    {user?.role === 'admin' && (
-                        <SidebarLink to="/admin" icon={LayoutDashboard} isCollapsed={isCollapsed}>
-                            <span className="text-purple-400 font-bold">Admin Panel</span>
-                        </SidebarLink>
-                    )}
-                    <SidebarLink to="/settings" icon={Settings} isCollapsed={isCollapsed}>Settings</SidebarLink>
+                <nav className="flex-1 px-3 pt-4">
+                    <ul className="space-y-2">
+                        {sidebarItems.map((item, index) => (
+                            <motion.li
+                                key={item.to}
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{
+                                    delay: 0.1 + index * 0.05,
+                                    type: "spring",
+                                    stiffness: 260,
+                                    damping: 20
+                                }}
+                            >
+                                <SidebarLink
+                                    to={item.to}
+                                    icon={item.icon}
+                                    isCollapsed={isCollapsed}
+                                    isAiAssistant={item.isAiAssistant}
+                                >
+                                    {item.isAdmin ? <span className="text-purple-400 font-bold">{item.label}</span> : item.label}
+                                </SidebarLink>
+                            </motion.li>
+                        ))}
+                    </ul>
                 </nav>
 
                 <div className="p-4 mt-auto border-t border-white/5 mx-3 mb-4 rounded-2xl bg-white/5 overflow-hidden group/user">
@@ -187,16 +250,7 @@ const DashboardLayout: React.FC = () => {
                         )}
                     </div>
 
-                    {/* Collapsed logout overlay or button */}
-                    {isCollapsed && (
-                        <button
-                            onClick={handleLogout}
-                            className="absolute inset-0 z-10 w-full h-full opacity-0 hover:opacity-100 bg-red-500/10 flex items-center justify-center text-red-400 transition-opacity"
-                            title="Logout"
-                        >
-                            <LogOut className="w-5 h-5" />
-                        </button>
-                    )}
+
                 </div>
             </motion.aside>
 

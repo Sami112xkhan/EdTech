@@ -124,10 +124,30 @@ const CurriculumPage: React.FC = () => {
                                             <Clock className="w-4 h-4 text-primary/60" />
                                             <span>
                                                 {(() => {
+                                                    const parseDuration = (timeStr: string) => {
+                                                        if (timeStr.includes(':')) {
+                                                            const parts = timeStr.split(':').map(Number);
+                                                            if (parts.length === 2) return parts[0] + parts[1] / 60;
+                                                            if (parts.length === 3) return parts[0] * 60 + parts[1] + parts[2] / 60;
+                                                            return 0;
+                                                        }
+
+                                                        let totalMinutes = 0;
+                                                        const hours = timeStr.match(/(\d+)h/);
+                                                        const minutes = timeStr.match(/(\d+)m/);
+                                                        const seconds = timeStr.match(/(\d+)s/);
+
+                                                        if (hours) totalMinutes += parseInt(hours[1]) * 60;
+                                                        if (minutes) totalMinutes += parseInt(minutes[1]);
+                                                        if (seconds) totalMinutes += parseInt(seconds[1]) / 60;
+
+                                                        return totalMinutes;
+                                                    };
+
                                                     const totalMinutes = phase.lessons.reduce((acc, lesson) => {
-                                                        const [mins, secs] = lesson.duration.split(':').map(Number);
-                                                        return acc + (isNaN(mins) ? 0 : mins) + (isNaN(secs) ? 0 : secs / 60);
+                                                        return acc + parseDuration(lesson.duration);
                                                     }, 0);
+
                                                     return `~${(totalMinutes / 60).toFixed(1)}h`;
                                                 })()}
                                             </span>
@@ -161,8 +181,8 @@ const CurriculumPage: React.FC = () => {
                                         setNoteSearch("");
                                     }}
                                     className={`min-w-[200px] md:min-w-0 w-auto md:w-full text-left px-5 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border snap-start ${!activePhaseId && !noteSearch
-                                            ? "bg-primary text-white border-primary shadow-lg shadow-primary/20"
-                                            : "bg-white/5 text-muted-foreground border-white/5 hover:bg-white/10 hover:text-white"
+                                        ? "bg-primary text-white border-primary shadow-lg shadow-primary/20"
+                                        : "bg-white/5 text-muted-foreground border-white/5 hover:bg-white/10 hover:text-white"
                                         }`}
                                 >
                                     All Resources
@@ -178,10 +198,10 @@ const CurriculumPage: React.FC = () => {
                                             }
                                         }}
                                         className={`min-w-[260px] md:min-w-0 w-auto md:w-full text-left px-5 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border flex items-center justify-between group snap-start ${activePhaseId === phase.id
-                                                ? "bg-primary text-white border-primary shadow-lg shadow-primary/20"
-                                                : phase.locked
-                                                    ? "bg-zinc-900/50 text-zinc-600 border-white/5 cursor-not-allowed"
-                                                    : "bg-white/5 text-muted-foreground border-white/5 hover:bg-white/10 hover:text-white"
+                                            ? "bg-primary text-white border-primary shadow-lg shadow-primary/20"
+                                            : phase.locked
+                                                ? "bg-zinc-900/50 text-zinc-600 border-white/5 cursor-not-allowed"
+                                                : "bg-white/5 text-muted-foreground border-white/5 hover:bg-white/10 hover:text-white"
                                             }`}
                                     >
                                         <span className="truncate mr-2 font-black">{phase.title.split(" — ")[0]}</span>

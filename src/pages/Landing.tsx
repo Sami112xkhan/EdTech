@@ -3,6 +3,7 @@ import Navbar from '../components/Navbar';
 import Hero from '../components/Hero';
 import Curriculum from '../components/Curriculum';
 import LaserFlow from "../components/LaserFlow";
+import GradualBlur from '../components/GradualBlur';
 import { motion } from "motion/react";
 
 const Landing: React.FC = () => {
@@ -30,6 +31,17 @@ const Landing: React.FC = () => {
                 >
                     <p>&copy; {new Date().getFullYear()} DevMastery. All rights reserved.</p>
                 </motion.footer>
+
+                <GradualBlur
+                    target="page"
+                    position="bottom"
+                    height="7rem"
+                    strength={2}
+                    divCount={5}
+                    curve="bezier"
+                    exponential
+                    opacity={1}
+                />
             </div>
         </div>
     );
