@@ -107,7 +107,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const sqlHeartbeatInterval = setInterval(async () => {
             if (sessionId) {
                 try {
-                    await fetch('http://localhost:3001/api/auth/heartbeat', {
+                    await fetch('/api/auth/heartbeat', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ sessionId }),
@@ -467,7 +467,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             // --- HOOK INTO BACKEND AFTER SUCCESSFUL GOOGLE AUTH ---
             try {
-                const response = await fetch('http://localhost:3001/api/auth/google', {
+                const response = await fetch('/api/auth/google', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ credential }),
@@ -629,7 +629,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const logout = async () => {
         if (sessionId) {
             try {
-                await fetch('http://localhost:3001/api/auth/logout', {
+                await fetch('/api/auth/logout', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ sessionId }),

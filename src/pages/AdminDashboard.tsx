@@ -70,7 +70,7 @@ const AdminDashboard: React.FC = () => {
     useEffect(() => {
         const fetchSqlStats = async () => {
             try {
-                const response = await fetch('http://localhost:3001/api/admin/stats');
+                const response = await fetch('/api/admin/stats');
                 const data = await response.json();
                 setSqlStats(data);
             } catch (e) {
