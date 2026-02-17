@@ -62,6 +62,7 @@ const AdminDashboard: React.FC = () => {
     const [codes, setCodes] = useState(getAllAccessCodes());
     const [sqlStats, setSqlStats] = useState<{
         totalUsers: number;
+        proMembers: number;
         activeUsers: number;
         newToday: number;
         recentLogins: any[];
@@ -128,7 +129,7 @@ const AdminDashboard: React.FC = () => {
 
         return [
             { label: 'Total Members', value: sqlStats?.totalUsers ?? totalUsers, icon: Users, color: 'indigo', trend: sqlStats ? 'SQL' : '+12%' },
-            { label: 'PRO Members', value: proUsers, icon: Award, color: 'primary', trend: '+5%' },
+            { label: 'PRO Members', value: sqlStats?.proMembers ?? proUsers, icon: Award, color: 'primary', trend: sqlStats ? 'SQL' : '+5%' },
             { label: 'Live Active', value: sqlStats?.activeUsers ?? activeTrials, icon: Clock, color: 'amber', trend: 'Live' },
             { label: 'New Today', value: sqlStats?.newToday ?? pendingFeedback, icon: MessageSquare, color: 'rose', trend: 'Today' }
         ];

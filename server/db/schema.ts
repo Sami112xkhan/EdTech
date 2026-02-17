@@ -9,6 +9,7 @@ export const users = pgTable("users", {
     createdAt: timestamp("created_at").defaultNow().notNull(),
     lastLoginAt: timestamp("last_login_at").defaultNow().notNull(),
     role: text("role").default("student").notNull(), // 'student' or 'admin'
+    isPaid: boolean("is_paid").default(false).notNull(),
 });
 
 export const sessions = pgTable("sessions", {

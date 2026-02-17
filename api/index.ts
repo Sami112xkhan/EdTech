@@ -59,7 +59,7 @@ app.post("/api/auth/google", async (req, res) => {
             isActive: true,
         }).returning();
 
-        res.json({ user, sessionId: session.id });
+        res.json({ user, sessionId: session.id, isPaid: user.isPaid });
     } catch (error) {
         console.error("Auth sync error:", error);
         res.status(500).json({ error: "Failed to sync auth" });
@@ -78,6 +78,23 @@ app.post("/api/auth/logout", async (req, res) => {
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: "Failed to logout" });
+    }
+});
+
+// Purchase Sync Hook
+app.post("/api/auth/purchase", async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "Email required" });
+
+    try {
+        const [user] = await db.update(users)
+            .set({ isPaid: true })
+            .where(eq(users.email, email))
+            .returning();
+        res.json({ success: true, user });
+    } catch (error) {
+        console.error("Purchase sync error:", error);
+        res.status(500).json({ error: "Failed to sync purchase" });
     }
 });
 
@@ -149,6 +166,7 @@ app.delete("/api/feedback/:id", async (req, res) => {
 app.get("/api/admin/stats", async (req, res) => {
     try {
         const totalUsers = await db.select({ count: sql<number>`count(*)` }).from(users);
+        const proMembers = await db.select({ count: sql<number>`count(*)` }).from(users).where(eq(users.isPaid, true));
         // Active Users (Heartbeat in last 5 mins or isActive is true)
         const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000);
         const activeUsersCount = await db.select({ count: sql<number>`count(distinct user_id)` })
@@ -178,6 +196,7 @@ app.get("/api/admin/stats", async (req, res) => {
 
         res.json({
             totalUsers: Number(totalUsers[0].count),
+            proMembers: Number(proMembers[0].count),
             activeUsers: Number(activeUsersCount[0].count),
             newToday: Number(newToday[0].count),
             pendingFeedback: Number(pendingFeedbackCount[0].count),

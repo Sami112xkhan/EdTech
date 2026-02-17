@@ -474,6 +474,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         setSessionId(data.sessionId);
                         localStorage.setItem('sessionId', data.sessionId);
                     }
+                    if (data.isPaid !== undefined) {
+                        const paidUser = { ...activeUser, isPaid: data.isPaid };
+                        setUser(paidUser);
+                        localStorage.setItem('user', JSON.stringify(paidUser));
+                    }
                 } else {
                     console.warn("Backend sync returned status:", response.status);
                 }
@@ -645,7 +650,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.removeItem("sessionId");
     };
 
-    const completePurchase = () => {
+    const completePurchase = async () => {
         if (user) {
             const updatedUser = { ...user, isPaid: true };
             setUser(updatedUser);
@@ -655,6 +660,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
             const updatedDb = usersDb.map((u: User) => u.email === user.email ? updatedUser : u);
             localStorage.setItem("users_db", JSON.stringify(updatedDb));
+
+            // Sync Purchase to SQL
+            try {
+                await fetch('/api/auth/purchase', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: user.email }),
+                });
+            } catch (e) {
+                console.warn("Failed to sync purchase to SQL backend", e);
+            }
         }
     };
 
