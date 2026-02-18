@@ -7,6 +7,8 @@ import Navbar from "../components/Navbar";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { initializePayment } from "../utils/razorpay";
+import { useDiscountTimer } from "../hooks/useDiscountTimer";
+import CheckoutTimer from "../components/CheckoutTimer";
 
 const Checkout: React.FC = () => {
     const { user, completePurchase, redeemCode } = useAuth();
@@ -14,6 +16,13 @@ const Checkout: React.FC = () => {
     const [accessCode, setAccessCode] = React.useState("");
     const [loading, setLoading] = React.useState(false);
     const [redeemMessage, setRedeemMessage] = React.useState("");
+
+    // Use the discount timer hook
+    const { timeLeft, isExpired } = useDiscountTimer();
+
+    // Dynamic price based on expiration
+    const currentPrice = isExpired ? 15000 : 10000;
+    const originalPrice = 15000;
 
     const handleRedeem = async () => {
         if (!accessCode) return;
@@ -23,7 +32,7 @@ const Checkout: React.FC = () => {
         // Simulating async delay for effect
         await new Promise(r => setTimeout(r, 600));
 
-        const result = redeemCode(accessCode);
+        const result = await redeemCode(accessCode);
         setLoading(false);
         setRedeemMessage(result.message);
 
@@ -43,7 +52,7 @@ const Checkout: React.FC = () => {
         }
 
         await initializePayment(
-            10000, // Amount in INR
+            currentPrice, // Dynamic Amount in INR
             {
                 name: user.name,
                 email: user.email,
@@ -93,15 +102,19 @@ const Checkout: React.FC = () => {
                     </div>
 
                     {/* Right: Payment Card */}
-                    <div className="bg-secondary/30 backdrop-blur-xl border border-white/10 p-8 rounded-2xl shadow-2xl">
+                    <div className="bg-secondary/30 backdrop-blur-xl border border-white/10 p-8 rounded-2xl shadow-2xl relative overflow-hidden">
+
+                        {/* Timer Component */}
+                        <CheckoutTimer timeLeft={timeLeft} isExpired={isExpired} />
+
                         <div className="flex justify-between items-start mb-8">
                             <div>
                                 <h3 className="text-xl font-bold">Full Stack Mastery</h3>
                                 <p className="text-sm text-muted-foreground">One-time payment</p>
                             </div>
                             <div className="text-right">
-                                <div className="text-3xl font-bold">₹10,000</div>
-                                <div className="text-xs text-muted-foreground line-through">₹15,000</div>
+                                <div className="text-3xl font-bold">₹{currentPrice.toLocaleString()}</div>
+                                {!isExpired && <div className="text-xs text-muted-foreground line-through">₹{originalPrice.toLocaleString()}</div>}
                             </div>
                         </div>
 
@@ -113,7 +126,7 @@ const Checkout: React.FC = () => {
                             className="w-full py-4 rounded-lg bg-[#3b82f6] hover:bg-[#3b82f6]/90 text-white font-bold text-lg shadow-lg flex items-center justify-center gap-2 transition-transform hover:scale-[1.02]"
                         >
                             <CreditCard className="w-5 h-5" />
-                            Pay Now - ₹10,000
+                            Pay Now - ₹{currentPrice.toLocaleString()}
                         </button>
 
                         <div className="text-center mt-6">

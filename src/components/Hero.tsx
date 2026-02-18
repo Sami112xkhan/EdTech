@@ -5,10 +5,14 @@ import { ArrowRight, CheckCircle2, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
 import GradientText from "./GradientText";
 import GlassSurface from "./GlassSurface";
-
+import { useDiscountTimer } from "../hooks/useDiscountTimer";
+import CheckoutTimer from "./CheckoutTimer";
 
 
 const Hero: React.FC = () => {
+    const { timeLeft, isExpired } = useDiscountTimer();
+    const currentPrice = isExpired ? 15000 : 10000;
+
     return (
         <section className="relative min-h-screen flex items-center justify-center pt-36 md:pt-32 overflow-hidden">
             {/* Background Elements */}
@@ -71,6 +75,18 @@ const Hero: React.FC = () => {
                     Lifetime access + AI Mentor for a single price.
                 </motion.p>
 
+                {/* Timer Section */}
+                {!isExpired && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.5, delay: 0.25 }}
+                        className="mb-8 max-w-md mx-auto"
+                    >
+                        <CheckoutTimer timeLeft={timeLeft} isExpired={isExpired} />
+                    </motion.div>
+                )}
+
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -82,7 +98,7 @@ const Hero: React.FC = () => {
                             to="/checkout"
                             className="w-full sm:w-auto px-8 py-4 rounded-full bg-primary hover:bg-primary/90 text-white font-semibold text-lg shadow-xl shadow-primary/25 transition-all hover:scale-105 flex items-center justify-center gap-2 relative z-10"
                         >
-                            Secure Your Spot — ₹10,000
+                            Secure Your Spot — ₹{currentPrice.toLocaleString()}
                             <ArrowRight className="w-5 h-5" />
                         </Link>
 
