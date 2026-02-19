@@ -18,6 +18,7 @@ uniform float uNoise;
 uniform float uScan;
 uniform float uScanFreq;
 uniform float uWarp;
+uniform vec3 uAccentColor;
 #define iTime uTime
 #define iResolution uResolution
 
@@ -70,6 +71,7 @@ void main(){
     float scanline_val=sin(gl_FragCoord.y*uScanFreq)*0.5+0.5;
     col.rgb*=1.-(scanline_val*scanline_val)*uScan;
     col.rgb+=(rand(gl_FragCoord.xy+uTime)-0.5)*uNoise;
+    col.rgb *= uAccentColor * 1.5; // Tint with accent color, boost brightness slightly
     gl_FragColor=vec4(clamp(col.rgb,0.0,1.0),1.0);
 }
 `;
@@ -82,6 +84,7 @@ interface DarkVeilProps {
     scanlineFrequency?: number;
     warpAmount?: number;
     resolutionScale?: number;
+    accentColor?: [number, number, number];
 }
 
 export default function DarkVeil({
@@ -91,7 +94,8 @@ export default function DarkVeil({
     speed = 0.5,
     scanlineFrequency = 0,
     warpAmount = 0,
-    resolutionScale = 1
+    resolutionScale = 1,
+    accentColor = [1.0, 1.0, 1.0]
 }: DarkVeilProps) {
     const ref = useRef<HTMLCanvasElement>(null);
     useEffect(() => {
@@ -117,7 +121,8 @@ export default function DarkVeil({
                 uNoise: { value: noiseIntensity },
                 uScan: { value: scanlineIntensity },
                 uScanFreq: { value: scanlineFrequency },
-                uWarp: { value: warpAmount }
+                uWarp: { value: warpAmount },
+                uAccentColor: { value: accentColor }
             }
         });
 
@@ -143,6 +148,7 @@ export default function DarkVeil({
             program.uniforms.uScan.value = scanlineIntensity;
             program.uniforms.uScanFreq.value = scanlineFrequency;
             program.uniforms.uWarp.value = warpAmount;
+            program.uniforms.uAccentColor.value = accentColor;
             renderer.render({ scene: mesh });
             frame = requestAnimationFrame(loop);
         };
@@ -153,6 +159,6 @@ export default function DarkVeil({
             cancelAnimationFrame(frame);
             window.removeEventListener('resize', resize);
         };
-    }, [hueShift, noiseIntensity, scanlineIntensity, speed, scanlineFrequency, warpAmount, resolutionScale]);
+    }, [hueShift, noiseIntensity, scanlineIntensity, speed, scanlineFrequency, warpAmount, resolutionScale, accentColor]);
     return <canvas ref={ref} className="darkveil-canvas" />;
 }

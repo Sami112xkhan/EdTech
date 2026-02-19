@@ -85,3 +85,8 @@ export const aiChats = pgTable("ai_chats", {
     reasoning: text("reasoning"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+export const systemSettings = pgTable("system_settings", {
+    key: text("key").primaryKey(),
+    value: text("value").notNull(),
+});

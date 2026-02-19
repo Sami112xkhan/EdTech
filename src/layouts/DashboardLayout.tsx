@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
     LayoutDashboard,
     BookOpen,
@@ -143,8 +143,11 @@ const MobileSidebarLink = ({ to, icon: Icon, children, onClick }: { to: string; 
 const DashboardLayout: React.FC = () => {
     const { logout, user } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+    const isPlayground = location.pathname === '/playground';
 
     const handleLogout = () => {
         logout();
@@ -255,7 +258,7 @@ const DashboardLayout: React.FC = () => {
             </motion.aside>
 
             {/* Main Content */}
-            <main data-lenis-prevent className="flex-1 overflow-y-auto relative flex flex-col h-full w-full">
+            <main data-lenis-prevent className={`flex-1 relative flex flex-col h-full w-full ${isPlayground ? "overflow-hidden" : "overflow-y-auto"}`}>
                 {/* Mobile Header */}
                 <header className="md:hidden flex items-center justify-between p-4 border-b border-white/5 bg-background/80 backdrop-blur-md sticky top-0 z-40">
                     <div className="flex items-center gap-2">
@@ -278,7 +281,7 @@ const DashboardLayout: React.FC = () => {
                     <TrialCountdown expiry={user.trialExpiresAt} />
                 )}
 
-                <div className="p-4 md:p-6 max-w-7xl mx-auto pb-40 w-full">
+                <div className={isPlayground ? "h-full w-full overflow-hidden" : "p-4 md:p-6 max-w-7xl mx-auto pb-40 w-full"}>
                     <Outlet />
                 </div>
 

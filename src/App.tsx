@@ -2,6 +2,7 @@
 import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import { ThemeProvider } from "./context/ThemeContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { Toaster } from "sonner";
 
@@ -33,49 +34,51 @@ function App() {
     return (
         <BrowserRouter>
             <AuthProvider>
-                <FeedbackProvider>
-                    <Routes>
-                        <Route element={<RootLayout />}>
-                            {/* Public Routes */}
-                            <Route path="/" element={<Landing />} />
-                            <Route path="/login" element={<Login />} />
-                            <Route path="/signup" element={<Signup />} />
-                            <Route path="/verify" element={<VerifyEmail />} />
+                <ThemeProvider>
+                    <FeedbackProvider>
+                        <Routes>
+                            <Route element={<RootLayout />}>
+                                {/* Public Routes */}
+                                <Route path="/" element={<Landing />} />
+                                <Route path="/login" element={<Login />} />
+                                <Route path="/signup" element={<Signup />} />
+                                <Route path="/verify" element={<VerifyEmail />} />
 
-                            {/* Protected Routes (Auth Required) */}
-                            <Route element={<ProtectedRoute />}>
-                                <Route path="/checkout" element={<Checkout />} />
-                                <Route path="/admin" element={<AdminDashboard />} />
+                                {/* Protected Routes (Auth Required) */}
+                                <Route element={<ProtectedRoute />}>
+                                    <Route path="/checkout" element={<Checkout />} />
+                                    <Route path="/admin" element={<AdminDashboard />} />
 
-                                {/* Payment Required Routes */}
-                                <Route element={<ProtectedRoute requirePayment />}>
-                                    <Route element={<DashboardLayout />}>
-                                        <Route path="/dashboard" element={<Dashboard />} />
-                                        <Route path="/curriculum" element={<CurriculumPage />} />
-                                        <Route path="/learn/:moduleId/:lessonId" element={<CoursePlayer />} />
-                                        <Route path="/projects" element={<Projects />} />
-                                        <Route path="/playground" element={<PlaygroundPage />} />
-                                        <Route path="/settings" element={<Settings />} />
-                                        <Route path="/feedback" element={<Feedback />} />
-                                        {/* AI Assistant Page */}
-                                        <Route path="/ai-assistant" element={<AIAssistantPage />} />
+                                    {/* Payment Required Routes */}
+                                    <Route element={<ProtectedRoute requirePayment />}>
+                                        <Route element={<DashboardLayout />}>
+                                            <Route path="/dashboard" element={<Dashboard />} />
+                                            <Route path="/curriculum" element={<CurriculumPage />} />
+                                            <Route path="/learn/:moduleId/:lessonId" element={<CoursePlayer />} />
+                                            <Route path="/projects" element={<Projects />} />
+                                            <Route path="/playground" element={<PlaygroundPage />} />
+                                            <Route path="/settings" element={<Settings />} />
+                                            <Route path="/feedback" element={<Feedback />} />
+                                            {/* AI Assistant Page */}
+                                            <Route path="/ai-assistant" element={<AIAssistantPage />} />
+                                        </Route>
                                     </Route>
                                 </Route>
                             </Route>
-                        </Route>
-                    </Routes>
-                    <Analytics />
-                    <Toaster position="top-right" expand={true} richColors theme="dark" toastOptions={{
-                        style: {
-                            background: 'rgba(20, 20, 20, 0.8)',
-                            backdropFilter: 'blur(10px)',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
-                            borderRadius: '1.2rem',
-                            fontSize: '0.8rem',
-                            fontWeight: '600'
-                        }
-                    }} />
-                </FeedbackProvider>
+                        </Routes>
+                        <Analytics />
+                        <Toaster position="top-right" expand={true} richColors theme="dark" toastOptions={{
+                            style: {
+                                background: 'rgba(20, 20, 20, 0.8)',
+                                backdropFilter: 'blur(10px)',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                borderRadius: '1.2rem',
+                                fontSize: '0.8rem',
+                                fontWeight: '600'
+                            }
+                        }} />
+                    </FeedbackProvider>
+                </ThemeProvider>
             </AuthProvider>
         </BrowserRouter>
     );

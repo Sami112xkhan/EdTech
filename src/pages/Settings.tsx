@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import Input from '../components/ui/Input';
 import {
     CreditCard, Save, Bell, Globe, BookOpen,
@@ -137,10 +138,8 @@ const Settings: React.FC = () => {
         } catch { return fallback; }
     };
 
-    // Appearance
-    const [accentColor, setAccentColor] = useState(() => loadPref('accentColor', 'purple'));
-    const [fontSize, setFontSize] = useState(() => loadPref('fontSize', 'medium'));
-    const [codeFont, setCodeFont] = useState(() => loadPref('codeFont', 'fira'));
+    // Appearance (Global Theme Context)
+    const { fontSize, setFontSize, accentColor, setAccentColor, codeFont, setCodeFont } = useTheme();
 
     // Notifications
     const [emailNotifs, setEmailNotifs] = useState(() => loadPref('emailNotifs', true));
@@ -152,41 +151,6 @@ const Settings: React.FC = () => {
     const [profileVisibility, setProfileVisibility] = useState(() => loadPref('profileVisibility', 'public'));
     const [showProgress, setShowProgress] = useState(() => loadPref('showProgress', true));
     const [showStreak, setShowStreak] = useState(() => loadPref('showStreak', true));
-
-    // ─── Apply accent color CSS variable ───
-    const accentMap: Record<string, string> = {
-        purple: '262, 80%, 52%',
-        blue: '217, 91%, 60%',
-        green: '142, 71%, 45%',
-        orange: '25, 95%, 53%',
-        pink: '330, 81%, 60%',
-    };
-
-    useEffect(() => {
-        document.documentElement.style.setProperty('--accent-h', accentMap[accentColor]?.split(',')[0]?.trim() || '262');
-        const parts = accentMap[accentColor]?.split(',') || [];
-        if (parts.length === 3) {
-            document.documentElement.style.setProperty('--color-primary', `hsl(${parts[0].trim()}, ${parts[1].trim()}, ${parts[2].trim()})`);
-        }
-    }, [accentColor]);
-
-    // ─── Apply font size ───
-    useEffect(() => {
-        const sizeMap: Record<string, string> = { small: '14px', medium: '16px', large: '18px' };
-        document.documentElement.style.fontSize = sizeMap[fontSize] || '16px';
-        return () => { document.documentElement.style.fontSize = ''; };
-    }, [fontSize]);
-
-    // ─── Apply code font ───
-    useEffect(() => {
-        const fontMap: Record<string, string> = {
-            fira: "'Fira Code', monospace",
-            jetbrains: "'JetBrains Mono', monospace",
-            cascadia: "'Cascadia Code', monospace",
-            mono: "ui-monospace, SFMono-Regular, monospace",
-        };
-        document.documentElement.style.setProperty('--code-font', fontMap[codeFont] || fontMap.fira);
-    }, [codeFont]);
 
     // ─── Request push notification permission ───
     const requestPushPermission = useCallback(async () => {
@@ -352,7 +316,7 @@ const Settings: React.FC = () => {
                         label="Accent Color"
                         icon={<Palette className="w-4 h-4" />}
                         value={accentColor}
-                        onChange={updatePref('accentColor', setAccentColor)}
+                        onChange={setAccentColor}
                         options={[
                             { value: 'purple', label: '💜 Purple' },
                             { value: 'blue', label: '💙 Blue' },
@@ -365,7 +329,7 @@ const Settings: React.FC = () => {
                         label="Font Size"
                         icon={<Globe className="w-4 h-4" />}
                         value={fontSize}
-                        onChange={updatePref('fontSize', setFontSize)}
+                        onChange={setFontSize}
                         options={[
                             { value: 'small', label: 'Small' },
                             { value: 'medium', label: 'Medium' },
@@ -376,7 +340,7 @@ const Settings: React.FC = () => {
                         label="Code Font"
                         icon={<Code className="w-4 h-4" />}
                         value={codeFont}
-                        onChange={updatePref('codeFont', setCodeFont)}
+                        onChange={setCodeFont}
                         options={[
                             { value: 'fira', label: 'Fira Code' },
                             { value: 'jetbrains', label: 'JetBrains Mono' },

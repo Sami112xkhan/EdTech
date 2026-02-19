@@ -49,6 +49,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Validate Session with SQL Backend
         const validateSession = async () => {
             const storedSessionId = localStorage.getItem('sessionId');
+            const storedUserStr = localStorage.getItem("user");
+
+            // 1. Bypass for Hardcoded Admin (Client-side persistence)
+            if (storedUserStr) {
+                const storedUser = JSON.parse(storedUserStr);
+                if (storedUser.email === 'admin@devmastery.com') {
+                    setUser(storedUser);
+                    setIsAuthenticated(true);
+                    return; // Skip backend validation for hardcoded admin
+                }
+            }
 
             if (storedSessionId) {
                 try {

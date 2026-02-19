@@ -9,11 +9,12 @@
     "server": "tsx server/index.ts"
   },
   "dependencies": {
-    "@codesandbox/sandpack-react": "^2.20.0",
+    "@babel/standalone": "^7.29.1",
     "@emailjs/browser": "^4.4.1",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
     "@mlc-ai/web-llm": "^0.2.80",
+    "@monaco-editor/react": "^4.7.0",
     "@mui/icons-material": "7.3.5",
     "@mui/material": "7.3.5",
     "@popperjs/core": "2.11.8",
@@ -96,6 +97,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.1.12",
+    "@types/babel__standalone": "^7.1.9",
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",

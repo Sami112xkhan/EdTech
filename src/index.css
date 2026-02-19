@@ -62,6 +62,61 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+html,
+body,
+#root {
+  height: 100%;
+}
+
+/* Force Sandpack to take full height */
+.sp-wrapper,
+.sp-layout,
+.sp-stack,
+.sp-preview-container,
+.sp-preview-iframe {
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 !important;
+}
+
+/* Editor Specifics */
+.cm-editor {
+  height: 100% !important;
+}
+
+.cm-scroller {
+  height: 100% !important;
+  overflow: auto !important;
+}
+
+/* Custom Scrollbar for Code Editor */
+.cm-scroller::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.cm-scroller::-webkit-scrollbar-track {
+  background: #1e1e1e;
+}
+
+.cm-scroller::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  /* gray-600 */
+  border-radius: 5px;
+  border: 2px solid #1e1e1e;
+}
+
+.cm-scroller::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+  /* gray-500 */
+}
+
+/* Ensure no bounce on the main app */
+html {
+  overscroll-behavior: none;
+}
+
 /* Smooth Scroll (Lenis) */
 html.lenis,
 html.lenis body {
@@ -82,4 +137,9 @@ html.lenis body {
 
 .lenis.lenis-scrolling iframe {
   pointer-events: none;
+}
+
+/* Hide duplicate Sandpack buttons */
+.sp-preview-actions {
+  display: none !important;
 }

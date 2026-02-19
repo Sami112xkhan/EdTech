@@ -1,360 +1,456 @@
-
 import React, { useState, useEffect } from "react";
 import {
-  SandpackProvider,
-  SandpackLayout,
-  SandpackCodeEditor,
-  SandpackPreview,
-  useSandpack
-} from "@codesandbox/sandpack-react";
+  Code, Terminal, Box, Play, Layers, Save, FolderOpen, Plus, Loader2, Sparkles, Trash2
+} from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { Code, Terminal, Box, Play, Layers, Save, FolderOpen, Plus, Loader2, Sparkles } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
+import { MonacoEditor } from "../components/Playground/MonacoEditor";
+import { CodeRunner } from "../components/Playground/CodeRunner";
+import GlassSurface from "../components/GlassSurface";
+import Prism from "../components/Playground/Prism";
+import { useTheme, ACCENT_COLORS, BACKGROUND_CALIBRATION, ACCENT_RGB } from "../context/ThemeContext";
 
-const SaveButton: React.FC<{ email: string; name: string; type: string; currentProjectId: string | null; setProjectId: (id: string) => void; onSave: () => void }> = ({ email, name, type, currentProjectId, setProjectId, onSave }) => {
-  const { sandpack } = useSandpack();
-  const [isSaving, setIsSaving] = useState(false);
+// --- Types ---
+type TemplateType = "react" | "python" | "node" | "vanilla" | "html";
 
-  const handleSave = async () => {
-    if (isSaving) return;
-    setIsSaving(true);
-    try {
-      const response = await fetch('/api/playground/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          name,
-          type,
-          files: JSON.stringify(sandpack.files),
-          projectId: currentProjectId
-        })
-      });
+interface FileMap {
+  [path: string]: string;
+}
 
-      if (response.ok) {
-        const data = await response.json();
-        if (!currentProjectId) setProjectId(data.id);
-        toast.success("Project Saved! 💾", {
-          description: "Your code is now persisted in the cloud."
-        });
-        onSave();
-      }
-    } catch (error) {
-      console.error("Save error:", error);
-      toast.error("Failed to save project");
-    } finally {
-      setIsSaving(false);
-    }
-  };
+interface TemplateConfig {
+  name: string;
+  icon: React.ElementType;
+  defaultFile: string;
+  files: FileMap;
+}
 
+// --- Constants ---
+const TEMPLATES: Record<TemplateType, TemplateConfig> = {
+  react: {
+    name: "React",
+    icon: Code,
+    defaultFile: "App.js", // Babel standalone handles JSX in .js
+    files: {
+      "App.js": `import React, { useState } from 'react';
+
+export default function App() {
+  const [count, setCount] = useState(0);
+  
   return (
-    <button
-      onClick={handleSave}
-      disabled={isSaving}
-      className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
-    >
-      {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-      {isSaving ? "Saving..." : "Save Project"}
-    </button>
+    <div style={{ textAlign: 'center', padding: '2rem', color: '#fff' }}>
+      <h1>Hello Monaco! 🚀</h1>
+      <p>This is a React component running in the browser.</p>
+      
+      <button 
+        onClick={() => setCount(c => c + 1)}
+        style={{
+          padding: '10px 20px',
+          fontSize: '16px',
+          borderRadius: '8px',
+          border: 'none',
+          background: '#6d28d9',
+          color: 'white',
+          cursor: 'pointer'
+        }}
+      >
+        Count is {count}
+      </button>
+    </div>
   );
+}
+`
+    }
+  },
+  python: {
+    name: "Python",
+    icon: Terminal,
+    defaultFile: "main.py",
+    files: {
+      "main.py": `print("Hello from Python! 🐍")
+
+def factorial(n):
+    if n == 0: return 1
+    return n * factorial(n-1)
+
+print(f"Factorial of 5 is {factorial(5)}")
+`
+    }
+  },
+  node: {
+    name: "Node.js (Web)",
+    icon: Terminal,
+    defaultFile: "index.js",
+    files: {
+      "index.js": `console.log("Hello from Node.js (Web)! 🟩");
+console.log("Standard JS features work here.");
+
+const data = [1, 2, 3, 4, 5];
+const doubled = data.map(n => n * 2);
+console.log("Doubled:", doubled);
+`
+    }
+  },
+  vanilla: {
+    name: "JavaScript",
+    icon: Code,
+    defaultFile: "script.js",
+    files: {
+      "script.js": `console.log("Hello Vanilla JS! 🍦");
+document.body.innerHTML += "<h1>Hello from JS</h1>";
+`
+    }
+  },
+  html: {
+    name: "HTML/CSS",
+    icon: Layers,
+    defaultFile: "index.html",
+    files: {
+      "index.html": `<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { background: #111; color: white; font-family: sans-serif; }
+    h1 { color: #facc15; }
+  </style>
+</head>
+<body>
+  <h1>Hello HTML! 🎨</h1>
+  <p>Edit me and click run!</p>
+</body>
+</html>`
+    }
+  }
 };
 
 const PlaygroundPage: React.FC = () => {
   const { user } = useAuth();
-  const [activeTemplate, setActiveTemplate] = useState<"react" | "node" | "static">("react");
-  const [projectName, setProjectName] = useState("New Project");
-  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
-  const [savedProjects, setSavedProjects] = useState<any[]>([]);
+  const { accentColor } = useTheme();
+
+  // --- State ---
+  const [activeTemplate, setActiveTemplate] = useState<TemplateType>("react");
+  const [files, setFiles] = useState<FileMap>(TEMPLATES.react.files);
+  const [activeFile, setActiveFile] = useState<string>(TEMPLATES.react.defaultFile);
+  const [triggerRun, setTriggerRun] = useState(0);
+  const [logs, setLogs] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  // Projects
   const [showProjects, setShowProjects] = useState(false);
-  const [customFiles, setCustomFiles] = useState<any>(null);
+  const [savedProjects, setSavedProjects] = useState<any[]>([]);
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+  const [projectName, setProjectName] = useState("New Project");
 
-  const templates = {
-    react: {
-      name: "React",
-      icon: Code,
-      files: {
-        "/App.js": `import React from "react";
-
-export default function App() {
-  return (
-    <div style={{ 
-      fontFamily: "system-ui, sans-serif", 
-      textAlign: "center", 
-      padding: "2rem",
-      background: "#1a1a1a",
-      color: "white",
-      minHeight: "100vh"
-    }}>
-      <h1 style={{ 
-        background: "linear-gradient(to right, #6366f1, #a855f7, #ec4899)", 
-        WebkitBackgroundClip: "text", 
-        color: "transparent",
-        fontSize: "3rem",
-        fontWeight: "900" 
-      }}>
-        Hello World!
-      </h1>
-      <p style={{ color: "#a1a1aa", fontSize: "1.2rem" }}>
-        Start editing to see some magic happen!
-      </p>
-    </div>
-  );
-}`
-      }
-    },
-    node: {
-      name: "Node.js",
-      icon: Terminal,
-      files: {
-        "/index.js": `const http = require('http');
-
-const server = http.createServer((req, res) => {
-  res.statusCode = 200;
-  res.setHeader('Content-Type', 'text/plain');
-  res.end('Hello from Node.js Server!\\n');
-});
-
-const port = 3000;
-server.listen(port, () => {
-  console.log(\`Server running at port \${port}\`);
-});`
-      }
-    },
-    static: {
-      name: "HTML/CSS",
-      icon: Layers,
-      files: {
-        "/index.html": `<!DOCTYPE html>
-<html>
-<head>
-  <title>Static Page</title>
-  <style>
-    body {
-      background: #000;
-      color: white;
-      font-family: sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-    }
-    .card {
-      background: rgba(255, 255, 255, 0.1);
-      padding: 2rem;
-      border-radius: 1rem;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      backdrop-filter: blur(10px);
-    }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h1>Vanilla HTML & CSS</h1>
-    <p>This is a static page.</p>
-  </div>
-</body>
-</html>`
-      }
-    }
-  };
-
-  const loadProjects = async () => {
-    if (!user?.email) return;
-    try {
-      const response = await fetch(`/api/playground/list?email=${encodeURIComponent(user.email)}`);
-      if (response.ok) {
-        const data = await response.json();
-        setSavedProjects(data);
-      }
-    } catch (error) {
-      console.error("Failed to load projects:", error);
-    }
-  };
-
+  // Load Projects
   useEffect(() => {
-    loadProjects();
+    if (user?.email) {
+      fetch(`/api/playground/list?email=${encodeURIComponent(user.email)}`)
+        .then(res => res.json())
+        .then(data => setSavedProjects(data))
+        .catch(console.error);
+    }
   }, [user?.email]);
 
-  const handleLoadProject = (project: any) => {
-    setCurrentProjectId(project.id);
-    setProjectName(project.name);
-    setActiveTemplate(project.type);
-    setCustomFiles(JSON.parse(project.files));
-    setShowProjects(false);
+  // --- Handlers ---
+  const handleEditorChange = (val: string | undefined) => {
+    if (val !== undefined) {
+      setFiles(prev => ({ ...prev, [activeFile]: val }));
+    }
   };
 
-  const [resetKey, setResetKey] = useState(0);
+  const handleRun = () => {
+    setLogs([]); // Clear logs
+    setError(null);
+    setTriggerRun(n => n + 1);
+  };
+
+  const handleTemplateSwitch = (type: TemplateType) => {
+    // Reset Everything
+    setActiveTemplate(type);
+    setFiles(TEMPLATES[type].files);
+    setActiveFile(TEMPLATES[type].defaultFile);
+    setCurrentProjectId(null);
+    setProjectName("New Project");
+    setLogs([]);
+    setError(null);
+    setTriggerRun(0);
+  };
+
+  const handleLoadProject = (p: any) => {
+    try {
+      const parsedFiles = JSON.parse(p.files);
+      const type = p.type as TemplateType;
+
+      setActiveTemplate(type);
+      setFiles(parsedFiles);
+      // Pick first file as active
+      const firstFile = Object.keys(parsedFiles)[0] || TEMPLATES[type].defaultFile;
+      setActiveFile(firstFile);
+
+      setCurrentProjectId(p.id);
+      setProjectName(p.name);
+      setShowProjects(false);
+
+    } catch (e) {
+      console.error("Failed to load project files", e);
+      toast.error("Corrupt project data");
+    }
+  };
 
   const handleNewProject = () => {
     setCurrentProjectId(null);
     setProjectName("New Project");
-    setCustomFiles(null);
-    setResetKey(prev => prev + 1);
+    setFiles(TEMPLATES[activeTemplate].files);
+    setActiveFile(TEMPLATES[activeTemplate].defaultFile);
+    setLogs([]);
+    setError(null);
+    setTriggerRun(0);
+    toast.info("Started new project");
   };
 
+  const handleSaveProject = async () => {
+    if (!user?.email) return;
+    const toastId = toast.loading("Saving...");
+
+    try {
+      const res = await fetch('/api/playground/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: user.email,
+          name: projectName,
+          type: activeTemplate,
+          files: JSON.stringify(files),
+          projectId: currentProjectId
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setCurrentProjectId(data.id);
+        toast.success("Saved!", { id: toastId });
+
+        // Refresh list
+        fetch(`/api/playground/list?email=${encodeURIComponent(user.email)}`)
+          .then(r => r.json())
+          .then(setSavedProjects);
+      } else {
+        throw new Error("API Error");
+      }
+    } catch (e) {
+      toast.error("Save failed", { id: toastId });
+    }
+  };
+
+  const accentRGB = ACCENT_RGB[accentColor] || ACCENT_RGB.purple;
+
   return (
-    <div className="space-y-6 h-[calc(100vh-140px)] flex flex-col relative overflow-hidden">
-      <SandpackProvider
-        key={`${activeTemplate}-${currentProjectId}-${resetKey}`}
-        template={activeTemplate}
-        theme="dark"
-        files={customFiles || templates[activeTemplate].files}
-        customSetup={{
-          dependencies: {
-            "lucide-react": "latest",
-            "framer-motion": "latest"
-          }
-        }}
-        options={{
-          classes: {
-            "sp-wrapper": "flex-1 flex flex-col",
-            "sp-layout": "flex-1 flex",
-            "sp-stack": "flex-1 flex flex-col",
-          }
-        }}
-      >
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 pb-2">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setShowProjects(!showProjects)}
-              className={`flex items-center gap-2 px-4 py-3 rounded-2xl border transition-all hover:scale-105 active:scale-95 ${showProjects
-                  ? "bg-primary/20 border-primary text-primary"
-                  : "bg-white/5 border-white/10 text-primary hover:bg-white/10"
-                }`}
-            >
-              <FolderOpen className="w-5 h-5" />
-              <span className="text-xs font-black uppercase tracking-widest">Library</span>
-            </button>
-            <div>
-              <input
-                type="text"
-                value={projectName}
-                onChange={(e) => setProjectName(e.target.value)}
-                className="text-xl font-black bg-transparent border-none focus:outline-none text-white tracking-tighter placeholder:text-white/20 w-48"
-                placeholder="Unnamed Project"
-              />
-              <div className="flex items-center gap-2">
-                <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded">
-                  {activeTemplate}
-                </span>
-                {currentProjectId && (
-                  <span className="text-primary text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
-                    <Sparkles className="w-2.5 h-2.5" /> Synced to Cloud
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
+    <div className="h-full flex flex-col gap-4 relative overflow-hidden text-white p-4">
+      {/* BACKGROUND ANIMATION */}
+      <div className="absolute inset-0 z-0 pointer-events-none opacity-50">
+        <Prism
+          animationType="rotate"
+          timeScale={0.5}
+          height={5.7}
+          baseWidth={5.5}
+          scale={5}
+          hueShift={0}
+          accentColor={accentRGB}
+          colorFrequency={0.85}
+          noise={0}
+          glow={1.2}
+        />
+      </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 backdrop-blur-sm">
-              {(Object.keys(templates) as Array<keyof typeof templates>).map((temp) => (
-                <button
-                  key={temp}
-                  onClick={() => {
-                    handleNewProject();
-                    setActiveTemplate(temp);
-                  }}
-                  className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeTemplate === temp
-                    ? "bg-primary text-white shadow-lg shadow-primary/20"
-                    : "text-muted-foreground hover:text-white"
-                    }`}
-                >
-                  {templates[temp].name}
-                </button>
-              ))}
-            </div>
-
-            <button
-              onClick={handleNewProject}
-              className="p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-white hover:scale-110 active:scale-90"
-              title="Start New Project"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-
-            {user?.email && (
-              <SaveButton
-                email={user.email}
-                name={projectName}
-                type={activeTemplate}
-                currentProjectId={currentProjectId}
-                setProjectId={setCurrentProjectId}
-                onSave={loadProjects}
-              />
-            )}
-          </div>
-        </div>
-
-        <div className="flex-1 min-h-0 relative flex flex-col">
-          <AnimatePresence>
-            {showProjects && (
-              <motion.div
-                initial={{ opacity: 0, x: -20, scale: 0.95 }}
-                animate={{ opacity: 1, x: 0, scale: 1 }}
-                exit={{ opacity: 0, x: -20, scale: 0.95 }}
-                className="absolute left-0 top-0 bottom-0 w-80 bg-[#151515]/95 border border-white/10 rounded-[2.5rem] z-50 p-6 shadow-2xl backdrop-blur-xl overflow-hidden flex flex-col"
-              >
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white/50">Project Library</h3>
-                  <button onClick={() => setShowProjects(false)} className="text-white/20 hover:text-white transition-colors">
-                    <Plus className="w-4 h-4 rotate-45" />
-                  </button>
-                </div>
-                <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2">
-                  {savedProjects.length === 0 ? (
-                    <div className="py-12 text-center">
-                      <Box className="w-12 h-12 text-white/10 mx-auto mb-4" />
-                      <p className="text-xs text-white/40 font-bold uppercase tracking-widest">No saved projects</p>
-                    </div>
-                  ) : (
-                    savedProjects.map((p) => (
-                      <button
-                        key={p.id}
-                        onClick={() => handleLoadProject(p)}
-                        className={`w-full text-left p-4 rounded-2xl border transition-all group ${currentProjectId === p.id
-                            ? "bg-primary/10 border-primary/40"
-                            : "bg-white/5 border-white/5 hover:border-primary/50 hover:bg-primary/5"
-                          }`}
-                      >
-                        <h4 className="text-sm font-black text-white group-hover:text-primary transition-colors truncate">{p.name}</h4>
-                        <div className="flex items-center justify-between mt-2">
-                          <span className="text-[9px] font-black uppercase tracking-widest text-white/30">{p.type}</span>
-                          <span className="text-[9px] text-white/20">{new Date(p.updatedAt).toLocaleDateString()}</span>
-                        </div>
-                      </button>
-                    ))
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <motion.div
-            layout
-            className="flex-1 rounded-[2.5rem] overflow-hidden border border-white/10 shadow-2xl bg-[#151515] flex flex-col"
+      {/* --- HEADER --- */}
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4 shrink-0 relative z-10">
+        <div className="flex items-center gap-4">
+          {/* New Project Button */}
+          <button
+            onClick={handleNewProject}
+            className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all text-primary"
+            title="New Project"
           >
-            <SandpackLayout
-              className="flex-1 border-none bg-transparent"
-              style={{ height: '100%', display: 'flex' }}
-            >
-              <SandpackCodeEditor
-                showLineNumbers
-                showInlineErrors
-                className="h-full text-sm"
-                style={{ height: '100%', flex: 1 }}
-              />
-              <SandpackPreview
-                showNavigator
-                className="h-full bg-white"
-                style={{ height: '100%', flex: 1 }}
-              />
-            </SandpackLayout>
-          </motion.div>
+            <Plus className="w-4 h-4" />
+          </button>
+
+          {/* Library Button */}
+          <button
+            onClick={() => setShowProjects(!showProjects)}
+            className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all font-black uppercase text-xs tracking-widest text-primary"
+          >
+            <FolderOpen className="w-4 h-4" />
+            Library
+          </button>
+
+          {/* Project Info */}
+          <div className="flex flex-col">
+            <input
+              value={projectName}
+              onChange={e => setProjectName(e.target.value)}
+              className="bg-transparent text-xl font-black focus:outline-none"
+            />
+            <div className="flex items-center gap-2 text-[10px] uppercase font-bold text-white/40">
+              <span>{TEMPLATES[activeTemplate].name}</span>
+              {currentProjectId && <span className="text-green-500 flex items-center gap-1"><Sparkles className="w-3 h-3" /> Synced</span>}
+            </div>
+          </div>
         </div>
-      </SandpackProvider>
+
+        <div className="flex items-center gap-3">
+          {/* Run Button */}
+          <button
+            onClick={handleRun}
+            className="flex items-center gap-2 px-6 py-2 bg-green-500 hover:bg-green-600 text-black rounded-xl font-black uppercase text-xs tracking-widest shadow-lg shadow-green-500/20 transition-all hover:scale-105 active:scale-95"
+          >
+            <Play className="w-4 h-4 fill-current" />
+            Run Code
+          </button>
+
+          {/* Template Switcher with Glass */}
+          <GlassSurface
+            borderRadius={50}
+            borderWidth={0.5}
+            opacity={0.4}
+            blur={10}
+            className="p-1"
+          >
+            {(Object.keys(TEMPLATES) as TemplateType[]).map(t => (
+              <button
+                key={t}
+                onClick={() => handleTemplateSwitch(t)}
+                className={`relative px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeTemplate === t ? "text-white" : "text-white/40 hover:text-white"
+                  }`}
+              >
+                {/* Floating Background Pill - High Fidelity Glass */}
+                {activeTemplate === t && (
+                  <motion.div
+                    layoutId="active-pill"
+                    className="absolute inset-0 bg-white/20 backdrop-blur-xl rounded-full border border-white/30 shadow-[inset_0_0_12px_rgba(255,255,255,0.2),0_4_24_rgba(0,0,0,0.5)]"
+                    transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                  />
+                )}
+
+                {/* Text Content - Ensure it's above the background */}
+                <span className="relative z-10">{TEMPLATES[t].name}</span>
+              </button>
+            ))}
+          </GlassSurface>
+
+          {/* Save Button */}
+          {user && (
+            <button
+              onClick={handleSaveProject}
+              className="p-2 rounded-xl bg-primary/20 hover:bg-primary/40 text-primary border border-primary/50 transition-all"
+            >
+              <Save className="w-5 h-5" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* --- MAIN CONTENT --- */}
+      <div className="flex-1 flex gap-4 min-h-0 relative z-10">
+        {/* Project Library Modal with Glass */}
+        <AnimatePresence>
+          {showProjects && (
+            <motion.div
+              initial={{ opacity: 0, x: -50, scale: 0.95 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: -50, scale: 0.95 }}
+              className="absolute left-4 top-4 bottom-4 w-80 z-50 shadow-2xl overflow-hidden rounded-[30px]"
+            >
+              <GlassSurface
+                width="100%"
+                height="100%"
+                borderRadius={30}
+                borderWidth={0}
+                opacity={0.8}
+                blur={20}
+                backgroundOpacity={0.6}
+              >
+                <div className="w-full h-full p-4 overflow-y-auto">
+                  <h3 className="font-bold text-white/50 mb-4 uppercase text-xs tracking-widest">Saved Projects</h3>
+                  {savedProjects.map(p => (
+                    <div
+                      key={p.id}
+                      onClick={() => handleLoadProject(p)}
+                      className="p-3 mb-2 rounded-xl bg-white/5 hover:bg-white/10 cursor-pointer border border-white/5 hover:border-primary/50 transition-all group"
+                    >
+                      <div className="font-bold text-sm group-hover:text-primary transition-colors">{p.name}</div>
+                      <div className="text-[10px] text-white/30 uppercase mt-1">{p.type} • {new Date(p.updatedAt).toLocaleDateString()}</div>
+                    </div>
+                  ))}
+                </div>
+              </GlassSurface>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* EDITOR PANEL with Glass effect */}
+        <div className="flex-1 flex flex-col min-w-0">
+          <div className="flex items-center gap-1 mb-2">
+            {Object.keys(files).map(f => (
+              <button
+                key={f}
+                onClick={() => setActiveFile(f)}
+                className={`px-3 py-1 rounded-t-lg text-xs font-mono border-t border-x relative z-10 ${activeFile === f
+                  ? "bg-white/10 border-white/20 text-white"
+                  : "bg-transparent border-transparent text-white/40 hover:text-white/60"
+                  }`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+          <div className="flex-1 relative">
+            <GlassSurface
+              width="100%"
+              height="100%"
+              borderRadius={20}
+              opacity={0.25}
+              blur={25}
+              backgroundOpacity={0.1}
+              className="overflow-hidden"
+            >
+              <MonacoEditor
+                language={activeTemplate === 'react' ? 'javascript' : activeTemplate === 'node' ? 'javascript' : activeTemplate}
+                value={files[activeFile]}
+                onChange={handleEditorChange}
+                transparent={true}
+              />
+            </GlassSurface>
+          </div>
+        </div>
+
+        {/* PREVIEW PANEL */}
+        <div className="flex-1 flex flex-col min-w-0 bg-[#000] rounded-xl border border-white/10 overflow-hidden">
+          {/* Use a Key to force remount on Run if needed, or just let iframe handle it */}
+          <div className="flex-1 relative bg-white">
+            <CodeRunner
+              language={activeTemplate}
+              code={files[activeFile]} // Runs the ACTIVE file. For multi-file, we might need to bundle. Simplification: Single file run mostly.
+              triggerRun={triggerRun}
+              onConsole={log => setLogs(p => [...p, log])}
+              onError={err => setError(err)}
+            />
+            {/* Overlay for non-visual templates if needed? No, let them render to body */}
+          </div>
+
+          {/* CONSOLE */}
+          <div className="h-40 bg-[#111] border-t border-white/10 p-2 font-mono text-xs overflow-y-auto">
+            <div className="flex justify-between items-center mb-1 text-white/30 uppercase font-bold tracking-widest">
+              <span>Console</span>
+              <button onClick={() => setLogs([])}><Trash2 className="w-3 h-3 hover:text-white" /></button>
+            </div>
+            {error && <div className="text-red-500 mb-1">Error: {error}</div>}
+            {logs.map((l, i) => (
+              <div key={i} className="text-green-400 border-b border-white/5 py-0.5">{l}</div>
+            ))}
+            {logs.length === 0 && !error && <div className="text-white/20 italic">Ready usually...</div>}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

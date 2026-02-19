@@ -9,6 +9,7 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import BlurText from "./BlurText";
 import { useAuth } from "../context/AuthContext";
+import GlassSurface from "./GlassSurface";
 
 interface Message {
     id: string;
@@ -391,12 +392,22 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
     return (
         <>
             {isFloating && (
-                <button
+                <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
                     onClick={() => setIsOpen(true)}
-                    className={`fixed bottom-6 right-6 p-4 rounded-full bg-primary text-white shadow-2xl hover:scale-110 transition-transform z-50 ${isOpen ? 'hidden' : 'flex'}`}
+                    className={`fixed bottom-6 right-6 z-50 ${isOpen ? 'hidden' : 'flex'} overflow-hidden rounded-full shadow-2xl`}
                 >
-                    <Bot className="w-6 h-6" />
-                </button>
+                    <GlassSurface
+                        borderRadius={50} // High value for circular
+                        opacity={0.3}
+                        blur={20}
+                        backgroundOpacity={0.2}
+                        className="p-4"
+                    >
+                        <Bot className="w-6 h-6 text-primary" />
+                    </GlassSurface>
+                </motion.button>
             )}
 
             <AnimatePresence>

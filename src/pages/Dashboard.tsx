@@ -11,8 +11,11 @@ import { jsPDF } from "jspdf";
 
 import DarkVeil from "../components/DarkVeil";
 import MagicBento from "../components/MagicBento";
+import { useTheme, ACCENT_COLORS, BACKGROUND_CALIBRATION, ACCENT_RGB } from "../context/ThemeContext";
 
 const Dashboard: React.FC = () => {
+    const { accentColor } = useTheme();
+    // ... rest of component ...
     const [searchParams] = useSearchParams();
     const { completePurchase, user, redeemCode, requestCertificate } = useAuth();
     const location = useLocation();
@@ -207,11 +210,13 @@ const Dashboard: React.FC = () => {
     }
 
 
+    const accentRGB = ACCENT_RGB[accentColor] || ACCENT_RGB.purple;
+
     return (
         <div className="relative min-h-screen">
             <div className="fixed inset-0 z-0 pointer-events-none">
                 <DarkVeil
-                    hueShift={0}
+                    accentColor={accentRGB}
                     noiseIntensity={0}
                     scanlineIntensity={0}
                     speed={1.9}
