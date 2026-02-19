@@ -72,6 +72,30 @@ app.post("/api/auth/google", async (req, res) => {
     }
 });
 
+// Session Validation Hook (NEW)
+app.get("/api/auth/me", async (req, res) => {
+    const sessionId = req.headers.authorization?.split(" ")[1];
+    if (!sessionId) return res.status(401).json({ error: "No session token" });
+
+    try {
+        const [session] = await db.select().from(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.isActive, true)));
+        if (!session) return res.status(401).json({ error: "Invalid session" });
+
+        const [user] = await db.select().from(users).where(eq(users.id, session.userId));
+        if (!user) return res.status(401).json({ error: "User not found" });
+
+        if (user.status !== 'active') return res.status(403).json({ error: "Account inactive" });
+
+        // Update last heartbeat
+        await db.update(sessions).set({ lastHeartbeat: new Date() }).where(eq(sessions.id, sessionId));
+
+        res.json({ user, sessionId: session.id });
+    } catch (error) {
+        console.error("Auth me error:", error);
+        res.status(500).json({ error: "Auth check failed" });
+    }
+});
+
 // Email Signup Hook
 app.post("/api/auth/signup", async (req, res) => {
     const { email, password, name } = req.body;

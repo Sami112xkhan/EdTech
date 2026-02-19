@@ -46,11 +46,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [sessionId, setSessionId] = useState<string | null>(() => localStorage.getItem('sessionId'));
 
     useEffect(() => {
+        // Validate Session with SQL Backend
+        const validateSession = async () => {
+            const storedSessionId = localStorage.getItem('sessionId');
+
+            if (storedSessionId) {
+                try {
+                    const response = await fetch('/api/auth/me', {
+                        headers: {
+                            'Authorization': `Bearer ${storedSessionId}`
+                        }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        setUser(data.user);
+                        setIsAuthenticated(true);
+                        localStorage.setItem("user", JSON.stringify(data.user)); // Sync fresh data
+                    } else {
+                        // Session invalid or expired -> Logout
+                        console.warn("Session invalid, logging out");
+                        localStorage.removeItem("user");
+                        localStorage.removeItem("sessionId");
+                        setUser(null);
+                        setIsAuthenticated(false);
+                        setSessionId(null);
+                    }
+                } catch (error) {
+                    console.error("Session validation failed", error);
+                }
+            } else {
+                // No session, ensure logout state
+                setUser(null);
+                setIsAuthenticated(false);
+            }
+        };
+
+        validateSession();
+
         const storedUser = localStorage.getItem("user");
         if (storedUser) {
             const parsedUser = JSON.parse(storedUser);
-            setUser(parsedUser);
-            setIsAuthenticated(true);
+            // Validated above, but keep for immediate render
+            if (!user) { // Only set if not already set by validateSession (though async race condition favors this locally first)
+                setUser(parsedUser);
+                setIsAuthenticated(true);
+            }
 
             // Check trial expiry on load
             if (parsedUser.trialExpiresAt && !parsedUser.isPaid) {
@@ -680,58 +721,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const markLessonComplete = async (lessonId: string) => {
         if (!user) return;
 
-        let wasAlreadyComplete = false;
-        setUser(prev => {
-            if (!prev) return prev;
-            if (prev.completedLessons.includes(lessonId)) {
-                wasAlreadyComplete = true;
-                return prev;
-            }
-
-            const updatedLessons = [...prev.completedLessons, lessonId];
-            const updatedUser = { ...prev, completedLessons: updatedLessons };
-
-            // Update Local Storage & DB
-            localStorage.setItem("user", JSON.stringify(updatedUser));
-            const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
-            const updatedDb = usersDb.map((u: User) => u.email === prev.email ? updatedUser : u);
-            localStorage.setItem("users_db", JSON.stringify(updatedDb));
-
-            // Visual Feedback
-            toast.success("Lesson Completed! 🔥", {
-                description: "Your progress has been saved to the cloud."
-            });
-
-            // Check if any phases were just completed to show unlock message
-            curriculum.forEach((module, index) => {
-                const nextModule = curriculum[index + 1];
-                if (nextModule && isPhaseComplete(module, updatedLessons)) {
-                    if (!isPhaseComplete(module, prev.completedLessons)) {
-                        toast.success(`Module Unlocked: ${nextModule.title} 🔓`, {
-                            description: "New lessons and materials are now available.",
-                            duration: 5000
-                        });
-                    }
-                }
-            });
-
-            return updatedUser;
-        });
-
-        if (wasAlreadyComplete) {
-            toast.info("Lesson already marked as complete!");
-            return;
-        }
-
-        // Sync with SQL Backend
+        // 1. Sync with SQL Backend First (Strict Mode)
         try {
-            await fetch('/api/progress/lesson', {
+            const response = await fetch('/api/progress/lesson', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: user.email, lessonId })
             });
+            const data = await response.json();
+
+            if (!response.ok) {
+                toast.error("Failed to sync progress. Please check connection.");
+                return;
+            }
+
+            if (data.message === "Already completed") {
+                toast.info("Lesson already marked as complete!");
+                return;
+            }
+
+            // 2. Update Local State with Server Response
+            setUser(prev => {
+                if (!prev) return prev;
+
+                // Use server's lesson list if available, or append locally
+                const updatedLessons = data.lessons || [...prev.completedLessons, lessonId];
+                const updatedUser = { ...prev, completedLessons: updatedLessons };
+
+                // Update Local Storage
+                localStorage.setItem("user", JSON.stringify(updatedUser));
+                const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
+                const updatedDb = usersDb.map((u: User) => u.email === prev.email ? updatedUser : u);
+                localStorage.setItem("users_db", JSON.stringify(updatedDb));
+
+                // Visual Feedback
+                toast.success("Lesson Completed! 🔥", {
+                    description: "Progress synced to cloud."
+                });
+
+                // Check for Module Unlock
+                curriculum.forEach((module, index) => {
+                    const nextModule = curriculum[index + 1];
+                    if (nextModule && isPhaseComplete(module, updatedLessons)) {
+                        if (!isPhaseComplete(module, prev.completedLessons)) {
+                            toast.success(`Module Unlocked: ${nextModule.title} 🔓`, {
+                                description: "New lessons and materials are now available.",
+                                duration: 5000
+                            });
+                        }
+                    }
+                });
+
+                return updatedUser;
+            });
+
         } catch (error) {
-            console.warn("Failed to sync lesson completion to SQL backend", error);
+            console.error("Failed to sync lesson completion", error);
+            toast.error("Network error. Progress not saved.");
         }
     };
 
