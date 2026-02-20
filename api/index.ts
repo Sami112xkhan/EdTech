@@ -858,3 +858,4 @@ app.post("/api/codes/redeem", async (req, res) => {
 });
 
 export default app;
+module.exports = app;
