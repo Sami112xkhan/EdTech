@@ -2,8 +2,8 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { OAuth2Client } from "google-auth-library";
-import { db } from "../server/db";
-import { users, sessions, feedback as feedbackTable, accessCodes, userNotes, playgroundProjects, aiChats, systemSettings } from "../server/db/schema";
+import { db } from "../server/db/index.js";
+import { users, sessions, feedback as feedbackTable, accessCodes, userNotes, playgroundProjects, aiChats, systemSettings } from "../server/db/schema.js";
 import { eq, and, gte, sql, desc, ne } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
@@ -858,4 +858,3 @@ app.post("/api/codes/redeem", async (req, res) => {
 });
 
 export default app;
-module.exports = app;
