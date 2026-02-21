@@ -172,9 +172,9 @@ const Login: React.FC = () => {
                     <div className="flex justify-center mb-6 w-full">
                         <div className="w-full flex justify-center">
                             <GoogleLogin
-                                onSuccess={(credentialResponse) => {
+                                onSuccess={async (credentialResponse) => {
                                     if (credentialResponse.credential) {
-                                        loginWithGoogle(credentialResponse.credential);
+                                        await loginWithGoogle(credentialResponse.credential);
                                         navigate('/dashboard');
                                     }
                                 }}

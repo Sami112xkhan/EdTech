@@ -379,11 +379,23 @@ app.post("/api/auth/heartbeat", async (req, res) => {
     if (!sessionId) return res.status(400).json({ error: "Session ID required" });
 
     try {
+        const [session] = await db.select().from(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.isActive, true)));
+        if (!session) return res.status(401).json({ error: "Invalid session" });
+
+        const [user] = await db.select().from(users).where(eq(users.id, session.userId));
+        if (!user) return res.status(401).json({ error: "User not found" });
+
+        if (user.status !== 'active') {
+            return res.status(403).json({ error: "Account inactive" });
+        }
+
         await db.update(sessions)
             .set({ lastHeartbeat: new Date() })
             .where(eq(sessions.id, sessionId));
-        res.json({ success: true });
+
+        res.json({ success: true, user });
     } catch (error) {
+        console.error("Heartbeat error:", error);
         res.status(500).json({ error: "Heartbeat failed" });
     }
 });

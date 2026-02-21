@@ -102,68 +102,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, []);
 
     // Periodic check for trial expiry (every 10 seconds)
+    // Unified Session & Status Sync Loop (Every 10 seconds)
     useEffect(() => {
-        if (!user) return;
+        if (!isAuthenticated || !sessionId) return;
 
-        // Heartbeat for lastSeen (every 1 minute)
-        const heartbeatInterval = setInterval(async () => {
-            const now = new Date().toISOString();
-            const updatedUser = { ...user, lastSeen: now };
-            setUser(updatedUser);
-            localStorage.setItem("user", JSON.stringify(updatedUser));
+        const syncInterval = setInterval(async () => {
+            try {
+                const response = await fetch('/api/auth/heartbeat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sessionId }),
+                });
 
-            // Sync with SQL Backend
-            const storedSessionId = localStorage.getItem('sessionId');
-            if (storedSessionId) {
-                try {
-                    await fetch('/api/auth/heartbeat', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ sessionId: storedSessionId }),
-                    });
-                } catch (e) {
-                    console.warn("Heartbeat sync failed", e);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.user) {
+                        // Update local user state with fresh backend data (picks up reactivation/payment status)
+                        setUser(data.user);
+                        localStorage.setItem('user', JSON.stringify(data.user));
+                    }
+                } else if (response.status === 401 || response.status === 403) {
+                    console.warn("Session invalidated or account suspended. Logging out.");
+                    logout();
                 }
+            } catch (error) {
+                console.warn("Session sync heartbeat failed", error);
             }
-        }, 5000);
 
-        if (user.isPaid || !user.trialExpiresAt || user.trialExpiresAt === 'EXPIRED') {
-            return () => clearInterval(heartbeatInterval);
-        }
-
-        const interval = setInterval(() => {
-            const now = new Date();
-            const expiry = new Date(user.trialExpiresAt!);
-            if (now > expiry) {
-                const expiredUser = { ...user, trialExpiresAt: 'EXPIRED' };
-                setUser(expiredUser);
-                localStorage.setItem("user", JSON.stringify(expiredUser));
-
-                clearInterval(interval);
+            // Check trial expiry locally for immediate UI feedback
+            if (user && !user.isPaid && user.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED') {
+                const now = new Date();
+                const expiry = new Date(user.trialExpiresAt);
+                if (now > expiry) {
+                    const expiredUser = { ...user, trialExpiresAt: 'EXPIRED' as const };
+                    setUser(expiredUser);
+                    localStorage.setItem("user", JSON.stringify(expiredUser));
+                }
             }
         }, 10000);
 
-        // Heartbeat for SQL Backend Session
-        const sqlHeartbeatInterval = setInterval(async () => {
-            if (sessionId) {
-                try {
-                    await fetch('/api/auth/heartbeat', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ sessionId }),
-                    });
-                } catch (e) {
-                    console.error("SQL heartbeat failed", e);
-                }
-            }
-        }, 5000); // Every 5 seconds
-
-        return () => {
-            clearInterval(interval);
-            clearInterval(heartbeatInterval);
-            clearInterval(sqlHeartbeatInterval);
-        };
-    }, [user]);
+        return () => clearInterval(syncInterval);
+    }, [isAuthenticated, sessionId, user?.isPaid, user?.trialExpiresAt]);
 
     // Initialize databases if empty
     useEffect(() => {
@@ -322,10 +301,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 xp: 50,
                 level: 1
             };
-            setUser(tempUser);
-            setIsAuthenticated(true);
-            localStorage.setItem("user", JSON.stringify(tempUser));
-
             // 2. Sync with Analytics Backend (Crucial for Roles and Purchase Status)
             try {
                 const response = await fetch('/api/auth/google', {
@@ -344,13 +319,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     if (data.user) {
                         const finalUser = data.user;
                         setUser(finalUser);
+                        setIsAuthenticated(true);
                         localStorage.setItem('user', JSON.stringify(finalUser));
                     }
                 } else {
-                    console.warn("Backend sync returned status:", response.status);
+                    console.warn("Backend sync returned status:", response.status, "Falling back to temp user.");
+                    setUser(tempUser);
+                    setIsAuthenticated(true);
+                    localStorage.setItem("user", JSON.stringify(tempUser));
                 }
             } catch (syncError) {
                 console.warn("Failed to sync with SQL backend - continuing in temp mode.", syncError);
+                setUser(tempUser);
+                setIsAuthenticated(true);
+                localStorage.setItem("user", JSON.stringify(tempUser));
             }
 
         } catch (error: any) {
