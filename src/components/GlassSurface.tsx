@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useId, CSSProperties, ReactNode } from 'react';
+import React, { useEffect, useState, useRef, useId, CSSProperties, ReactNode, memo } from 'react';
 import './GlassSurface.css';
 
 interface GlassSurfaceProps {
@@ -24,7 +24,7 @@ interface GlassSurfaceProps {
     style?: CSSProperties;
 }
 
-const GlassSurface: React.FC<GlassSurfaceProps> = ({
+const GlassSurface = memo(({
     children,
     width,
     height,
@@ -45,7 +45,7 @@ const GlassSurface: React.FC<GlassSurfaceProps> = ({
     mixBlendMode = 'difference',
     className = '',
     style = {}
-}) => {
+}: GlassSurfaceProps) => {
     const uniqueId = useId().replace(/:/g, '-');
     const filterId = `glass-filter-${uniqueId}`;
     const redGradId = `red-grad-${uniqueId}`;
@@ -239,6 +239,8 @@ const GlassSurface: React.FC<GlassSurfaceProps> = ({
             <div className="glass-surface__content">{children}</div>
         </div>
     );
-};
+});
+
+GlassSurface.displayName = 'GlassSurface';
 
 export default GlassSurface;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Code, Terminal, Box, Play, Layers, Save, FolderOpen, Plus, Loader2, Sparkles, Trash2
 } from "lucide-react";
@@ -334,8 +334,31 @@ const PlaygroundPage: React.FC = () => {
                 {activeTemplate === t && (
                   <motion.div
                     layoutId="active-pill"
-                    className="absolute inset-0 bg-white/20 backdrop-blur-xl rounded-full border border-white/30 shadow-[inset_0_0_12px_rgba(255,255,255,0.2),0_4_24_rgba(0,0,0,0.5)]"
-                    transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                    drag="x"
+                    dragConstraints={{ left: 0, right: 0 }}
+                    dragElastic={1}
+                    onDragEnd={(_, info) => {
+                      const threshold = 40;
+                      const velocityThreshold = 500;
+                      const keys = Object.keys(TEMPLATES) as TemplateType[];
+                      const currentIndex = keys.indexOf(activeTemplate);
+
+                      if ((info.offset.x > threshold || info.velocity.x > velocityThreshold) && currentIndex < keys.length - 1) {
+                        handleTemplateSwitch(keys[currentIndex + 1]);
+                      } else if ((info.offset.x < -threshold || info.velocity.x < -velocityThreshold) && currentIndex > 0) {
+                        handleTemplateSwitch(keys[currentIndex - 1]);
+                      }
+                    }}
+                    whileDrag={{
+                      opacity: 0.9,
+                      scale: 1.1,
+                      backgroundColor: "rgba(255, 255, 255, 0.05)",
+                      backdropFilter: "blur(0px)",
+                      boxShadow: "0 20px 60px rgba(0,0,0,0.5)"
+                    }}
+                    whileTap={{ scale: 1.05 }}
+                    className="absolute inset-0 bg-white/20 backdrop-blur-2xl rounded-full border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing z-20"
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
                   />
                 )}
 

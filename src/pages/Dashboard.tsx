@@ -250,8 +250,15 @@ const Dashboard: React.FC = () => {
                         <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white leading-tight">
                             Command: <span className="text-primary italic">Welcome</span>, {user?.name.split(" ")[0]}
                         </h1>
-                        <p className="text-sm text-muted-foreground font-medium leading-relaxed max-w-xl">
-                            {progress === 100 ? "Level Max! You've mastered the entire architecture." : "Your trajectory as a Full Stack Developer is looking exceptional."}
+                        <p className={`text-sm font-black leading-relaxed max-w-xl bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-400 to-primary animate-pulse`}>
+                            {progress === 100
+                                ? "Level Max! You've mastered the entire architecture."
+                                : (user?.streak || 0) >= 3
+                                    ? `Impressive ${user?.streak} day streak! You're building incredible momentum.`
+                                    : progress === 0
+                                        ? "The journey of a thousand lines of code begins with a single commit. Let's start building!"
+                                        : "Your trajectory as a Full Stack Developer is looking exceptional."
+                            }
                         </p>
                     </div>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full md:w-auto">

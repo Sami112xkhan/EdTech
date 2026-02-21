@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback, useState } from 'react';
+import React, { useRef, useEffect, useCallback, useState, memo } from 'react';
 import { gsap } from 'gsap';
 import './MagicBento.css';
 
@@ -53,7 +53,7 @@ interface ParticleCardProps {
     enableMagnetism?: boolean;
 }
 
-const ParticleCard = ({
+const ParticleCard = memo(({
     children,
     className = '',
     disableAnimations = false,
@@ -296,7 +296,7 @@ const ParticleCard = ({
             {children}
         </div>
     );
-};
+});
 
 interface GlobalSpotlightProps {
     gridRef: React.RefObject<HTMLDivElement | null>;
@@ -306,7 +306,7 @@ interface GlobalSpotlightProps {
     glowColor?: string;
 }
 
-const GlobalSpotlight = ({
+const GlobalSpotlight = memo(({
     gridRef,
     disableAnimations = false,
     enabled = true,
@@ -436,13 +436,13 @@ const GlobalSpotlight = ({
     }, [gridRef, disableAnimations, enabled, spotlightRadius, glowColor]);
 
     return null;
-};
+});
 
-const BentoCardGrid = ({ children, gridRef }: { children: React.ReactNode, gridRef: React.RefObject<HTMLDivElement | null> }) => (
+const BentoCardGrid = memo(({ children, gridRef }: { children: React.ReactNode, gridRef: React.RefObject<HTMLDivElement | null> }) => (
     <div className="card-grid bento-section" ref={gridRef}>
         {children}
     </div>
-);
+));
 
 const useMobileDetection = () => {
     const [isMobile, setIsMobile] = useState(false);
@@ -475,7 +475,7 @@ interface MagicBentoProps {
     enableMagnetism?: boolean;
 }
 
-const MagicBento = ({
+const MagicBento = memo(({
     items = [],
     children,
     textAutoHide = true,
@@ -567,7 +567,7 @@ const MagicBento = ({
             </BentoCardGrid>
         </>
     );
-};
+});
 
 export default MagicBento;
 export { ParticleCard, GlobalSpotlight, BentoCardGrid };

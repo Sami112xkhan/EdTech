@@ -21,8 +21,11 @@ import {
     ShieldCheck,
     ShieldAlert,
     ChevronRight,
+    ChevronDown,
     AlertTriangle,
-    Eye
+    Eye,
+    Mail,
+    User as UserIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate, Link } from 'react-router-dom';
@@ -76,6 +79,25 @@ const AdminDashboard: React.FC = () => {
     const [activityLogs, setActivityLogs] = useState<any[]>([]);
     const [selectedUserActivity, setSelectedUserActivity] = useState<any[] | null>(null);
     const [viewingUserActivity, setViewingUserActivity] = useState<string | null>(null);
+    const [expandedEmails, setExpandedEmails] = useState<Set<string>>(new Set());
+
+    const groupedLogs = useMemo(() => {
+        const logs = viewingUserActivity ? (selectedUserActivity || []) : activityLogs;
+        const groups: Record<string, any[]> = {};
+        logs.forEach((log: any) => {
+            const key = log.email || 'anonymous';
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(log);
+        });
+        return groups;
+    }, [activityLogs, viewingUserActivity, selectedUserActivity]);
+
+    const toggleUserExpand = (email: string) => {
+        const next = new Set(expandedEmails);
+        if (next.has(email)) next.delete(email);
+        else next.add(email);
+        setExpandedEmails(next);
+    };
 
     useEffect(() => {
         const fetchSqlStats = async () => {
@@ -1088,31 +1110,85 @@ const AdminDashboard: React.FC = () => {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-white/5">
-                                        {(viewingUserActivity ? (selectedUserActivity || []) : activityLogs).map((log: any, i: number) => (
-                                            <tr key={log.id || i} className="group hover:bg-white/[0.02] transition-colors">
-                                                <td className="px-8 py-5">
-                                                    <div className="flex flex-col">
-                                                        <span className="font-bold text-white uppercase text-xs">{log.name || 'User'}</span>
-                                                        <span className="font-mono text-zinc-500 text-[10px]">{log.email}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-8 py-5">
-                                                    <div className="flex items-center gap-3">
-                                                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border ${log.type === 'NAVIGATE' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
-                                                            log.type === 'CLICK' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                                                                'bg-purple-500/10 text-purple-400 border-purple-500/20'
-                                                            }`}>
-                                                            {log.type}
-                                                        </span>
-                                                        <span className="text-xs text-white/80 font-medium">{log.description}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-8 py-5 text-[10px] font-mono text-zinc-500">{log.path}</td>
-                                                <td className="px-8 py-5 text-right text-xs text-zinc-400 font-medium whitespace-nowrap">
-                                                    {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {Object.entries(groupedLogs).map(([email, logs]) => {
+                                            const isExpanded = expandedEmails.has(email);
+                                            const firstLog = logs[0];
+                                            return (
+                                                <React.Fragment key={email}>
+                                                    <tr
+                                                        onClick={() => toggleUserExpand(email)}
+                                                        className="group cursor-pointer hover:bg-white/[0.05] transition-all"
+                                                    >
+                                                        <td className="px-8 py-5">
+                                                            <div className="flex items-center gap-4">
+                                                                <div className={`p-1 rounded-lg bg-primary/10 border border-primary/20 transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
+                                                                    <ChevronRight className="w-3 h-3 text-primary" />
+                                                                </div>
+                                                                <div className="flex flex-col">
+                                                                    <span className="font-bold text-white uppercase text-xs">{firstLog.name || 'User'}</span>
+                                                                    <div className="flex items-center gap-1.5 opacity-40">
+                                                                        <Mail className="w-2.5 h-2.5" />
+                                                                        <span className="font-mono text-[9px]">{email}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-8 py-5">
+                                                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/5">
+                                                                <TrendingUp className="w-3 h-3 text-primary/60" />
+                                                                <span className="text-[10px] font-black uppercase tracking-widest text-white/50">
+                                                                    {logs.length} Actions
+                                                                </span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-8 py-5">
+                                                            {isOnline(firstLog.userLastSeen) && (
+                                                                <div className="flex items-center gap-2 text-green-400 text-[9px] font-black uppercase tracking-widest">
+                                                                    <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                                                                    ACTIVE NOW
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-8 py-5 text-right">
+                                                            <div className="text-[10px] text-zinc-500 font-medium">
+                                                                LATEST activity: {new Date(firstLog.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+
+                                                    {isExpanded && logs.map((log: any, i: number) => (
+                                                        <motion.tr
+                                                            key={log.id || `${email}-${i}`}
+                                                            initial={{ opacity: 0, x: -10 }}
+                                                            animate={{ opacity: 1, x: 0 }}
+                                                            className="bg-black/20 border-l-2 border-primary/30"
+                                                        >
+                                                            <td className="px-8 py-4 pl-20">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
+                                                                    <span className="text-[10px] text-zinc-500 font-mono tracking-tighter">Event Trace</span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-8 py-4">
+                                                                <div className="flex items-center gap-3">
+                                                                    <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border ${log.type === 'NAVIGATE' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                                                                        log.type === 'CLICK' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                                                                            'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                                                                        }`}>
+                                                                        {log.type}
+                                                                    </span>
+                                                                    <span className="text-xs text-white/80 font-medium">{log.description}</span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-8 py-4 text-[10px] font-mono text-zinc-500">{log.path}</td>
+                                                            <td className="px-8 py-4 text-right text-xs text-zinc-400 font-medium whitespace-nowrap">
+                                                                {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                                            </td>
+                                                        </motion.tr>
+                                                    ))}
+                                                </React.Fragment>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                                 {((viewingUserActivity ? selectedUserActivity : activityLogs)?.length === 0) && (

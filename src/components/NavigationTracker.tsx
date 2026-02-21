@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
+import React, { useEffect, memo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const NavigationTracker = () => {
+const NavigationTracker = memo(() => {
     const location = useLocation();
     const { user } = useAuth();
 
@@ -23,7 +23,9 @@ const NavigationTracker = () => {
     }, [location.pathname, user?.id]);
 
     return null; // This component doesn't render anything
-};
+});
+
+NavigationTracker.displayName = 'NavigationTracker';
 
 export const trackAction = async (userId: string, type: 'CLICK' | 'ACTION', description: string, metadata?: any) => {
     try {

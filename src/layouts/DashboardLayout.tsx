@@ -413,7 +413,7 @@ const DashboardLayout: React.FC = () => {
                 }
             </AnimatePresence >
 
-            <AIAssistant />
+            {location.pathname !== '/ai-assistant' && <AIAssistant />}
         </div >
     );
 };

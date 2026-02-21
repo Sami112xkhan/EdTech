@@ -139,6 +139,24 @@ html.lenis body {
   pointer-events: none;
 }
 
+/* Performance Optimizations */
+* {
+  /* Prevent text selection unless needed to reduce main thread work during drags */
+  -webkit-tap-highlight-color: transparent;
+}
+
+main,
+aside,
+.prism-container,
+.darkveil-canvas {
+  contain: layout style;
+  will-change: transform, opacity;
+}
+
+[layoutId] {
+  will-change: transform, opacity, background-color, backdrop-filter;
+}
+
 /* Hide duplicate Sandpack buttons */
 .sp-preview-actions {
   display: none !important;
