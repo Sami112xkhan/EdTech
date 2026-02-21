@@ -43,6 +43,7 @@ function App() {
                                 <Route path="/login" element={<Login />} />
                                 <Route path="/signup" element={<Signup />} />
                                 <Route path="/verify" element={<VerifyEmail />} />
+                                <Route path="/suspended" element={<Suspended />} />
 
                                 {/* Protected Routes (Auth Required) */}
                                 <Route element={<ProtectedRoute />}>

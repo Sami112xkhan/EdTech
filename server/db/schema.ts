@@ -22,6 +22,13 @@ export const users = pgTable("users", {
     verificationCode: text("verification_code"),
     certificateStatus: text("certificate_status").default("locked").notNull(), // 'locked','eligible','pending','approved'
     certificateIssueDate: timestamp("certificate_issue_date"),
+    emailNotifs: boolean("email_notifs").default(true).notNull(),
+    pushNotifs: boolean("push_notifs").default(true).notNull(),
+    courseUpdates: boolean("course_updates").default(true).notNull(),
+    soundEffects: boolean("sound_effects").default(true).notNull(),
+    profileVisibility: text("profile_visibility").default("public").notNull(),
+    showProgress: boolean("show_progress").default(true).notNull(),
+    showStreak: boolean("show_streak").default(true).notNull(),
 });
 
 export const sessions = pgTable("sessions", {
@@ -50,7 +57,7 @@ export const feedback = pgTable("feedback", {
 export const accessCodes = pgTable("access_codes", {
     id: uuid("id").defaultRandom().primaryKey(),
     code: text("code").unique().notNull(),
-    type: text("type").notNull(), // '3days' or '5mins'
+    type: text("type").notNull(), // '3days', '5mins', or 'lifetime'
     isUsed: boolean("is_used").default(false).notNull(),
     isRevoked: boolean("is_revoked").default(false).notNull(),
     usedBy: text("used_by"),

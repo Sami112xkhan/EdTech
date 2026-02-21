@@ -142,15 +142,15 @@ const Settings: React.FC = () => {
     const { fontSize, setFontSize, accentColor, setAccentColor, codeFont, setCodeFont } = useTheme();
 
     // Notifications
-    const [emailNotifs, setEmailNotifs] = useState(() => loadPref('emailNotifs', true));
-    const [pushNotifs, setPushNotifs] = useState(() => loadPref('pushNotifs', true));
-    const [courseUpdates, setCourseUpdates] = useState(() => loadPref('courseUpdates', true));
-    const [soundEffects, setSoundEffects] = useState(() => loadPref('soundEffects', true));
+    const [emailNotifs, setEmailNotifs] = useState(() => user?.emailNotifs ?? loadPref('emailNotifs', true));
+    const [pushNotifs, setPushNotifs] = useState(() => user?.pushNotifs ?? loadPref('pushNotifs', true));
+    const [courseUpdates, setCourseUpdates] = useState(() => user?.courseUpdates ?? loadPref('courseUpdates', true));
+    const [soundEffects, setSoundEffects] = useState(() => user?.soundEffects ?? loadPref('soundEffects', true));
 
     // Privacy
-    const [profileVisibility, setProfileVisibility] = useState(() => loadPref('profileVisibility', 'public'));
-    const [showProgress, setShowProgress] = useState(() => loadPref('showProgress', true));
-    const [showStreak, setShowStreak] = useState(() => loadPref('showStreak', true));
+    const [profileVisibility, setProfileVisibility] = useState(() => user?.profileVisibility ?? loadPref('profileVisibility', 'public'));
+    const [showProgress, setShowProgress] = useState(() => user?.showProgress ?? loadPref('showProgress', true));
+    const [showStreak, setShowStreak] = useState(() => user?.showStreak ?? loadPref('showStreak', true));
 
     // ─── Request push notification permission ───
     const requestPushPermission = useCallback(async () => {
@@ -172,6 +172,7 @@ const Settings: React.FC = () => {
     const updatePref = <T,>(key: string, setter: React.Dispatch<React.SetStateAction<T>>) => (value: T) => {
         setter(value);
         localStorage.setItem(`settings_${key}`, JSON.stringify(value));
+        updateProfile({ [key]: value }).catch(() => toast.error('Failed to sync setting', { duration: 1200 }));
         toast.success('Setting saved', { duration: 1200 });
     };
 
@@ -183,6 +184,7 @@ const Settings: React.FC = () => {
         }
         setPushNotifs(value);
         localStorage.setItem('settings_pushNotifs', JSON.stringify(value));
+        updateProfile({ pushNotifs: value }).catch(() => { });
         toast.success(value ? 'Push notifications enabled 🔔' : 'Push notifications disabled', { duration: 1200 });
     };
 
@@ -190,6 +192,7 @@ const Settings: React.FC = () => {
     const handleSoundToggle = (value: boolean) => {
         setSoundEffects(value);
         localStorage.setItem('settings_soundEffects', JSON.stringify(value));
+        updateProfile({ soundEffects: value }).catch(() => { });
         if (value) {
             try {
                 const ctx = new AudioContext();

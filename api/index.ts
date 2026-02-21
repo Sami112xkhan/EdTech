@@ -6,10 +6,33 @@ import { db } from "../server/db/index.js";
 import { users, sessions, feedback as feedbackTable, accessCodes, userNotes, playgroundProjects, aiChats, systemSettings } from "../server/db/schema.js";
 import { eq, and, gte, sql, desc, ne } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import path from "path";
+import { fileURLToPath } from "url";
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const app = express();
+
+// Initialize hardcoded legacy codes into the database so they are tracked
+async function initStaticCodes() {
+    try {
+        const [existingCode] = await db.select().from(accessCodes).where(eq(accessCodes.code, 'LIFETIME100'));
+        if (!existingCode) {
+            await db.insert(accessCodes).values({
+                code: 'LIFETIME100',
+                type: 'lifetime'
+            });
+            console.log("Seeded legacy LIFETIME100 code into database for tracking.");
+        }
+    } catch (error) {
+        console.error("Failed to seed static codes:", error);
+    }
+}
+initStaticCodes();
+
 const googleClient = new OAuth2Client(process.env.VITE_GOOGLE_CLIENT_ID);
 
 app.use(cors());
@@ -259,7 +282,12 @@ app.post("/api/auth/resend", async (req, res) => {
 
 // Update Profile Hook
 app.post("/api/auth/profile", async (req, res) => {
-    const { email, name, username, streak, xp, level } = req.body;
+    const {
+        email, name, username, streak, xp, level,
+        emailNotifs, pushNotifs, courseUpdates, soundEffects,
+        profileVisibility, showProgress, showStreak
+    } = req.body;
+
     if (!email) return res.status(400).json({ error: "Email required" });
 
     try {
@@ -269,7 +297,14 @@ app.post("/api/auth/profile", async (req, res) => {
                 username,
                 streak: streak !== undefined ? streak : undefined,
                 xp: xp !== undefined ? xp : undefined,
-                level: level !== undefined ? level : undefined
+                level: level !== undefined ? level : undefined,
+                emailNotifs: emailNotifs !== undefined ? emailNotifs : undefined,
+                pushNotifs: pushNotifs !== undefined ? pushNotifs : undefined,
+                courseUpdates: courseUpdates !== undefined ? courseUpdates : undefined,
+                soundEffects: soundEffects !== undefined ? soundEffects : undefined,
+                profileVisibility: profileVisibility !== undefined ? profileVisibility : undefined,
+                showProgress: showProgress !== undefined ? showProgress : undefined,
+                showStreak: showStreak !== undefined ? showStreak : undefined,
             })
             .where(eq(users.email, email))
             .returning();
@@ -757,9 +792,9 @@ app.delete("/api/ai/chat/clear", async (req, res) => {
 
 // Generate a new access code
 app.post("/api/admin/codes/generate", async (req, res) => {
-    const { type } = req.body; // '3days' or '5mins'
-    if (!type || !['3days', '5mins'].includes(type)) {
-        return res.status(400).json({ error: "Invalid type. Must be '3days' or '5mins'" });
+    const { type } = req.body; // '3days', '5mins', or 'lifetime'
+    if (!type || !['3days', '5mins', 'lifetime'].includes(type)) {
+        return res.status(400).json({ error: "Invalid type. Must be '3days', '5mins', or 'lifetime'" });
     }
 
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -831,24 +866,32 @@ app.post("/api/codes/redeem", async (req, res) => {
 
         // Calculate expiry based on type
         const now = new Date();
-        const duration = accessCode.type === '3days' ? (3 * 24 * 60 * 60 * 1000) : (5 * 60 * 1000);
-        const trialExpiresAt = new Date(now.getTime() + duration).toISOString();
+        let trialExpiresAt: string | null = null;
+        let isPaidFlag = false;
+
+        if (accessCode.type === 'lifetime') {
+            isPaidFlag = true;
+        } else {
+            const duration = accessCode.type === '3days' ? (3 * 24 * 60 * 60 * 1000) : (5 * 60 * 1000);
+            trialExpiresAt = new Date(now.getTime() + duration).toISOString();
+        }
 
         // Mark code as used
         await db.update(accessCodes)
             .set({ isUsed: true, usedBy: email, usedAt: now })
             .where(eq(accessCodes.id, accessCode.id));
 
-        // Update user trial access
+        // Update user access tier
         const [updatedUser] = await db.update(users)
-            .set({ isPaid: false }) // trial access, not paid
+            .set({ isPaid: isPaidFlag })
             .where(eq(users.email, email))
             .returning();
 
         res.json({
             success: true,
-            trialExpiresAt,
-            message: `Access granted for ${accessCode.type === '3days' ? '3 days' : '5 minutes'}`,
+            trialExpiresAt: trialExpiresAt || undefined,
+            isPaid: isPaidFlag,
+            message: accessCode.type === 'lifetime' ? "Lifetime Access Granted! Welcome to the family." : "Trial Activated! Timer started.",
             user: updatedUser
         });
     } catch (error) {

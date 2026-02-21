@@ -24,6 +24,15 @@ export interface User {
     certificateIssueDate?: string;
     lastSeen?: string; // ISO string
     usedCodes?: string[]; // Track static codes used
+
+    // Preferences
+    emailNotifs?: boolean;
+    pushNotifs?: boolean;
+    courseUpdates?: boolean;
+    soundEffects?: boolean;
+    profileVisibility?: string;
+    showProgress?: boolean;
+    showStreak?: boolean;
 }
 
 export interface AccessCode {

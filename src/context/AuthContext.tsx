@@ -74,7 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         setUser(data.user);
                         setIsAuthenticated(true);
                         localStorage.setItem("user", JSON.stringify(data.user)); // Sync fresh data
-                    } else {
+                    } else if (response.status === 401 || response.status === 403) {
                         // Session invalid or expired -> Logout
                         console.warn("Session invalid, logging out");
                         localStorage.removeItem("user");
@@ -82,12 +82,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         setUser(null);
                         setIsAuthenticated(false);
                         setSessionId(null);
+                    } else {
+                        console.warn("Session validation failed with status:", response.status, "keeping local session");
                     }
                 } catch (error) {
-                    console.error("Session validation failed", error);
+                    console.error("Session validation network error", error);
+                    // Do not log out on network errors
                 }
-            } else {
-                // No session, ensure logout state
+            } else if (!storedUserStr) {
+                // No session and no local user, ensure logout state
                 setUser(null);
                 setIsAuthenticated(false);
             }
@@ -231,84 +234,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         const normalizedCode = code.toUpperCase().trim();
 
-        // 1. Static Lifetime Code
-        if (normalizedCode === 'LIFETIME100') {
-            const updatedUser = { ...user, isPaid: true, trialExpiresAt: undefined }; // Clear trial if any
-            setUser(updatedUser);
-            localStorage.setItem("user", JSON.stringify(updatedUser));
-
-            const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
-            const updatedUserDb = usersDb.map((u: User) => u.email === user.email ? updatedUser : u);
-            localStorage.setItem("users_db", JSON.stringify(updatedUserDb));
-
-            return { success: true, message: "Lifetime Access Granted! Welcome to the family." };
-        }
-
-        // 2. Static Trial Code
-        if (normalizedCode === 'TRIAL5') {
-            // Check if specifically this code was used
-            if (user.usedCodes?.includes('TRIAL5')) {
-                return { success: false, message: "This trial code has already been used." };
-            }
-
-            // Legacy check: If trial expired and no usedCodes tracked yet, assume TRIAL5 was the one used
-            if (user.trialExpiresAt === 'EXPIRED' && (!user.usedCodes || user.usedCodes.length === 0)) {
-                return { success: false, message: "Trial already used and expired." };
-            }
-
-            if (user.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED') {
-                return { success: false, message: "Trial already active." };
-            }
-
-            const now = new Date();
-            const duration = 5 * 60 * 1000; // 5 minutes
-            const trialExpiresAt = new Date(now.getTime() + duration).toISOString();
-
-            const updatedUser = {
-                ...user,
-                trialExpiresAt,
-                usedCodes: [...(user.usedCodes || []), 'TRIAL5']
-            };
-            setUser(updatedUser);
-            localStorage.setItem("user", JSON.stringify(updatedUser));
-
-            const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
-            const updatedUserDb = usersDb.map((u: User) => u.email === user.email ? updatedUser : u);
-            localStorage.setItem("users_db", JSON.stringify(updatedUserDb));
-
-            return { success: true, message: "5-Minute Trial Activated! Timer started." };
-        }
-
-        // 3. Static Trial Code (3 Minutes)
-        if (normalizedCode === 'TRIAL3') {
-            if (user.usedCodes?.includes('TRIAL3')) {
-                return { success: false, message: "This trial code has already been used." };
-            }
-
-            if (user.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED') {
-                return { success: false, message: "Trial already active." };
-            }
-
-            const now = new Date();
-            const duration = 3 * 60 * 1000; // 3 minutes
-            const trialExpiresAt = new Date(now.getTime() + duration).toISOString();
-
-            const updatedUser = {
-                ...user,
-                trialExpiresAt,
-                usedCodes: [...(user.usedCodes || []), 'TRIAL3']
-            };
-            setUser(updatedUser);
-            localStorage.setItem("user", JSON.stringify(updatedUser));
-
-            const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
-            const updatedUserDb = usersDb.map((u: User) => u.email === user.email ? updatedUser : u);
-            localStorage.setItem("users_db", JSON.stringify(updatedUserDb));
-
-            return { success: true, message: "3-Minute Trial Activated! Timer started." };
-        }
-
-        // 4. Admin-generated codes — check via API
+        // Admin-generated codes — check via API
         try {
             const response = await fetch('/api/codes/redeem', {
                 method: 'POST',
@@ -317,10 +243,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             });
             const data = await response.json();
             if (response.ok && data.success) {
-                // Update local user state with trial expiry
-                const updatedUser = { ...user, trialExpiresAt: data.trialExpiresAt };
+                // Update local user state with new tier 
+                const updatedUser = {
+                    ...user,
+                    trialExpiresAt: data.trialExpiresAt,
+                    isPaid: data.isPaid !== undefined ? data.isPaid : user.isPaid
+                };
                 setUser(updatedUser);
                 localStorage.setItem("user", JSON.stringify(updatedUser));
+
+                // Keep local fallback users_db clean as well
+                const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
+                const updatedUserDb = usersDb.map((u: User) => u.email === user.email ? updatedUser : u);
+                localStorage.setItem("users_db", JSON.stringify(updatedUserDb));
+
                 return { success: true, message: data.message };
             }
             return { success: false, message: data.error || "Invalid, used, or revoked code" };

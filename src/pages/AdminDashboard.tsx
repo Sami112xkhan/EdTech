@@ -20,8 +20,10 @@ import {
     TrendingUp,
     ShieldCheck,
     ShieldAlert,
-    ChevronRight
+    ChevronRight,
+    AlertTriangle
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useNavigate, Link } from 'react-router-dom';
 import { curriculum } from "../data/curriculum";
 import { getPhasesStatus } from "../utils/progress";
@@ -139,12 +141,28 @@ const AdminDashboard: React.FC = () => {
         return () => clearInterval(codesInterval);
     }, []);
 
+    const [filterRole, setFilterRole] = useState<'all' | 'pro' | 'online'>('all');
+
     const filteredUsers = useMemo(() => {
-        return users.filter(u =>
-            u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            u.email?.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-    }, [users, searchTerm]);
+        let result = users;
+
+        // 1. Apply category filter
+        if (filterRole === 'pro') {
+            result = result.filter(u => u.isPaid);
+        } else if (filterRole === 'online') {
+            result = result.filter(u => u.isOnline || isOnline(u.lastSeen));
+        }
+
+        // 2. Apply search text filter
+        if (searchTerm) {
+            result = result.filter(u =>
+                u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                u.email?.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+        }
+
+        return result;
+    }, [users, searchTerm, filterRole]);
 
     // Statistics
     const stats = useMemo(() => {
@@ -154,10 +172,10 @@ const AdminDashboard: React.FC = () => {
         const pendingFeedback = feedback.filter(f => f.status === 'pending').length;
 
         return [
-            { label: 'Total Members', value: sqlStats?.totalUsers ?? totalUsers, icon: Users, color: 'indigo', trend: sqlStats ? 'SQL' : '+12%' },
-            { label: 'PRO Members', value: sqlStats?.proMembers ?? proUsers, icon: Award, color: 'primary', trend: sqlStats ? 'SQL' : '+5%' },
-            { label: 'Live Active', value: sqlStats?.activeUsers ?? activeTrials, icon: Clock, color: 'amber', trend: 'Live' },
-            { label: 'New Today', value: sqlStats?.newToday ?? pendingFeedback, icon: MessageSquare, color: 'rose', trend: 'Today' }
+            { id: 'all', label: 'Total Members', value: sqlStats?.totalUsers ?? totalUsers, icon: Users, color: 'indigo', trend: sqlStats ? 'SQL' : '+12%' },
+            { id: 'pro', label: 'PRO Members', value: sqlStats?.proMembers ?? proUsers, icon: Award, color: 'primary', trend: sqlStats ? 'SQL' : '+5%' },
+            { id: 'online', label: 'Live Active', value: sqlStats?.activeUsers ?? activeTrials, icon: Clock, color: 'amber', trend: 'Live' },
+            { id: 'today', label: 'New Today', value: sqlStats?.newToday ?? pendingFeedback, icon: MessageSquare, color: 'rose', trend: 'Today' }
         ];
     }, [users, feedback, sqlStats]);
 
@@ -200,7 +218,11 @@ const AdminDashboard: React.FC = () => {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.1 }}
-                            className="p-6 rounded-[2.5rem] bg-secondary/10 border border-white/5 relative overflow-hidden group hover:border-primary/30 transition-all"
+                            onClick={() => {
+                                setActiveTab('users');
+                                setFilterRole(stat.id as 'all' | 'pro' | 'online');
+                            }}
+                            className="p-6 rounded-[2.5rem] bg-secondary/10 border border-white/5 relative overflow-hidden group hover:border-primary/30 transition-all cursor-pointer"
                         >
                             <div className={`absolute top-0 right-0 w-32 h-32 bg-${stat.color}-500/5 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-${stat.color}-500/10 transition-colors`} />
 
@@ -366,7 +388,12 @@ const AdminDashboard: React.FC = () => {
                                                                     <div className="space-y-1">
                                                                         <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Plan</div>
                                                                         <div className={`text-sm font-bold ${u.isPaid ? 'text-yellow-400' : 'text-zinc-500'}`}>
-                                                                            {u.isPaid ? '⭐ PRO' : 'FREE'}
+                                                                            {u.isPaid ? (
+                                                                                (() => {
+                                                                                    const usedCode = codes.find(c => c.usedBy === u.email && c.type === 'lifetime');
+                                                                                    return usedCode ? `⭐ PRO (CODE: ${usedCode.code})` : '⭐ PRO (PURCHASE)';
+                                                                                })()
+                                                                            ) : 'FREE'}
                                                                         </div>
                                                                     </div>
                                                                     <div className="space-y-1">
@@ -525,8 +552,9 @@ const AdminDashboard: React.FC = () => {
                             exit={{ opacity: 0, y: -20 }}
                             className="space-y-6"
                         >
+                            {/* --- Certificate Appeals --- */}
                             <div className="bg-primary/10 border border-primary/20 p-6 rounded-[2rem] mb-8">
-                                <h4 className="text-primary font-black text-xs uppercase tracking-widest mb-1">Certificate Appeals</h4>
+                                <h4 className="text-primary font-black text-xs uppercase tracking-widest mb-1">Certificate Requests</h4>
                                 <p className="text-primary/60 text-[10px] font-medium">Students who have completed the course and are requesting their certificate.</p>
                             </div>
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -602,6 +630,88 @@ const AdminDashboard: React.FC = () => {
                                     <div className="lg:col-span-2 py-20 text-center opacity-20">
                                         <ShieldCheck className="w-12 h-12 mx-auto mb-4" />
                                         <p className="text-xs font-black uppercase tracking-widest">No certificate requests pending.</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* --- Account Suspensions Appeals --- */}
+                            <div className="bg-red-500/10 border border-red-500/20 p-6 rounded-[2rem] mt-12 mb-8">
+                                <h4 className="text-red-400 font-black text-xs uppercase tracking-widest mb-1">Account Suspensions</h4>
+                                <p className="text-red-400/60 text-[10px] font-medium">Appeals from suspended users requesting account reactivation.</p>
+                            </div>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                {feedback.filter(f => f.type === 'access_request' && f.status === 'pending').length > 0 ? feedback.filter(f => f.type === 'access_request' && f.status === 'pending').map((item) => (
+                                    <motion.div
+                                        key={item.id}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="p-8 rounded-[2.5rem] bg-secondary/10 border border-white/5 group hover:border-red-500/30 transition-all"
+                                    >
+                                        <div className="flex items-center justify-between mb-6">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center font-black text-xl text-red-500 shadow-inner">
+                                                    {item.userName?.charAt(0).toUpperCase()}
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-lg font-black text-white">{item.userName}</h3>
+                                                    <p className="text-[10px] text-zinc-500 font-mono">{item.userId}</p>
+                                                </div>
+                                            </div>
+                                            <span className="px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] bg-red-500/10 text-red-400 border border-red-500/20 animate-pulse">
+                                                Review Appeal
+                                            </span>
+                                        </div>
+
+                                        <div className="p-5 bg-black/40 rounded-2xl border border-white/5 mb-6 relative">
+                                            <div className="absolute top-2 right-4 opacity-10">
+                                                <AlertTriangle className="w-8 h-8 text-red-500" />
+                                            </div>
+                                            <span className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Message from user</span>
+                                            <p className="text-sm text-zinc-300 italic">"{item.content}"</p>
+                                        </div>
+
+                                        <div className="flex gap-3">
+                                            <button
+                                                onClick={async () => {
+                                                    // Unblock User -> Sets status to active
+                                                    try {
+                                                        const res = await fetch(`/api/admin/users/${encodeURIComponent(item.userId)}/status`, {
+                                                            method: 'PATCH',
+                                                            headers: { 'Content-Type': 'application/json' },
+                                                            body: JSON.stringify({ status: 'active' })
+                                                        });
+                                                        if (res.ok) {
+                                                            await updateFeedbackStatus(item.id, 'implemented');
+                                                            const dbUsers = await getAllUsers();
+                                                            setUsers(dbUsers);
+                                                            toast.success('User unblocked seamlessly.');
+                                                        }
+                                                    } catch (error) {
+                                                        toast.error('Failed to unblock user.');
+                                                    }
+                                                }}
+                                                className="flex-1 py-4 bg-white hover:bg-white/90 text-black font-black rounded-2xl text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all"
+                                            >
+                                                UNBLOCK USER
+                                            </button>
+                                            <button
+                                                onClick={async () => {
+                                                    // 10-Day Timeout -> Replies and resolves ticket without changing unblock
+                                                    const officialReply = "Your appeal has been reviewed. A 10-day timeout has been issued for violating community guidelines. Your access will remain restricted during this period.";
+                                                    await replyToFeedback(item.id, officialReply);
+                                                    await updateFeedbackStatus(item.id, 'ignored');
+                                                    toast.success('Timeout issued and user notified.');
+                                                }}
+                                                className="flex-1 py-4 bg-red-500/10 text-red-400 font-black rounded-2xl text-[10px] uppercase tracking-widest hover:bg-red-500/20 transition-all border border-red-500/20"
+                                            >
+                                                10-DAY TIMEOUT
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )) : (
+                                    <div className="lg:col-span-2 py-20 text-center opacity-20">
+                                        <AlertTriangle className="w-12 h-12 mx-auto mb-4" />
+                                        <p className="text-xs font-black uppercase tracking-widest">No account appeals pending.</p>
                                     </div>
                                 )}
                             </div>
@@ -767,7 +877,8 @@ const AdminDashboard: React.FC = () => {
                                         <div className="flex p-1.5 bg-white/5 rounded-2xl border border-white/5 w-full lg:w-auto">
                                             {[
                                                 { id: '3days', label: '72H LEVEL' },
-                                                { id: '5mins', label: '5M FLASH' }
+                                                { id: '5mins', label: '5M FLASH' },
+                                                { id: 'lifetime', label: 'LIFETIME' }
                                             ].map(t => (
                                                 <button
                                                     key={t.id}
@@ -832,9 +943,12 @@ const AdminDashboard: React.FC = () => {
                                                 <tr key={c.code} className="group hover:bg-white/[0.02] transition-colors">
                                                     <td className="px-10 py-6 font-mono font-black text-white text-xl tracking-[0.2em]">{c.code}</td>
                                                     <td className="px-10 py-6">
-                                                        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl font-black text-[10px] uppercase tracking-widest ${c.type === '5mins' ? 'text-amber-400 bg-amber-400/5' : 'text-indigo-400 bg-indigo-400/5'}`}>
-                                                            <Zap className="w-3.5 h-3.5" />
-                                                            {c.type === '5mins' ? 'Low-Orbit' : 'High-Sync'}
+                                                        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl font-black text-[10px] uppercase tracking-widest ${c.type === 'lifetime' ? 'text-green-400 bg-green-400/10 border border-green-500/20' :
+                                                            c.type === '5mins' ? 'text-amber-400 bg-amber-400/5' :
+                                                                'text-indigo-400 bg-indigo-400/5'
+                                                            }`}>
+                                                            {c.type === 'lifetime' ? <Award className="w-3.5 h-3.5" /> : <Zap className="w-3.5 h-3.5" />}
+                                                            {c.type === 'lifetime' ? 'Progenitor Core' : c.type === '5mins' ? 'Low-Orbit' : 'High-Sync'}
                                                         </div>
                                                     </td>
                                                     <td className="px-10 py-6">
