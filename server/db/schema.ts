@@ -97,3 +97,13 @@ export const systemSettings = pgTable("system_settings", {
     key: text("key").primaryKey(),
     value: text("value").notNull(),
 });
+
+export const activityLogs = pgTable("activity_logs", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").references(() => users.id).notNull(),
+    type: text("type").notNull(), // 'NAVIGATE', 'CLICK', 'ACTION'
+    description: text("description"),
+    path: text("path"),
+    metadata: text("metadata"), // JSON string
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+});

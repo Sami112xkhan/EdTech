@@ -27,6 +27,7 @@ import VerifyEmail from "./pages/VerifyEmail";
 import Suspended from "./pages/Suspended";
 import PlaygroundPage from "./pages/PlaygroundPage";
 import { FeedbackProvider } from "./context/FeedbackContext";
+import NavigationTracker from "./components/NavigationTracker";
 
 import { Analytics } from "@vercel/analytics/react";
 
@@ -36,6 +37,7 @@ function App() {
             <AuthProvider>
                 <ThemeProvider>
                     <FeedbackProvider>
+                        <NavigationTracker />
                         <Routes>
                             <Route element={<RootLayout />}>
                                 {/* Public Routes */}

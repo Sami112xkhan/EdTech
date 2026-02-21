@@ -3,7 +3,9 @@ import {
   Code, Terminal, Box, Play, Layers, Save, FolderOpen, Plus, Loader2, Sparkles, Trash2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { curriculum } from "../data/curriculum";
 import { useAuth } from "../context/AuthContext";
+import { trackAction } from "../components/NavigationTracker";
 import { toast } from "sonner";
 import { MonacoEditor } from "../components/Playground/MonacoEditor";
 import { CodeRunner } from "../components/Playground/CodeRunner";
@@ -36,13 +38,13 @@ const TEMPLATES: Record<TemplateType, TemplateConfig> = {
 
 export default function App() {
   const [count, setCount] = useState(0);
-  
+
   return (
     <div style={{ textAlign: 'center', padding: '2rem', color: '#fff' }}>
       <h1>Hello Monaco! 🚀</h1>
       <p>This is a React component running in the browser.</p>
-      
-      <button 
+
+      <button
         onClick={() => setCount(c => c + 1)}
         style={{
           padding: '10px 20px',
@@ -70,8 +72,8 @@ export default function App() {
       "main.py": `print("Hello from Python! 🐍")
 
 def factorial(n):
-    if n == 0: return 1
-    return n * factorial(n-1)
+if n == 0: return 1
+return n * factorial(n - 1)
 
 print(f"Factorial of 5 is {factorial(5)}")
 `
@@ -106,19 +108,19 @@ document.body.innerHTML += "<h1>Hello from JS</h1>";
     icon: Layers,
     defaultFile: "index.html",
     files: {
-      "index.html": `<!DOCTYPE html>
-<html>
-<head>
-  <style>
-    body { background: #111; color: white; font-family: sans-serif; }
-    h1 { color: #facc15; }
-  </style>
-</head>
-<body>
-  <h1>Hello HTML! 🎨</h1>
-  <p>Edit me and click run!</p>
-</body>
-</html>`
+      "index.html": `< !DOCTYPE html >
+  <html>
+    <head>
+      <style>
+        body {background: #111; color: white; font-family: sans-serif; }
+        h1 {color: #facc15; }
+      </style>
+    </head>
+    <body>
+      <h1>Hello HTML! 🎨</h1>
+      <p>Edit me and click run!</p>
+    </body>
+  </html>`
     }
   }
 };
@@ -144,7 +146,7 @@ const PlaygroundPage: React.FC = () => {
   // Load Projects
   useEffect(() => {
     if (user?.email) {
-      fetch(`/api/playground/list?email=${encodeURIComponent(user.email)}`)
+      fetch(`/ api / playground / list ? email = ${encodeURIComponent(user.email)} `)
         .then(res => res.json())
         .then(data => setSavedProjects(data))
         .catch(console.error);
@@ -231,7 +233,7 @@ const PlaygroundPage: React.FC = () => {
         toast.success("Saved!", { id: toastId });
 
         // Refresh list
-        fetch(`/api/playground/list?email=${encodeURIComponent(user.email)}`)
+        fetch(`/ api / playground / list ? email = ${encodeURIComponent(user.email)} `)
           .then(r => r.json())
           .then(setSavedProjects);
       } else {
@@ -300,7 +302,10 @@ const PlaygroundPage: React.FC = () => {
         <div className="flex items-center gap-3">
           {/* Run Button */}
           <button
-            onClick={handleRun}
+            onClick={() => {
+              handleRun();
+              if (user) trackAction(user.id, 'ACTION', 'Ran code in playground', { template: activeTemplate });
+            }}
             className="flex items-center gap-2 px-6 py-2 bg-green-500 hover:bg-green-600 text-black rounded-xl font-black uppercase text-xs tracking-widest shadow-lg shadow-green-500/20 transition-all hover:scale-105 active:scale-95"
           >
             <Play className="w-4 h-4 fill-current" />
@@ -318,7 +323,10 @@ const PlaygroundPage: React.FC = () => {
             {(Object.keys(TEMPLATES) as TemplateType[]).map(t => (
               <button
                 key={t}
-                onClick={() => handleTemplateSwitch(t)}
+                onClick={() => {
+                  handleTemplateSwitch(t);
+                  if (user) trackAction(user.id, 'CLICK', `Switched template to ${t} `);
+                }}
                 className={`relative px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeTemplate === t ? "text-white" : "text-white/40 hover:text-white"
                   }`}
               >
@@ -340,7 +348,10 @@ const PlaygroundPage: React.FC = () => {
           {/* Save Button */}
           {user && (
             <button
-              onClick={handleSaveProject}
+              onClick={() => {
+                handleSaveProject();
+                if (user) trackAction(user.id, 'ACTION', 'Saved project in playground');
+              }}
               className="p-2 rounded-xl bg-primary/20 hover:bg-primary/40 text-primary border border-primary/50 transition-all"
             >
               <Save className="w-5 h-5" />
@@ -394,10 +405,10 @@ const PlaygroundPage: React.FC = () => {
               <button
                 key={f}
                 onClick={() => setActiveFile(f)}
-                className={`px-3 py-1 rounded-t-lg text-xs font-mono border-t border-x relative z-10 ${activeFile === f
+                className={`px - 3 py - 1 rounded - t - lg text - xs font - mono border - t border - x relative z - 10 ${activeFile === f
                   ? "bg-white/10 border-white/20 text-white"
                   : "bg-transparent border-transparent text-white/40 hover:text-white/60"
-                  }`}
+                  } `}
               >
                 {f}
               </button>

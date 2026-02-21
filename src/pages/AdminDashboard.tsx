@@ -21,7 +21,8 @@ import {
     ShieldCheck,
     ShieldAlert,
     ChevronRight,
-    AlertTriangle
+    AlertTriangle,
+    Eye
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate, Link } from 'react-router-dom';
@@ -72,6 +73,9 @@ const AdminDashboard: React.FC = () => {
         newToday: number;
         recentLogins: any[];
     } | null>(null);
+    const [activityLogs, setActivityLogs] = useState<any[]>([]);
+    const [selectedUserActivity, setSelectedUserActivity] = useState<any[] | null>(null);
+    const [viewingUserActivity, setViewingUserActivity] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchSqlStats = async () => {
@@ -88,6 +92,33 @@ const AdminDashboard: React.FC = () => {
         const interval = setInterval(fetchSqlStats, 5000); // Pulse every 5s for live feel
         return () => clearInterval(interval);
     }, []);
+
+    useEffect(() => {
+        const fetchActivity = async () => {
+            try {
+                const response = await fetch('/api/admin/activity');
+                const data = await response.json();
+                setActivityLogs(data);
+            } catch (e) {
+                console.error("Failed to fetch activity logs", e);
+            }
+        };
+
+        fetchActivity();
+        const interval = setInterval(fetchActivity, 3000); // Faster pulse for activity stream
+        return () => clearInterval(interval);
+    }, []);
+
+    const fetchUserActivity = async (userId: string) => {
+        try {
+            const response = await fetch(`/api/admin/users/${userId}/activity`);
+            const data = await response.json();
+            setSelectedUserActivity(data);
+            setViewingUserActivity(userId);
+        } catch (e) {
+            console.error("Failed to fetch user activity", e);
+        }
+    };
 
     useEffect(() => {
         // Security check
@@ -445,6 +476,19 @@ const AdminDashboard: React.FC = () => {
                                                                         <div className={`text-sm font-bold ${(u.isOnline || isOnline(u.lastSeen)) ? 'text-green-400' : 'text-red-400'}`}>
                                                                             {(u.isOnline || isOnline(u.lastSeen)) ? '🟢 LIVE NOW' : '🔴 OFFLINE'}
                                                                         </div>
+                                                                    </div>
+                                                                    <div className="space-y-1">
+                                                                        <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Actions</div>
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                fetchUserActivity(u.id);
+                                                                                setActiveTab('activity');
+                                                                            }}
+                                                                            className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-xs font-bold transition-all"
+                                                                        >
+                                                                            <Eye className="w-3 h-3" />
+                                                                            View History
+                                                                        </button>
                                                                     </div>
                                                                 </div>
                                                             </motion.div>
@@ -1015,40 +1059,63 @@ const AdminDashboard: React.FC = () => {
                             className="bg-secondary/10 rounded-[2.5rem] border border-white/5 overflow-hidden shadow-2xl"
                         >
                             <div className="p-8 border-b border-white/5 flex items-center justify-between">
-                                <h3 className="text-sm font-black uppercase tracking-[0.3em] text-primary">Live SQL Stream</h3>
+                                <div className="flex items-center gap-4">
+                                    <h3 className="text-sm font-black uppercase tracking-[0.3em] text-primary">
+                                        {viewingUserActivity ? 'User Activity History' : 'Live Action Stream'}
+                                    </h3>
+                                    {viewingUserActivity && (
+                                        <button
+                                            onClick={() => setViewingUserActivity(null)}
+                                            className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-white transition-colors"
+                                        >
+                                            ← Back to Live Stream
+                                        </button>
+                                    )}
+                                </div>
                                 <div className="flex items-center gap-2 px-3 py-1 bg-green-500/10 text-green-400 rounded-full text-[9px] font-black uppercase border border-green-500/20">
                                     <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse" />
-                                    Synchronized
+                                    {viewingUserActivity ? 'History Loaded' : 'Live Tracking'}
                                 </div>
                             </div>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left">
                                     <thead className="bg-white/5">
                                         <tr className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
-                                            <th className="px-8 py-5">Entity</th>
-                                            <th className="px-8 py-5">Email</th>
-                                            <th className="px-8 py-5">Access Log</th>
-                                            <th className="px-8 py-5 text-right">Status</th>
+                                            <th className="px-8 py-5">User</th>
+                                            <th className="px-8 py-5">Action</th>
+                                            <th className="px-8 py-5">Path</th>
+                                            <th className="px-8 py-5 text-right">Time</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-white/5">
-                                        {(sqlStats?.recentLogins || []).map((log: any, i: number) => (
-                                            <tr key={i} className="group hover:bg-white/[0.02] transition-colors">
-                                                <td className="px-8 py-5 font-bold text-white uppercase text-xs">{log.name}</td>
-                                                <td className="px-8 py-5 font-mono text-zinc-500 text-[10px]">{log.email}</td>
-                                                <td className="px-8 py-5 text-xs text-zinc-400 font-medium">
-                                                    {new Date(log.loginTime).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                                        {(viewingUserActivity ? (selectedUserActivity || []) : activityLogs).map((log: any, i: number) => (
+                                            <tr key={log.id || i} className="group hover:bg-white/[0.02] transition-colors">
+                                                <td className="px-8 py-5">
+                                                    <div className="flex flex-col">
+                                                        <span className="font-bold text-white uppercase text-xs">{log.name || 'User'}</span>
+                                                        <span className="font-mono text-zinc-500 text-[10px]">{log.email}</span>
+                                                    </div>
                                                 </td>
-                                                <td className="px-8 py-5 text-right">
-                                                    <span className="px-2 py-0.5 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded text-[9px] font-black uppercase tracking-widest">
-                                                        SESSION_START
-                                                    </span>
+                                                <td className="px-8 py-5">
+                                                    <div className="flex items-center gap-3">
+                                                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border ${log.type === 'NAVIGATE' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                                                            log.type === 'CLICK' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                                                                'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                                                            }`}>
+                                                            {log.type}
+                                                        </span>
+                                                        <span className="text-xs text-white/80 font-medium">{log.description}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-8 py-5 text-[10px] font-mono text-zinc-500">{log.path}</td>
+                                                <td className="px-8 py-5 text-right text-xs text-zinc-400 font-medium whitespace-nowrap">
+                                                    {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                                                 </td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
-                                {(!sqlStats || !sqlStats.recentLogins || sqlStats.recentLogins.length === 0) && (
+                                {((viewingUserActivity ? selectedUserActivity : activityLogs)?.length === 0) && (
                                     <div className="p-20 text-center opacity-30">
                                         <Clock className="w-12 h-12 mx-auto mb-4" />
                                         <p className="text-xs font-black uppercase tracking-widest italic">Signal buffer empty.</p>

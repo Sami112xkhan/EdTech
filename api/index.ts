@@ -3,7 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { OAuth2Client } from "google-auth-library";
 import { db } from "../server/db/index.js";
-import { users, sessions, feedback as feedbackTable, accessCodes, userNotes, playgroundProjects, aiChats, systemSettings } from "../server/db/schema.js";
+import { users, sessions, feedback as feedbackTable, accessCodes, userNotes, playgroundProjects, aiChats, systemSettings, activityLogs } from "../server/db/schema.js";
 import { eq, and, gte, sql, desc, ne } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import path from "path";
@@ -478,8 +478,68 @@ app.get("/api/admin/stats", async (req, res) => {
             recentLogins,
         });
     } catch (error) {
-        console.error("Stats fetch error:", error);
-        res.status(500).json({ error: "Failed to fetch stats" });
+        console.error("Admin stats error:", error);
+        res.status(500).json({ error: "Failed to fetch admin stats" });
+    }
+});
+
+// Telemetry/Tracking
+app.post("/api/track", async (req, res) => {
+    const { userId, type, description, path, metadata } = req.body;
+    if (!userId || !type) return res.status(400).json({ error: "userId and type required" });
+
+    try {
+        await db.insert(activityLogs).values({
+            userId,
+            type,
+            description,
+            path,
+            metadata: metadata ? JSON.stringify(metadata) : null,
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error("Tracking error:", error);
+        res.status(500).json({ error: "Failed to log activity" });
+    }
+});
+
+// Admin activity stream
+app.get("/api/admin/activity", async (req, res) => {
+    try {
+        const logs = await db.select({
+            id: activityLogs.id,
+            name: users.name,
+            email: users.email,
+            type: activityLogs.type,
+            description: activityLogs.description,
+            path: activityLogs.path,
+            metadata: activityLogs.metadata,
+            createdAt: activityLogs.createdAt,
+        })
+            .from(activityLogs)
+            .innerJoin(users, eq(activityLogs.userId, users.id))
+            .orderBy(desc(activityLogs.createdAt))
+            .limit(50);
+        res.json(logs);
+    } catch (error) {
+        console.error("Activity stream error:", error);
+        res.status(500).json({ error: "Failed to fetch activity logs" });
+    }
+});
+
+// Specific user activity history
+app.get("/api/admin/users/:userId/activity", async (req, res) => {
+    const { userId } = req.params;
+    try {
+        const logs = await db.select()
+            .from(activityLogs)
+            .where(eq(activityLogs.userId, userId))
+            .orderBy(desc(activityLogs.createdAt))
+            .limit(100);
+        res.json(logs);
+    } catch (error) {
+        console.error("User activity error:", error);
+        res.status(500).json({ error: "Failed to fetch user history" });
     }
 });
 
