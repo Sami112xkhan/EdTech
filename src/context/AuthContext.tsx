@@ -99,30 +99,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         validateSession();
 
         const storedUser = localStorage.getItem("user");
-        if (storedUser) {
-            const parsedUser = JSON.parse(storedUser);
-            // Validated above, but keep for immediate render
-            if (!user) { // Only set if not already set by validateSession (though async race condition favors this locally first)
-                setUser(parsedUser);
-                setIsAuthenticated(true);
-            }
-
-            // Check trial expiry on load
-            if (parsedUser.trialExpiresAt && !parsedUser.isPaid) {
-                const now = new Date();
-                const expiry = new Date(parsedUser.trialExpiresAt);
-                if (now > expiry) {
-                    const expiredUser = { ...parsedUser, trialExpiresAt: 'EXPIRED' };
-                    setUser(expiredUser);
-                    localStorage.setItem("user", JSON.stringify(expiredUser));
-
-                    // Update DB as well
-                    const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
-                    const updatedDb = usersDb.map((u: User) => u.email === parsedUser.email ? expiredUser : u);
-                    localStorage.setItem("users_db", JSON.stringify(updatedDb));
-                }
-            }
-        }
     }, []);
 
     // Periodic check for trial expiry (every 10 seconds)
@@ -149,11 +125,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     console.warn("Heartbeat sync failed", e);
                 }
             }
-
-            // Local DB fallback
-            const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
-            const updatedDb = usersDb.map((u: User) => u.email === user.email ? { ...u, lastSeen: now } : u);
-            localStorage.setItem("users_db", JSON.stringify(updatedDb));
         }, 5000);
 
         if (user.isPaid || !user.trialExpiresAt || user.trialExpiresAt === 'EXPIRED') {
@@ -167,10 +138,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 const expiredUser = { ...user, trialExpiresAt: 'EXPIRED' };
                 setUser(expiredUser);
                 localStorage.setItem("user", JSON.stringify(expiredUser));
-
-                const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
-                const updatedDb = usersDb.map((u: User) => u.email === user.email ? expiredUser : u);
-                localStorage.setItem("users_db", JSON.stringify(updatedDb));
 
                 clearInterval(interval);
             }
@@ -200,11 +167,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Initialize databases if empty
     useEffect(() => {
-        const storedUsers = localStorage.getItem("users_db");
-        if (!storedUsers) {
-            localStorage.setItem("users_db", JSON.stringify([]));
-        }
-
         const storedCodes = localStorage.getItem("codes_db");
         if (!storedCodes) {
             localStorage.setItem("codes_db", JSON.stringify([]));
@@ -243,7 +205,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             });
             const data = await response.json();
             if (response.ok && data.success) {
-                // Update local user state with new tier 
+                // Update local user state with new tier
                 const updatedUser = {
                     ...user,
                     trialExpiresAt: data.trialExpiresAt,
@@ -251,11 +213,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 };
                 setUser(updatedUser);
                 localStorage.setItem("user", JSON.stringify(updatedUser));
-
-                // Keep local fallback users_db clean as well
-                const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
-                const updatedUserDb = usersDb.map((u: User) => u.email === user.email ? updatedUser : u);
-                localStorage.setItem("users_db", JSON.stringify(updatedUserDb));
 
                 return { success: true, message: data.message };
             }
@@ -289,6 +246,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Admin Check (Keep hardcoded for safety)
         if (userData.username === 'admin' && (userData as any).password === 'admin@12345') {
             const adminUser: User = {
+                id: 'admin-id',
                 name: 'Administrator',
                 username: 'admin',
                 email: 'admin@devmastery.com',
@@ -346,75 +304,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
 
             const { email, name, picture } = payload;
-            const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
-            const existingUser = usersDb.find((u: User) => u.email === email);
-            const today = new Date().toISOString().split('T')[0];
 
-            let activeUser: User;
-
-            if (existingUser) {
-                // Login existing user - CAUTION: Sync name/picture from Google to avoid "maaz" vs "Sami" conflict
-                let newStreak = existingUser.streak || 0;
-                let newXp = existingUser.xp || 0;
-                let streakMessage = '';
-
-                if (existingUser.lastLoginDate !== today) {
-                    const yesterday = new Date();
-                    yesterday.setDate(yesterday.getDate() - 1);
-                    const yesterdayStr = yesterday.toISOString().split('T')[0];
-
-                    if (existingUser.lastLoginDate === yesterdayStr) {
-                        newStreak++;
-                        newXp += 50;
-                        streakMessage = `Daily Streak: ${newStreak} 🔥 (+50 XP)`;
-                    } else {
-                        newStreak = 1;
-                        newXp += 50;
-                        streakMessage = `Streak Started! 🔥 (+50 XP)`;
-                    }
-                }
-                const newLevel = Math.floor(newXp / 100) + 1;
-
-                activeUser = {
-                    ...existingUser,
-                    name: name || existingUser.name, // Priority: Google Identity
-                    photoURL: picture || existingUser.photoURL,
-                    lastLogin: new Date().toISOString(),
-                    isVerified: true,
-                    lastLoginDate: today,
-                    streak: newStreak,
-                    xp: newXp,
-                    level: newLevel
-                };
-                const updatedDb = usersDb.map((u: User) => u.email === email ? activeUser : u);
-                localStorage.setItem("users_db", JSON.stringify(updatedDb));
-                if (streakMessage) alert(streakMessage);
-            } else {
-                // Auto-Signup new user
-                activeUser = {
-                    name: name || 'Learner',
-                    username: email.split('@')[0],
-                    email: email,
-                    isPaid: false,
-                    role: 'user',
-                    status: 'active',
-                    isVerified: true,
-                    lastLogin: new Date().toISOString(),
-                    completedLessons: [],
-                    photoURL: picture,
-                    streak: 1,
-                    lastLoginDate: today,
-                    xp: 50,
-                    level: 1
-                };
-                localStorage.setItem("users_db", JSON.stringify([...usersDb, activeUser]));
-                alert("Welcome! You earned 50 XP for joining! 🔥");
-            }
-
-            // Set local state immediately for instant login
-            setUser(activeUser);
+            // Set local state immediately for instant login (temp state until synced)
+            const tempUser: User = {
+                id: 'google-sync-id',
+                name: name || 'Learner',
+                username: email.split('@')[0],
+                email: email,
+                isPaid: false,
+                role: 'user',
+                status: 'active',
+                isVerified: true,
+                lastLogin: new Date().toISOString(),
+                completedLessons: [],
+                photoURL: picture,
+                streak: 1,
+                xp: 50,
+                level: 1
+            };
+            setUser(tempUser);
             setIsAuthenticated(true);
-            localStorage.setItem("user", JSON.stringify(activeUser));
+            localStorage.setItem("user", JSON.stringify(tempUser));
 
             // 2. Sync with Analytics Backend (Crucial for Roles and Purchase Status)
             try {
@@ -432,46 +342,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
                     // Priority: If backend has detailed user data, update local state
                     if (data.user) {
-                        const backendUser = data.user;
-
-                        setUser(prev => {
-                            if (!prev) return backendUser;
-
-                            // Merge completed lessons to avoid progress loss
-                            const mergedLessons = Array.from(new Set([
-                                ...(backendUser.completedLessons || []),
-                                ...(prev.completedLessons || [])
-                            ]));
-
-                            const finalUser: User = {
-                                ...prev,
-                                role: backendUser.role || prev.role,
-                                isPaid: backendUser.isPaid !== undefined ? backendUser.isPaid : prev.isPaid,
-                                status: backendUser.status || prev.status,
-                                name: backendUser.name || prev.name,
-                                photoURL: backendUser.picture || prev.photoURL,
-                                username: backendUser.username || prev.username,
-                                streak: backendUser.streak !== undefined ? backendUser.streak : prev.streak,
-                                xp: backendUser.xp !== undefined ? backendUser.xp : prev.xp,
-                                level: backendUser.level !== undefined ? backendUser.level : prev.level,
-                                completedLessons: mergedLessons
-                            };
-
-                            localStorage.setItem('user', JSON.stringify(finalUser));
-
-                            // Sync back to users_db for consistency
-                            const currentDb = JSON.parse(localStorage.getItem("users_db") || '[]');
-                            const updatedDb = currentDb.map((u: User) => u.email === email ? finalUser : u);
-                            localStorage.setItem("users_db", JSON.stringify(updatedDb));
-
-                            return finalUser;
-                        });
+                        const finalUser = data.user;
+                        setUser(finalUser);
+                        localStorage.setItem('user', JSON.stringify(finalUser));
                     }
                 } else {
                     console.warn("Backend sync returned status:", response.status);
                 }
             } catch (syncError) {
-                console.warn("Failed to sync with SQL backend - continuing in local mode.", syncError);
+                console.warn("Failed to sync with SQL backend - continuing in temp mode.", syncError);
             }
 
         } catch (error: any) {
@@ -604,11 +483,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(updatedUser);
             localStorage.setItem("user", JSON.stringify(updatedUser)); // Update session
 
-            // Update DB
-            const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
-            const updatedDb = usersDb.map((u: User) => u.email === user.email ? updatedUser : u);
-            localStorage.setItem("users_db", JSON.stringify(updatedDb));
-
             // Sync Purchase to SQL
             try {
                 await fetch('/api/auth/purchase', {
@@ -629,10 +503,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 return await response.json();
             }
         } catch (error) {
-            console.warn('Failed to fetch users from API, falling back to localStorage', error);
+            console.error('Failed to fetch users from API', error);
         }
-        // Fallback to localStorage
-        return JSON.parse(localStorage.getItem("users_db") || '[]');
+        return [];
     };
 
     const updateUserStatus = async (email: string, newStatus: 'active' | 'inactive'): Promise<void> => {
@@ -643,12 +516,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 body: JSON.stringify({ status: newStatus }),
             });
         } catch (error) {
-            console.warn('Failed to update user status via API', error);
+            console.error('Failed to update user status via API', error);
         }
-        // Also update localStorage for consistency
-        const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
-        const updatedDb = usersDb.map((u: User) => u.email === email ? { ...u, status: newStatus } : u);
-        localStorage.setItem("users_db", JSON.stringify(updatedDb));
     };
 
     const deleteUser = async (email: string): Promise<void> => {
@@ -657,12 +526,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 method: 'DELETE',
             });
         } catch (error) {
-            console.warn('Failed to delete user via API', error);
+            console.error('Failed to delete user via API', error);
         }
-        // Also update localStorage
-        const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
-        const updatedDb = usersDb.filter((u: User) => u.email !== email);
-        localStorage.setItem("users_db", JSON.stringify(updatedDb));
     };
 
     const markLessonComplete = async (lessonId: string) => {
@@ -697,9 +562,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
                 // Update Local Storage
                 localStorage.setItem("user", JSON.stringify(updatedUser));
-                const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
-                const updatedDb = usersDb.map((u: User) => u.email === prev.email ? updatedUser : u);
-                localStorage.setItem("users_db", JSON.stringify(updatedDb));
 
                 // Visual Feedback
                 toast.success("Lesson Completed! 🔥", {
@@ -755,9 +617,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             // Update Local
             localStorage.setItem("user", JSON.stringify(updatedUser));
-            const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
-            const updatedDb = usersDb.map((u: User) => u.email === prev.email ? updatedUser : u);
-            localStorage.setItem("users_db", JSON.stringify(updatedDb));
 
             return updatedUser;
         });
@@ -777,9 +636,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             // Update Local
             localStorage.setItem("user", JSON.stringify(updatedUser));
-            const currentDb = JSON.parse(localStorage.getItem("users_db") || '[]');
-            const updatedDb = currentDb.map((u: User) => u.email === prev.email ? updatedUser : u);
-            localStorage.setItem("users_db", JSON.stringify(updatedDb));
 
             return updatedUser;
         });
@@ -806,11 +662,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(updatedUser);
         localStorage.setItem("user", JSON.stringify(updatedUser));
 
-        // Also update localStorage DB
-        const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
-        const updatedDb = usersDb.map((u: User) => u.email === user.email ? updatedUser : u);
-        localStorage.setItem("users_db", JSON.stringify(updatedDb));
-
         // Sync with API
         try {
             await fetch('/api/certificate/request', {
@@ -835,16 +686,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.warn('Failed to sync certificate approval to API', error);
         }
 
-        // Also update localStorage
-        const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
-        const updatedDb = usersDb.map((u: User) => {
-            if (u.email === email) {
-                return { ...u, certificateStatus: 'approved' as const, certificateIssueDate: new Date().toISOString() };
-            }
-            return u;
-        });
-        localStorage.setItem("users_db", JSON.stringify(updatedDb));
-
         if (user && user.email === email) {
             const updatedUser = { ...user, certificateStatus: 'approved' as const, certificateIssueDate: new Date().toISOString() };
             setUser(updatedUser);
@@ -859,18 +700,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 method: 'POST',
             });
         } catch (error) {
-            console.warn('Failed to sync certificate rejection to API', error);
+            console.error('Failed to sync certificate rejection to API', error);
         }
-
-        // Also update localStorage
-        const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
-        const updatedDb = usersDb.map((u: User) => {
-            if (u.email === email) {
-                return { ...u, certificateStatus: 'eligible' as const };
-            }
-            return u;
-        });
-        localStorage.setItem("users_db", JSON.stringify(updatedDb));
     };
 
     return (

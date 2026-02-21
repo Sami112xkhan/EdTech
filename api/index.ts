@@ -603,6 +603,12 @@ app.patch("/api/admin/users/:email/status", async (req, res) => {
             .returning();
 
         if (!updated) return res.status(404).json({ error: "User not found" });
+
+        // If suspended, invalidate all active sessions
+        if (status === 'inactive') {
+            await db.delete(sessions).where(eq(sessions.userId, updated.id));
+        }
+
         res.json(updated);
     } catch (error) {
         console.error("Status update error:", error);

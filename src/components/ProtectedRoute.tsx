@@ -15,10 +15,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ requirePayment = false 
         return <Navigate to="/login" replace />;
     }
 
-    // Force check against latest DB state
-    const usersDb = JSON.parse(localStorage.getItem('users_db') || '[]');
-    const freshUser = usersDb.find((u: any) => u.email === user?.email) || user;
-    const currentStatus = freshUser?.status || 'active';
+    const currentStatus = user?.status || 'active';
 
     if (currentStatus === 'inactive' && location.pathname !== '/suspended') {
         return <Navigate to="/suspended" replace />;

@@ -124,25 +124,8 @@ const Login: React.FC = () => {
                     const email = error.message.split(":")[1];
                     // If login was attempted with a static code, we should auto-verify them
                     if (isPremium && (unlockedBy.startsWith('code:'))) {
-                        const usersDb = JSON.parse(localStorage.getItem("users_db") || '[]');
-                        const updatedDb = usersDb.map((u: any) =>
-                            u.email === email ? { ...u, isVerified: true } : u
-                        );
-                        localStorage.setItem("users_db", JSON.stringify(updatedDb));
-
-                        // Retry login
-                        login({
-                            email: email,
-                            username: email,
-                            isVerified: true,
-                            isPaid: isPremium || (existingUserIndex >= 0 ? storedUsers[existingUserIndex].isPaid : false),
-                            unlockedBy: unlockedBy,
-                            completedLessons: [],
-                            status: 'active',
-                            role: 'user'
-                        } as any);
                         setIsLoading(false);
-                        navigate("/dashboard");
+                        navigate(`/verify?email=${encodeURIComponent(email)}`);
                     } else {
                         setIsLoading(false);
                         navigate(`/verify?email=${encodeURIComponent(email)}`);
