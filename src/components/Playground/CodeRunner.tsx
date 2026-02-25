@@ -2,7 +2,8 @@ import React, { useEffect, useRef } from "react";
 
 interface CodeRunnerProps {
   language: string;
-  code: string;
+  files: Record<string, string>;
+  activeFile: string;
   triggerRun: number; // Increment this to trigger a run
   onConsole: (log: string) => void;
   onError: (error: string) => void;
@@ -10,7 +11,8 @@ interface CodeRunnerProps {
 
 export const CodeRunner: React.FC<CodeRunnerProps> = ({
   language,
-  code,
+  files,
+  activeFile,
   triggerRun,
   onConsole,
   onError
@@ -18,17 +20,19 @@ export const CodeRunner: React.FC<CodeRunnerProps> = ({
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Refs to hold latest values to avoid effect invalidation
-  const codeRef = useRef(code);
+  const filesRef = useRef(files);
+  const activeFileRef = useRef(activeFile);
   const languageRef = useRef(language);
   const onConsoleRef = useRef(onConsole);
   const onErrorRef = useRef(onError);
 
   useEffect(() => {
-    codeRef.current = code;
+    filesRef.current = files;
+    activeFileRef.current = activeFile;
     languageRef.current = language;
     onConsoleRef.current = onConsole;
     onErrorRef.current = onError;
-  }, [code, language, onConsole, onError]);
+  }, [files, activeFile, language, onConsole, onError]);
 
   useEffect(() => {
     if (!triggerRun) return;
@@ -36,7 +40,9 @@ export const CodeRunner: React.FC<CodeRunnerProps> = ({
     const iframe = iframeRef.current;
     if (!iframe) return;
 
-    const currentCode = codeRef.current;
+    const currentFiles = filesRef.current;
+    const currentActiveFile = activeFileRef.current;
+    const currentCode = currentFiles[currentActiveFile] || "";
     const currentLanguage = languageRef.current;
     const logCallback = (msg: string) => onConsoleRef.current(msg);
     const errorCallback = (msg: string) => onErrorRef.current(msg);
@@ -192,17 +198,35 @@ export const CodeRunner: React.FC<CodeRunnerProps> = ({
                 window.onerror = (msg) => window.parent.postMessage({ type: 'error', message: msg }, '*');
                </script>`;
 
-        let modifiedCode = currentCode;
-        // Inject dark mode default style if no style tag present (heuristic)
-        // Actually, for HTML we shouldn't force it too much, but user asked "why is viewer so white".
-        // Let's inject a default user agent style for dark mode.
-        const darkStyle = `<style>body { background-color: #0d0d0d; color: white; min-height: 100vh; margin: 0; }</style>`;
-        if (!modifiedCode.includes('<style>')) {
+        let indexHtml = currentFiles["index.html"] || currentCode || "";
+        let styleCss = currentFiles["style.css"] || "";
+        let scriptJs = currentFiles["script.js"] || "";
+
+        let modifiedCode = indexHtml;
+
+        // Auto-inject CSS
+        if (styleCss) {
+          if (modifiedCode.includes('</head>')) {
+            modifiedCode = modifiedCode.replace('</head>', `<style>\\n${styleCss}\\n</style>\\n</head>`);
+          } else {
+            modifiedCode = `<style>\\n${styleCss}\\n</style>\\n` + modifiedCode;
+          }
+        } else if (!modifiedCode.includes('<style>')) {
+          // Default dark style
+          const darkStyle = `<style>body { background-color: #0d0d0d; color: white; min-height: 100vh; margin: 0; font-family: sans-serif; }</style>`;
           if (modifiedCode.includes('<head>')) {
             modifiedCode = modifiedCode.replace('<head>', '<head>' + darkStyle);
           } else {
-            // If no head, just prepend the style
             modifiedCode = darkStyle + modifiedCode;
+          }
+        }
+
+        // Auto-inject JS
+        if (scriptJs) {
+          if (modifiedCode.includes('</body>')) {
+            modifiedCode = modifiedCode.replace('</body>', `<script>\\n${scriptJs}\\n</script>\\n</body>`);
+          } else {
+            modifiedCode += `<script>\\n${scriptJs}\\n</script>`;
           }
         }
 

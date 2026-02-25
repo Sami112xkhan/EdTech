@@ -26,6 +26,7 @@ import AIAssistantPage from "./pages/AIAssistantPage";
 import VerifyEmail from "./pages/VerifyEmail";
 import Suspended from "./pages/Suspended";
 import PlaygroundPage from "./pages/PlaygroundPage";
+import About from "./pages/About";
 import { FeedbackProvider } from "./context/FeedbackContext";
 import NavigationTracker from "./components/NavigationTracker";
 
@@ -42,6 +43,7 @@ function App() {
                             <Route element={<RootLayout />}>
                                 {/* Public Routes */}
                                 <Route path="/" element={<Landing />} />
+                                <Route path="/about" element={<About />} />
                                 <Route path="/login" element={<Login />} />
                                 <Route path="/signup" element={<Signup />} />
                                 <Route path="/verify" element={<VerifyEmail />} />

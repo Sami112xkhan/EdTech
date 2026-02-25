@@ -2,8 +2,10 @@ import React, { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { curriculum } from "../data/curriculum";
+import { cybersecurityCurriculum } from "../data/cybersecurityCurriculum";
 import { getPhasesStatus } from "../utils/progress";
 import { ChevronLeft, ChevronRight, CheckCircle, FileText, Save, Lock } from "lucide-react";
+import type { Module } from "../data/curriculum";
 
 const CoursePlayer: React.FC = () => {
     const { user, markLessonComplete, addXp } = useAuth();
@@ -13,15 +15,18 @@ const CoursePlayer: React.FC = () => {
     const [activeTab, setActiveTab] = useState<"notes" | "material">("notes");
     const [isCompleting, setIsCompleting] = useState(false);
 
+    // Resolve which curriculum to use based on moduleId prefix
+    const activeCurriculum: Module[] = moduleId?.startsWith('cyber-') ? cybersecurityCurriculum : curriculum;
+
     // Find current lesson and module
-    const currentModule = curriculum.find(m => m.id === moduleId);
+    const currentModule = activeCurriculum.find(m => m.id === moduleId);
     const currentLessonIndex = currentModule?.lessons.findIndex(l => l.id === lessonId) ?? -1;
     const currentLesson = currentModule?.lessons[currentLessonIndex];
 
     const isCompleted = user?.completedLessons.includes(lessonId || "");
 
     // Check if phase is locked
-    const phasesStatus = user ? getPhasesStatus(curriculum, user.completedLessons) : [];
+    const phasesStatus = user ? getPhasesStatus(activeCurriculum, user.completedLessons) : [];
     const currentPhaseStatus = phasesStatus.find(p => p.id === moduleId);
     const isPhaseLocked = currentPhaseStatus?.locked ?? false;
 
@@ -95,8 +100,8 @@ const CoursePlayer: React.FC = () => {
                 navigate(`/learn/${moduleId}/${nextLesson.id}`);
             } else {
                 // End of current module, find next module
-                const currentModuleIndex = curriculum.findIndex(m => m.id === moduleId);
-                const nextModule = curriculum[currentModuleIndex + 1];
+                const currentModuleIndex = activeCurriculum.findIndex(m => m.id === moduleId);
+                const nextModule = activeCurriculum[currentModuleIndex + 1];
 
                 if (nextModule && nextModule.lessons.length > 0) {
                     navigate(`/learn/${nextModule.id}/${nextModule.lessons[0].id}`);

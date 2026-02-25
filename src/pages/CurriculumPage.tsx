@@ -3,22 +3,28 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { curriculum } from "../data/curriculum";
+import { cybersecurityCurriculum } from "../data/cybersecurityCurriculum";
 import { getPhasesStatus } from "../utils/progress";
-import { PlayCircle, Award, Clock, Lock, FileText, Download, Search, BookOpen } from "lucide-react";
+import { PlayCircle, Award, Clock, Lock, FileText, Download, Search, BookOpen, Shield } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import GlassSurface from "../components/GlassSurface";
+import { useActiveCourse } from "../hooks/useActiveCourse";
 
 const CurriculumPage: React.FC = () => {
     const { user } = useAuth();
     const [activeView, setActiveView] = useState<'roadmap' | 'notes'>('roadmap');
+    const [activeCourse, setActiveCourse] = useActiveCourse();
     const [noteSearch, setNoteSearch] = useState("");
     const [activePhaseId, setActivePhaseId] = useState<string | null>(null);
     const searchQuery = noteSearch; // Align variable names
+
+    const activeCurriculum = activeCourse === 'cyber' ? cybersecurityCurriculum : curriculum;
 
     // Calculate Progress logic reused for display
     const completedLessons = user?.completedLessons || [];
 
     // Get status of all phases (locked/completed)
-    const phasesStatus = getPhasesStatus(curriculum, completedLessons);
+    const phasesStatus = getPhasesStatus(activeCurriculum, completedLessons);
 
     // Filter notes for the library
     const allNotes = phasesStatus.flatMap(phase =>
@@ -36,13 +42,101 @@ const CurriculumPage: React.FC = () => {
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500 max-w-7xl mx-auto pb-20">
+            {/* Course Selector Tabs */}
+            <div className="flex justify-center mb-2">
+                <GlassSurface
+                    borderRadius={50}
+                    borderWidth={0.5}
+                    opacity={0.4}
+                    blur={10}
+                    className="p-1 w-full md:w-auto"
+                >
+                    <div className="flex w-full md:w-auto">
+                        <button
+                            onClick={() => { setActiveCourse('fullstack'); setActivePhaseId(null); }}
+                            className={`relative flex-1 md:flex-none px-3 md:px-6 py-3 md:py-2.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all text-center ${activeCourse === 'fullstack' ? 'text-white' : 'text-white/40 hover:text-white'}`}
+                        >
+                            {/* Floating Background Pill - High Fidelity Glass */}
+                            {activeCourse === 'fullstack' && (
+                                <motion.div
+                                    layoutId="curriculum-active-pill"
+                                    drag="x"
+                                    dragConstraints={{ left: 0, right: 0 }}
+                                    dragElastic={1}
+                                    onDragEnd={(_, info) => {
+                                        const threshold = 40;
+                                        const velocityThreshold = 500;
+                                        if ((info.offset.x > threshold || info.velocity.x > velocityThreshold)) {
+                                            setActiveCourse('cyber');
+                                            setActivePhaseId(null);
+                                        }
+                                    }}
+                                    whileDrag={{
+                                        opacity: 0.9,
+                                        scale: 1.1,
+                                        backgroundColor: "rgba(255, 255, 255, 0.05)",
+                                        backdropFilter: "blur(0px)",
+                                        boxShadow: "0 20px 60px rgba(0,0,0,0.5)"
+                                    }}
+                                    whileTap={{ scale: 1.05 }}
+                                    className="absolute inset-0 bg-white/20 backdrop-blur-2xl rounded-full border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing z-0"
+                                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                                />
+                            )}
+                            <span className="relative z-10 flex items-center justify-center gap-2 pointer-events-none">
+                                <BookOpen className="w-4 h-4" />
+                                Full Stack Web Dev
+                            </span>
+                        </button>
+                        <button
+                            onClick={() => { setActiveCourse('cyber'); setActivePhaseId(null); }}
+                            className={`relative flex-1 md:flex-none px-3 md:px-6 py-3 md:py-2.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all text-center ${activeCourse === 'cyber' ? 'text-white' : 'text-white/40 hover:text-white'}`}
+                        >
+                            {/* Floating Background Pill - High Fidelity Glass */}
+                            {activeCourse === 'cyber' && (
+                                <motion.div
+                                    layoutId="curriculum-active-pill"
+                                    drag="x"
+                                    dragConstraints={{ left: 0, right: 0 }}
+                                    dragElastic={1}
+                                    onDragEnd={(_, info) => {
+                                        const threshold = 40;
+                                        const velocityThreshold = 500;
+                                        if ((info.offset.x < -threshold || info.velocity.x < -velocityThreshold)) {
+                                            setActiveCourse('fullstack');
+                                            setActivePhaseId(null);
+                                        }
+                                    }}
+                                    whileDrag={{
+                                        opacity: 0.9,
+                                        scale: 1.1,
+                                        backgroundColor: "rgba(255, 255, 255, 0.05)",
+                                        backdropFilter: "blur(0px)",
+                                        boxShadow: "0 20px 60px rgba(0,0,0,0.5)"
+                                    }}
+                                    whileTap={{ scale: 1.05 }}
+                                    className="absolute inset-0 bg-white/20 backdrop-blur-2xl rounded-full border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing z-0"
+                                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                                />
+                            )}
+                            <span className="relative z-10 flex items-center justify-center gap-2 pointer-events-none">
+                                <Shield className="w-4 h-4" />
+                                90 Days CyberSec
+                            </span>
+                        </button>
+                    </div>
+                </GlassSurface>
+            </div>
+
             <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 px-2 md:px-0">
                 <div className="space-y-2">
                     <h1 className="text-3xl md:text-5xl font-black tracking-tighter text-white leading-none">
-                        CURRICULUM <span className="text-primary italic">CORE</span>
+                        {activeCourse === 'cyber' ? (<>CYBER <span className="text-primary italic">SECURITY</span></>) : (<>CURRICULUM <span className="text-primary italic">CORE</span></>)}
                     </h1>
                     <p className="text-sm text-muted-foreground max-w-xl font-medium leading-relaxed opacity-80">
-                        Master the full stack architecture through our structured, performance-driven transition roadmap.
+                        {activeCourse === 'cyber'
+                            ? 'Master cybersecurity in 90 days — from networking and Linux to ethical hacking and cloud security.'
+                            : 'Master the full stack architecture through our structured, performance-driven transition roadmap.'}
                     </p>
                 </div>
 

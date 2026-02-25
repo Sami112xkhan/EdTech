@@ -1100,7 +1100,7 @@ const AdminDashboard: React.FC = () => {
                                 </div>
                             </div>
                             <div className="overflow-x-auto">
-                                <table className="w-full text-left">
+                                <table className="w-full text-left min-w-[700px]">
                                     <thead className="bg-white/5">
                                         <tr className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
                                             <th className="px-8 py-5">User</th>

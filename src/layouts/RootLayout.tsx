@@ -38,7 +38,7 @@ const RootLayout: React.FC = () => {
     }, [location.pathname]);
 
     return (
-        <div className="min-h-screen font-sans text-foreground bg-background antialiased selection:bg-primary selection:text-white">
+        <div className="min-h-[100dvh] font-sans text-foreground bg-background antialiased selection:bg-primary selection:text-white">
             <Outlet />
             <TrialTimer />
         </div>

@@ -90,7 +90,7 @@ const VerifyEmail: React.FC = () => {
     if (!email) return null;
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-black">
+        <div className="min-h-[100dvh] flex items-center justify-center p-4 relative overflow-hidden bg-black">
             <div className="absolute inset-0 z-0">
                 <Aurora
                     colorStops={["#3b82f6", "#8b5cf6", "#6366f1"]}

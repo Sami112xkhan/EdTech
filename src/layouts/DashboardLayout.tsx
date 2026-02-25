@@ -115,20 +115,46 @@ const SidebarLink = ({ to, icon: Icon, children, isCollapsed, isAiAssistant = fa
     );
 };
 
-// ... MobileSidebarLink remains the same ...
-const MobileSidebarLink = ({ to, icon: Icon, children, onClick }: { to: string; icon: any; children: React.ReactNode; onClick: () => void }) => (
+interface MobileSidebarLinkProps {
+    to: string;
+    icon: any;
+    children: React.ReactNode;
+    onClick: () => void;
+    isActiveHover: boolean;
+    onHover: () => void;
+    isDraggingSelector: boolean;
+}
+
+const MobileSidebarLink = ({ to, icon: Icon, children, onClick, isActiveHover, onHover, isDraggingSelector }: MobileSidebarLinkProps) => (
     <NavLink
         to={to}
-        onClick={onClick}
-        className={({ isActive }: { isActive: boolean }) =>
-            `flex items-center gap-4 px-6 py-4 rounded-xl transition-all duration-200 text-lg font-medium ${isActive
-                ? "bg-primary/20 text-primary border border-primary/20"
-                : "text-muted-foreground hover:text-white hover:bg-white/5"
-            }`
+        end={to === "/dashboard"}
+        draggable={false}
+        data-sidebar-link="true"
+        onPointerEnter={onHover}
+        onClick={(e) => {
+            if (isDraggingSelector) e.preventDefault();
+            else onClick();
+        }}
+        className={({ isActive }) =>
+            `relative flex items-center gap-4 px-6 py-4 rounded-xl transition-all duration-300 text-lg font-medium group`
         }
     >
-        <Icon className="w-6 h-6" />
-        <span>{children}</span>
+        {({ isActive }) => (
+            <>
+                {isActiveHover && (
+                    <motion.div
+                        layoutId="mobileActiveSidebarItem"
+                        className={`absolute inset-0 rounded-xl transition-all duration-200 pointer-events-none ${isDraggingSelector ? "bg-transparent backdrop-blur-none border border-white/5" : "bg-white/20 backdrop-blur-xl border border-white/30 shadow-[inset_0_0_12px_rgba(255,255,255,0.2),0_4_24_rgba(0,0,0,0.5)] group-active:bg-transparent group-active:backdrop-blur-none group-active:shadow-none"}`}
+                        transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                    />
+                )}
+                <div className="relative z-10 flex items-center gap-4">
+                    <Icon className={`w-6 h-6 shrink-0 transition-all duration-300 ${isActive ? "text-white" : "text-muted-foreground group-hover:text-white group-hover:scale-105"}`} />
+                    <span className={`transition-colors ${isActive ? "text-white font-bold" : "text-muted-foreground group-hover:text-white"}`}>{children}</span>
+                </div>
+            </>
+        )}
     </NavLink>
 );
 
@@ -197,7 +223,7 @@ const DashboardLayout: React.FC = () => {
     };
 
     return (
-        <div className="flex h-screen bg-background overflow-hidden p-4 md:p-6 gap-6">
+        <div className="flex h-[100dvh] bg-background overflow-hidden md:p-6 md:gap-6">
             {/* Sidebar - Desktop */}
             <motion.aside
                 initial={false}
@@ -369,6 +395,7 @@ const DashboardLayout: React.FC = () => {
                 {
                     isMobileMenuOpen && (
                         <motion.div
+                            key="mobile-menu"
                             initial={{ opacity: 0, x: "100%" }}
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: "100%" }}
@@ -385,18 +412,45 @@ const DashboardLayout: React.FC = () => {
                                 </button>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
-                                <MobileSidebarLink to="/dashboard" icon={LayoutDashboard} onClick={() => setIsMobileMenuOpen(false)}>Dashboard</MobileSidebarLink>
-                                <MobileSidebarLink to="/curriculum" icon={BookOpen} onClick={() => setIsMobileMenuOpen(false)}>Curriculum</MobileSidebarLink>
-                                <MobileSidebarLink to="/projects" icon={FolderKanban} onClick={() => setIsMobileMenuOpen(false)}>Projects</MobileSidebarLink>
-                                <MobileSidebarLink to="/feedback" icon={MessageSquare} onClick={() => setIsMobileMenuOpen(false)}>Feedback</MobileSidebarLink>
-                                <MobileSidebarLink to="/ai-assistant" icon={Bot} onClick={() => setIsMobileMenuOpen(false)}>AI Assistant</MobileSidebarLink>
-                                {user?.role === 'admin' && (
-                                    <MobileSidebarLink to="/admin" icon={LayoutDashboard} onClick={() => setIsMobileMenuOpen(false)}>
-                                        <span className="text-purple-400">Admin Panel</span>
+                            <nav
+                                className="flex-1 overflow-y-auto p-4 flex flex-col gap-2 select-none touch-none"
+                                onPointerDown={(e) => {
+                                    handlePointerDown(e);
+                                    // Make sure hoveredItem is initialized so we don't jump to null initially
+                                    const el = document.elementFromPoint(e.clientX, e.clientY);
+                                    const link = el?.closest('a[data-sidebar-link="true"]');
+                                    if (link) {
+                                        setHoveredItem(link.getAttribute('href'));
+                                    } else {
+                                        setHoveredItem(activeItem);
+                                    }
+                                }}
+                                onPointerUp={(e) => {
+                                    handlePointerUp(e);
+                                    if (isDraggingSelector && hoveredItem && hoveredItem !== activeItem) {
+                                        setIsMobileMenuOpen(false);
+                                    }
+                                }}
+                                onPointerMove={handlePointerMove}
+                                onPointerLeave={() => {
+                                    if (!isDraggingSelector) setHoveredItem(null);
+                                }}
+                            >
+                                {sidebarItems.map((item, index) => (
+                                    <MobileSidebarLink
+                                        key={item.to}
+                                        to={item.to}
+                                        icon={item.icon}
+                                        isActiveHover={currentSelectorTarget === item.to}
+                                        onHover={() => {
+                                            if (!isDraggingSelector) setHoveredItem(item.to);
+                                        }}
+                                        isDraggingSelector={isDraggingSelector}
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                    >
+                                        {item.isAdmin ? <span className="text-purple-400 font-bold">{item.label}</span> : item.label}
                                     </MobileSidebarLink>
-                                )}
-                                <MobileSidebarLink to="/settings" icon={Settings} onClick={() => setIsMobileMenuOpen(false)}>Settings</MobileSidebarLink>
+                                ))}
 
                                 <div className="mt-auto pt-8 border-t border-white/5">
                                     <button
@@ -407,7 +461,7 @@ const DashboardLayout: React.FC = () => {
                                         Logout
                                     </button>
                                 </div>
-                            </div>
+                            </nav>
                         </motion.div>
                     )
                 }

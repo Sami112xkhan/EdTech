@@ -70,9 +70,9 @@ const Checkout: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen relative bg-background">
+        <div className="min-h-[100dvh] relative bg-background">
             <Navbar />
-            <div className="flex items-center justify-center p-4 pt-24 min-h-screen">
+            <div className="flex items-center justify-center p-4 pt-24 min-h-[100dvh]">
                 <div className="w-full max-w-4xl grid md:grid-cols-2 gap-8 items-center">
 
                     {/* Left: Product Info */}

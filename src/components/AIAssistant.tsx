@@ -388,7 +388,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                     onClick={() => setIsOpen(true)}
-                    className={`fixed bottom-6 right-6 z-50 ${isOpen ? 'hidden' : 'flex'} overflow-hidden rounded-full shadow-2xl`}
+                    className={`fixed bottom-4 md:bottom-6 right-4 md:right-6 z-50 ${isOpen ? 'hidden' : 'flex'} overflow-hidden rounded-full shadow-2xl`}
                 >
                     <GlassSurface
                         borderRadius={50} // High value for circular
@@ -410,7 +410,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
                         exit={isFloating ? { opacity: 0, scale: 0.9, y: 20 } : { opacity: 0 }}
                         className={
                             isFloating
-                                ? "fixed bottom-6 right-6 w-full max-w-sm h-[600px] bg-[#0d0d12]/95 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-col z-50 overflow-hidden"
+                                ? "fixed bottom-4 md:bottom-6 right-4 md:right-6 left-4 md:left-auto w-auto md:w-[400px] max-w-none md:max-w-sm h-[calc(100dvh-6rem)] md:h-[600px] bg-[#0d0d12]/95 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-col z-50 overflow-hidden"
                                 : "w-full h-full bg-[#0d0d12]/40 backdrop-blur-xl border border-white/10 rounded-3xl flex flex-col overflow-hidden shadow-2xl"
                         }
                     >

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X, Terminal, Flame } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { motion } from "motion/react";
@@ -9,8 +9,11 @@ import GlassSurface from "./GlassSurface";
 const Navbar: React.FC = () => {
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [hoveredTab, setHoveredTab] = useState<string | null>(null);
+    const [isDragging, setIsDragging] = useState(false);
     const { isAuthenticated, user, logout } = useAuth();
     const location = useLocation();
+    const navigate = useNavigate();
 
     useEffect(() => {
         const handleScroll = () => {
@@ -22,8 +25,12 @@ const Navbar: React.FC = () => {
 
     const navLinks = [
         { name: "Home", path: "/" },
+        { name: "About", path: "/about" },
         { name: "AI Assistant", path: "/ai-assistant" },
     ];
+
+    const activeLink = navLinks.find(link => link.path === location.pathname)?.name || navLinks[0].name;
+    const currentDesktopPill = isDragging ? activeLink : (hoveredTab || activeLink);
 
     return (
         <GlassSurface
@@ -74,17 +81,53 @@ const Navbar: React.FC = () => {
                     </Link>
 
                     {/* Desktop Nav */}
-                    <div className="hidden md:flex items-center gap-8">
+                    <div className="hidden md:flex items-center gap-2 relative z-30" onMouseLeave={() => setHoveredTab(null)}>
                         {navLinks.map((link, i) => (
                             <motion.div
                                 key={link.name}
                                 initial={{ opacity: 0, y: -20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.5, delay: i * 0.1 }}
+                                className="relative flex-shrink-0"
+                                onMouseEnter={() => !isDragging && setHoveredTab(link.name)}
                             >
+                                {currentDesktopPill === link.name && (
+                                    <motion.div
+                                        layoutId="desktop-nav-pill"
+                                        drag="x"
+                                        dragConstraints={{ left: 0, right: 0 }}
+                                        dragElastic={1}
+                                        onDragStart={() => setIsDragging(true)}
+                                        onDragEnd={(_, info) => {
+                                            setIsDragging(false);
+                                            const threshold = 40;
+                                            const velocityThreshold = 500;
+                                            const currentIndex = navLinks.findIndex(l => l.name === link.name);
+
+                                            if ((info.offset.x > threshold || info.velocity.x > velocityThreshold) && currentIndex < navLinks.length - 1) {
+                                                navigate(navLinks[currentIndex + 1].path);
+                                            } else if ((info.offset.x < -threshold || info.velocity.x < -velocityThreshold) && currentIndex > 0) {
+                                                navigate(navLinks[currentIndex - 1].path);
+                                            }
+                                        }}
+                                        whileDrag={{
+                                            opacity: 0.9,
+                                            scale: 1.1,
+                                            backgroundColor: "rgba(255, 255, 255, 0.05)",
+                                            backdropFilter: "blur(0px)",
+                                            boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+                                            cursor: "grabbing"
+                                        }}
+                                        whileTap={{ scale: 1.05 }}
+                                        className="absolute inset-0 bg-white/20 backdrop-blur-2xl rounded-full border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing z-0"
+                                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                                        style={{ touchAction: "none" }}
+                                    />
+                                )}
                                 <Link
                                     to={link.path}
-                                    className="text-sm font-medium text-muted-foreground hover:text-white transition-colors"
+                                    className={`relative z-10 block px-4 py-2 text-sm font-medium transition-colors ${currentDesktopPill === link.name ? "text-white" : "text-muted-foreground hover:text-white"
+                                        }`}
                                 >
                                     {link.name}
                                 </Link>
@@ -150,14 +193,56 @@ const Navbar: React.FC = () => {
                 {isMobileMenuOpen && (
                     <div className="md:hidden w-full border-t border-white/10 p-4 pb-6 flex flex-col gap-2 animate-in slide-in-from-top-4 fade-in-0">
                         {navLinks.map((link) => (
-                            <Link
+                            <div
                                 key={link.name}
-                                to={link.path}
-                                className="text-lg font-medium text-muted-foreground hover:text-white py-3 px-4 rounded-lg hover:bg-white/5 transition-colors"
-                                onClick={() => setIsMobileMenuOpen(false)}
+                                className="relative"
+                                onMouseEnter={() => !isDragging && setHoveredTab(link.name)}
+                                onMouseLeave={() => setHoveredTab(null)}
                             >
-                                {link.name}
-                            </Link>
+                                {currentDesktopPill === link.name && (
+                                    <motion.div
+                                        layoutId="mobile-nav-pill"
+                                        drag="y"
+                                        dragConstraints={{ top: 0, bottom: 0 }}
+                                        dragElastic={1}
+                                        onDragStart={() => setIsDragging(true)}
+                                        onDragEnd={(_, info) => {
+                                            setIsDragging(false);
+                                            const threshold = 20;
+                                            const velocityThreshold = 300;
+                                            const currentIndex = navLinks.findIndex(l => l.name === link.name);
+
+                                            if ((info.offset.y > threshold || info.velocity.y > velocityThreshold) && currentIndex < navLinks.length - 1) {
+                                                navigate(navLinks[currentIndex + 1].path);
+                                                setIsMobileMenuOpen(false);
+                                            } else if ((info.offset.y < -threshold || info.velocity.y < -velocityThreshold) && currentIndex > 0) {
+                                                navigate(navLinks[currentIndex - 1].path);
+                                                setIsMobileMenuOpen(false);
+                                            }
+                                        }}
+                                        whileDrag={{
+                                            opacity: 0.9,
+                                            scale: 1.02,
+                                            backgroundColor: "rgba(255, 255, 255, 0.05)",
+                                            backdropFilter: "blur(0px)",
+                                            boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+                                            cursor: "grabbing"
+                                        }}
+                                        whileTap={{ scale: 0.98 }}
+                                        className="absolute inset-0 bg-white/20 backdrop-blur-2xl border border-white/40 rounded-full shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing z-0"
+                                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                                        style={{ touchAction: "none" }}
+                                    />
+                                )}
+                                <Link
+                                    to={link.path}
+                                    className={`relative block text-lg font-medium py-3 px-4 transition-colors z-10 text-center ${currentDesktopPill === link.name ? "text-white" : "text-muted-foreground hover:text-white"
+                                        }`}
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                >
+                                    <span className="relative z-10">{link.name}</span>
+                                </Link>
+                            </div>
                         ))}
                         <div className="h-px bg-white/10 my-2 mx-4" />
                         {isAuthenticated ? (

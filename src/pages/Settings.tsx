@@ -64,15 +64,15 @@ const Select: React.FC<{
     }, []);
 
     return (
-        <div className="flex items-center justify-between py-3.5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between py-3.5 gap-3 sm:gap-0">
             <div className="flex items-center gap-3">
-                {icon && <div className="text-muted-foreground">{icon}</div>}
+                {icon && <div className="text-muted-foreground shrink-0">{icon}</div>}
                 <p className="text-sm font-medium text-white">{label}</p>
             </div>
-            <div className="relative" ref={ref}>
+            <div className="relative w-full sm:w-auto" ref={ref}>
                 <button
                     onClick={() => setOpen(!open)}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white hover:bg-white/10 transition-colors min-w-[150px] justify-between"
+                    className="w-full sm:w-auto flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white hover:bg-white/10 transition-colors min-w-[150px] justify-between"
                 >
                     {options.find(o => o.value === value)?.label}
                     <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -430,9 +430,9 @@ const Settings: React.FC = () => {
 
                 {/* ─── Data & Storage ─── */}
                 <SettingsSection title="Data & Storage" icon={<Download className="w-5 h-5" />}>
-                    <div className="flex items-center justify-between py-3.5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between py-3.5 gap-3 sm:gap-0">
                         <div className="flex items-center gap-3">
-                            <Download className="w-4 h-4 text-muted-foreground" />
+                            <Download className="w-4 h-4 text-muted-foreground shrink-0" />
                             <div>
                                 <p className="text-sm font-medium text-white">Export My Data</p>
                                 <p className="text-xs text-muted-foreground mt-0.5">Download all settings & progress as JSON</p>
@@ -440,14 +440,14 @@ const Settings: React.FC = () => {
                         </div>
                         <button
                             onClick={handleExportData}
-                            className="px-4 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white hover:bg-white/10 transition-colors font-medium"
+                            className="w-full sm:w-auto px-4 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white hover:bg-white/10 transition-colors font-medium"
                         >
                             Export
                         </button>
                     </div>
-                    <div className="flex items-center justify-between py-3.5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between py-3.5 gap-3 sm:gap-0">
                         <div className="flex items-center gap-3">
-                            <RefreshCw className="w-4 h-4 text-muted-foreground" />
+                            <RefreshCw className="w-4 h-4 text-muted-foreground shrink-0" />
                             <div>
                                 <p className="text-sm font-medium text-white">Reset Preferences</p>
                                 <p className="text-xs text-muted-foreground mt-0.5">Restore all settings to their defaults</p>
@@ -455,7 +455,7 @@ const Settings: React.FC = () => {
                         </div>
                         <button
                             onClick={handleResetPreferences}
-                            className="px-4 py-1.5 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-sm text-yellow-400 hover:bg-yellow-500/20 transition-colors font-medium"
+                            className="w-full sm:w-auto px-4 py-1.5 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-sm text-yellow-400 hover:bg-yellow-500/20 transition-colors font-medium"
                         >
                             Reset
                         </button>
