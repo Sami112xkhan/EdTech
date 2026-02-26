@@ -326,7 +326,8 @@ export const LaserFlow: React.FC<LaserFlowProps> = ({
         });
         rendererRef.current = renderer;
 
-        baseDprRef.current = Math.min(dpr ?? (window.devicePixelRatio || 1), 2);
+        // Cap pixel ratio at 1 for max performance on 4K/retina displays
+        baseDprRef.current = Math.min(dpr ?? (window.devicePixelRatio || 1), 1);
         currentDprRef.current = baseDprRef.current;
 
         renderer.setPixelRatio(currentDprRef.current);

@@ -27,6 +27,7 @@ const Navbar: React.FC = () => {
         { name: "Home", path: "/" },
         { name: "About", path: "/about" },
         { name: "AI Assistant", path: "/ai-assistant" },
+        ...(!isAuthenticated ? [{ name: "Login", path: "/login" }] : [])
     ];
 
     const activeLink = navLinks.find(link => link.path === location.pathname)?.name || navLinks[0].name;
@@ -39,10 +40,10 @@ const Navbar: React.FC = () => {
             opacity={isMobileMenuOpen ? 0.95 : 0.6}
             backgroundOpacity={isMobileMenuOpen ? 0.9 : 0.4}
             blur={isMobileMenuOpen ? 40 : 15}
-            className={`!fixed top-4 md:top-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 w-[92%] md:w-fit md:min-w-[650px] md:max-w-3xl shadow-2xl shadow-black/20 ${isMobileMenuOpen ? "bg-black/80" : ""}`}
+            className={`!fixed top-4 md:top-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 w-[92%] md:w-fit md:min-w-[650px] md:max-w-[90vw] lg:max-w-5xl shadow-2xl shadow-black/20 ${isMobileMenuOpen ? "bg-black/80" : ""}`}
         >
             <div className="w-full flex flex-col">
-                <div className="w-full max-w-7xl mx-auto px-4 md:px-6 h-14 md:h-16 flex items-center justify-between shrink-0">
+                <div className="w-full max-w-7xl mx-auto px-4 md:px-6 h-14 md:h-16 flex items-center justify-between gap-4 md:gap-8 shrink-0">
                     {/* Logo */}
                     <Link
                         to="/"
@@ -53,7 +54,7 @@ const Navbar: React.FC = () => {
                                 window.scrollTo({ top: 0, behavior: "smooth" });
                             }
                         }}
-                        className="flex items-center gap-3 group"
+                        className="flex items-center gap-3 group md:flex-1 md:min-w-0"
                     >
                         <motion.div
                             initial={{ rotate: 0 }}
@@ -81,7 +82,7 @@ const Navbar: React.FC = () => {
                     </Link>
 
                     {/* Desktop Nav */}
-                    <div className="hidden md:flex items-center gap-2 relative z-30" onMouseLeave={() => setHoveredTab(null)}>
+                    <div className="hidden md:flex items-center justify-center gap-2 relative z-30 md:flex-1" onMouseLeave={() => setHoveredTab(null)}>
                         {navLinks.map((link, i) => (
                             <motion.div
                                 key={link.name}
@@ -91,52 +92,48 @@ const Navbar: React.FC = () => {
                                 className="relative flex-shrink-0"
                                 onMouseEnter={() => !isDragging && setHoveredTab(link.name)}
                             >
-                                {currentDesktopPill === link.name && (
-                                    <motion.div
-                                        layoutId="desktop-nav-pill"
-                                        drag="x"
-                                        dragConstraints={{ left: 0, right: 0 }}
-                                        dragElastic={1}
-                                        onDragStart={() => setIsDragging(true)}
-                                        onDragEnd={(_, info) => {
-                                            setIsDragging(false);
-                                            const threshold = 40;
-                                            const velocityThreshold = 500;
-                                            const currentIndex = navLinks.findIndex(l => l.name === link.name);
-
-                                            if ((info.offset.x > threshold || info.velocity.x > velocityThreshold) && currentIndex < navLinks.length - 1) {
-                                                navigate(navLinks[currentIndex + 1].path);
-                                            } else if ((info.offset.x < -threshold || info.velocity.x < -velocityThreshold) && currentIndex > 0) {
-                                                navigate(navLinks[currentIndex - 1].path);
-                                            }
-                                        }}
-                                        whileDrag={{
-                                            opacity: 0.9,
-                                            scale: 1.1,
-                                            backgroundColor: "rgba(255, 255, 255, 0.05)",
-                                            backdropFilter: "blur(0px)",
-                                            boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
-                                            cursor: "grabbing"
-                                        }}
-                                        whileTap={{ scale: 1.05 }}
-                                        className="absolute inset-0 bg-white/20 backdrop-blur-2xl rounded-full border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing z-0"
-                                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                                        style={{ touchAction: "none" }}
-                                    />
-                                )}
                                 <Link
                                     to={link.path}
-                                    className={`relative z-10 block px-4 py-2 text-sm font-medium transition-colors ${currentDesktopPill === link.name ? "text-white" : "text-muted-foreground hover:text-white"
-                                        }`}
+                                    draggable={false}
+                                    className="relative block px-4 py-2 w-full h-full"
+                                    onClick={(e) => { if (isDragging) e.preventDefault(); }}
                                 >
-                                    {link.name}
+                                    {currentDesktopPill === link.name && (
+                                        <motion.div
+                                            layoutId="desktop-nav-pill"
+                                            drag="x"
+                                            dragConstraints={{ left: -i * 85, right: (navLinks.length - 1 - i) * 85 }}
+                                            dragElastic={0.2}
+                                            onDragStart={() => setIsDragging(true)}
+                                            onDragEnd={(_, info) => {
+                                                setTimeout(() => setIsDragging(false), 100);
+
+                                                const rawOffset = info.offset.x + (info.velocity.x * 0.1);
+                                                const steps = Math.round(rawOffset / 85);
+
+                                                let targetIndex = i + steps;
+                                                targetIndex = Math.max(0, Math.min(navLinks.length - 1, targetIndex));
+
+                                                if (targetIndex !== i) {
+                                                    navigate(navLinks[targetIndex].path);
+                                                }
+                                            }}
+                                            whileDrag={{ scale: 1.05, cursor: "grabbing", zIndex: 100 }}
+                                            className="absolute inset-0 bg-white/20 backdrop-blur-2xl rounded-full border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)] z-0 cursor-grab"
+                                            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                                            style={{ pointerEvents: "auto", touchAction: "none" }}
+                                        />
+                                    )}
+                                    <span className={`relative z-10 block text-sm font-medium transition-colors pointer-events-none ${currentDesktopPill === link.name ? "text-white" : "text-muted-foreground hover:text-white"}`}>
+                                        {link.name}
+                                    </span>
                                 </Link>
                             </motion.div>
                         ))}
                     </div>
 
                     {/* CTA Buttons */}
-                    <div className="hidden md:flex items-center gap-4">
+                    <div className="hidden md:flex items-center justify-end gap-4 md:flex-1 md:min-w-0">
                         {isAuthenticated ? (
                             <div className="flex items-center gap-3">
                                 {/* Gamification Stats */}
@@ -167,9 +164,6 @@ const Navbar: React.FC = () => {
                             </div>
                         ) : (
                             <>
-                                <Link to="/login" className="text-sm font-medium text-muted-foreground hover:text-white transition-colors">
-                                    Login
-                                </Link>
                                 <Link
                                     to="/checkout"
                                     className="px-5 py-2.5 rounded-full bg-primary hover:bg-primary/90 text-white text-sm font-semibold shadow-lg shadow-primary/25 transition-all hover:scale-105"
@@ -192,55 +186,55 @@ const Navbar: React.FC = () => {
                 {/* Mobile Menu */}
                 {isMobileMenuOpen && (
                     <div className="md:hidden w-full border-t border-white/10 p-4 pb-6 flex flex-col gap-2 animate-in slide-in-from-top-4 fade-in-0">
-                        {navLinks.map((link) => (
+                        {navLinks.map((link, linkIndex) => (
                             <div
                                 key={link.name}
                                 className="relative"
                                 onMouseEnter={() => !isDragging && setHoveredTab(link.name)}
                                 onMouseLeave={() => setHoveredTab(null)}
                             >
-                                {currentDesktopPill === link.name && (
-                                    <motion.div
-                                        layoutId="mobile-nav-pill"
-                                        drag="y"
-                                        dragConstraints={{ top: 0, bottom: 0 }}
-                                        dragElastic={1}
-                                        onDragStart={() => setIsDragging(true)}
-                                        onDragEnd={(_, info) => {
-                                            setIsDragging(false);
-                                            const threshold = 20;
-                                            const velocityThreshold = 300;
-                                            const currentIndex = navLinks.findIndex(l => l.name === link.name);
-
-                                            if ((info.offset.y > threshold || info.velocity.y > velocityThreshold) && currentIndex < navLinks.length - 1) {
-                                                navigate(navLinks[currentIndex + 1].path);
-                                                setIsMobileMenuOpen(false);
-                                            } else if ((info.offset.y < -threshold || info.velocity.y < -velocityThreshold) && currentIndex > 0) {
-                                                navigate(navLinks[currentIndex - 1].path);
-                                                setIsMobileMenuOpen(false);
-                                            }
-                                        }}
-                                        whileDrag={{
-                                            opacity: 0.9,
-                                            scale: 1.02,
-                                            backgroundColor: "rgba(255, 255, 255, 0.05)",
-                                            backdropFilter: "blur(0px)",
-                                            boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
-                                            cursor: "grabbing"
-                                        }}
-                                        whileTap={{ scale: 0.98 }}
-                                        className="absolute inset-0 bg-white/20 backdrop-blur-2xl border border-white/40 rounded-full shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing z-0"
-                                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                                        style={{ touchAction: "none" }}
-                                    />
-                                )}
                                 <Link
                                     to={link.path}
-                                    className={`relative block text-lg font-medium py-3 px-4 transition-colors z-10 text-center ${currentDesktopPill === link.name ? "text-white" : "text-muted-foreground hover:text-white"
-                                        }`}
-                                    onClick={() => setIsMobileMenuOpen(false)}
+                                    draggable={false}
+                                    className="relative block py-3 px-4 w-full h-full text-center"
+                                    onClick={(e) => {
+                                        if (isDragging) { e.preventDefault(); return; }
+                                        setIsMobileMenuOpen(false);
+                                    }}
                                 >
-                                    <span className="relative z-10">{link.name}</span>
+                                    {currentDesktopPill === link.name && (
+                                        <motion.div
+                                            layoutId="mobile-nav-pill"
+                                            drag="y"
+                                            dragConstraints={{ top: -linkIndex * 52, bottom: (navLinks.length - 1 - linkIndex) * 52 }}
+                                            dragElastic={0.2}
+                                            onDragStart={() => setIsDragging(true)}
+                                            onDragEnd={(_, info) => {
+                                                setTimeout(() => setIsDragging(false), 100);
+
+                                                // Calculate how many items to move based on drag offset (approx 52px per item height)
+                                                // Combine with velocity to allow for fast flicks
+                                                const rawOffset = info.offset.y + (info.velocity.y * 0.1);
+                                                const steps = Math.round(rawOffset / 52);
+
+                                                let targetIndex = linkIndex + steps;
+                                                // Clamp to valid indices
+                                                targetIndex = Math.max(0, Math.min(navLinks.length - 1, targetIndex));
+
+                                                if (targetIndex !== linkIndex) {
+                                                    navigate(navLinks[targetIndex].path);
+                                                    setTimeout(() => setIsMobileMenuOpen(false), 350);
+                                                }
+                                            }}
+                                            whileDrag={{ scale: 1.02, cursor: "grabbing", zIndex: 100 }}
+                                            className="absolute inset-0 bg-white/20 backdrop-blur-2xl border border-white/40 rounded-full shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)] z-0 cursor-grab"
+                                            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                                            style={{ pointerEvents: "auto", touchAction: "none" }}
+                                        />
+                                    )}
+                                    <span className={`relative z-10 block text-lg font-medium transition-colors pointer-events-none ${currentDesktopPill === link.name ? "text-white" : "text-muted-foreground hover:text-white"}`}>
+                                        {link.name}
+                                    </span>
                                 </Link>
                             </div>
                         ))}
@@ -266,13 +260,6 @@ const Navbar: React.FC = () => {
                             </div>
                         ) : (
                             <div className="flex flex-col gap-3 px-4">
-                                <Link
-                                    to="/login"
-                                    className="w-full py-3 text-center text-muted-foreground hover:text-white font-medium hover:bg-white/5 rounded-lg transition-colors"
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                >
-                                    Login
-                                </Link>
                                 <Link
                                     to="/checkout"
                                     onClick={() => setIsMobileMenuOpen(false)}
