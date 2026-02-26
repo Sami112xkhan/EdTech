@@ -7,8 +7,6 @@ import Navbar from "../components/Navbar";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { initializePayment } from "../utils/razorpay";
-import { useDiscountTimer } from "../hooks/useDiscountTimer";
-import CheckoutTimer from "../components/CheckoutTimer";
 
 const Checkout: React.FC = () => {
     const { user, completePurchase, redeemCode } = useAuth();
@@ -17,11 +15,8 @@ const Checkout: React.FC = () => {
     const [loading, setLoading] = React.useState(false);
     const [redeemMessage, setRedeemMessage] = React.useState("");
 
-    // Use the discount timer hook
-    const { timeLeft, isExpired } = useDiscountTimer();
-
     // Dynamic price based on expiration
-    const currentPrice = isExpired ? 15000 : 10000;
+    const currentPrice = 10000;
     const originalPrice = 15000;
 
     const handleRedeem = async () => {
@@ -104,17 +99,14 @@ const Checkout: React.FC = () => {
                     {/* Right: Payment Card */}
                     <div className="bg-secondary/30 backdrop-blur-xl border border-white/10 p-8 rounded-2xl shadow-2xl relative overflow-hidden">
 
-                        {/* Timer Component */}
-                        <CheckoutTimer timeLeft={timeLeft} isExpired={isExpired} />
-
-                        <div className="flex justify-between items-start mb-8">
+                        <div className="flex justify-between items-start mb-8 mt-4">
                             <div>
                                 <h3 className="text-xl font-bold">Full Stack Mastery</h3>
                                 <p className="text-sm text-muted-foreground">One-time payment</p>
                             </div>
                             <div className="text-right">
                                 <div className="text-3xl font-bold">₹{currentPrice.toLocaleString()}</div>
-                                {!isExpired && <div className="text-xs text-muted-foreground line-through">₹{originalPrice.toLocaleString()}</div>}
+                                <div className="text-xs text-muted-foreground line-through">₹{originalPrice.toLocaleString()}</div>
                             </div>
                         </div>
 

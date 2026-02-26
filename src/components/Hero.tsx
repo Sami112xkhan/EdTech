@@ -5,13 +5,10 @@ import { ArrowRight, CheckCircle2, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
 import GradientText from "./GradientText";
 import GlassSurface from "./GlassSurface";
-import { useDiscountTimer } from "../hooks/useDiscountTimer";
-import CheckoutTimer from "./CheckoutTimer";
 
 
 const Hero: React.FC = () => {
-    const { timeLeft, isExpired } = useDiscountTimer();
-    const currentPrice = isExpired ? 15000 : 10000;
+    const currentPrice = 10000;
 
     return (
         <section className="relative min-h-screen flex items-center justify-center pt-36 md:pt-32 overflow-hidden">
@@ -74,18 +71,6 @@ const Hero: React.FC = () => {
                     Master Python, React, Backend, Database, Deployment, and build a real-world Portfolio.
                     Lifetime access + AI Mentor for a single price.
                 </motion.p>
-
-                {/* Timer Section */}
-                {!isExpired && (
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.5, delay: 0.25 }}
-                        className="mb-8 max-w-md mx-auto"
-                    >
-                        <CheckoutTimer timeLeft={timeLeft} isExpired={isExpired} />
-                    </motion.div>
-                )}
 
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
