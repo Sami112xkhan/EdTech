@@ -155,7 +155,7 @@ const PlaygroundPage: React.FC = () => {
   // Load Projects
   useEffect(() => {
     if (user?.email) {
-      fetch(`/ api / playground / list ? email = ${encodeURIComponent(user.email)} `)
+      fetch(`/api/playground/list?email=${encodeURIComponent(user.email)}`)
         .then(res => res.json())
         .then(data => setSavedProjects(data))
         .catch(console.error);
@@ -257,7 +257,7 @@ const PlaygroundPage: React.FC = () => {
         toast.success("Saved!", { id: toastId });
 
         // Refresh list
-        fetch(`/ api / playground / list ? email = ${encodeURIComponent(user.email)} `)
+        fetch(`/api/playground/list?email=${encodeURIComponent(user.email)}`)
           .then(r => r.json())
           .then(setSavedProjects);
       } else {
@@ -290,12 +290,12 @@ const PlaygroundPage: React.FC = () => {
 
       {/* --- HEADER --- */}
       {/* --- HEADER --- */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shrink-0 relative z-10 w-full">
-        <div className="flex items-center gap-3 w-full overflow-x-auto no-scrollbar pb-1">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shrink-0 relative z-10 w-full mb-2">
+        <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto no-scrollbar pb-1">
           {/* New Project Button */}
           <button
             onClick={handleNewProject}
-            className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all text-primary shrink-0"
+            className="p-2 md:p-3 rounded-xl md:rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all text-primary shrink-0"
             title="New Project"
           >
             <Plus className="w-4 h-4" />
@@ -304,224 +304,188 @@ const PlaygroundPage: React.FC = () => {
           {/* Library Button */}
           <button
             onClick={() => setShowProjects(!showProjects)}
-            className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all font-black uppercase text-xs tracking-widest text-primary shrink-0"
+            className="flex items-center gap-2 px-3 md:px-4 py-2 md:py-3 rounded-xl md:rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all font-black uppercase text-[10px] md:text-xs tracking-widest text-primary shrink-0"
           >
             <FolderOpen className="w-4 h-4" />
             Library
           </button>
 
           {/* Project Info */}
-          <div className="flex flex-col min-w-[120px]">
+          <div className="flex flex-col min-w-[100px] md:min-w-[120px]">
             <input
               value={projectName}
               onChange={e => setProjectName(e.target.value)}
-              className="bg-transparent text-lg font-black focus:outline-none w-full"
+              className="bg-transparent text-sm md:text-lg font-black focus:outline-none w-full"
             />
-            <div className="flex items-center gap-2 text-[10px] uppercase font-bold text-white/40">
+            <div className="flex items-center gap-2 text-[8px] md:text-[10px] uppercase font-bold text-white/40">
               <span className="truncate">{TEMPLATES[activeTemplate].name}</span>
               {currentProjectId && <span className="text-green-500 flex items-center gap-1 shrink-0"><Sparkles className="w-3 h-3" /> Synced</span>}
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 relative z-20 w-full">
-          <div className="flex items-center gap-4 shrink-0">
-            <h1 className="text-xl md:text-2xl font-black tracking-tight flex items-center gap-2">
-              <span className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center border border-primary/30 shrink-0">
-                <Sparkles className="w-4 h-4 text-primary" />
-              </span>
-              Playground <span className="text-primary/50 text-sm font-medium">BETA</span>
-            </h1>
-          </div>
+        <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto no-scrollbar pb-1">
+          {/* Run Button */}
+          <button
+            onClick={() => {
+              handleRun();
+              if (user) trackAction(user.id, 'ACTION', 'Ran code in playground', { template: activeTemplate });
+            }}
+            className="flex items-center gap-2 px-4 md:px-6 py-2 bg-green-500 hover:bg-green-600 text-black rounded-lg md:rounded-xl font-black uppercase text-[10px] md:text-xs tracking-widest shadow-lg shadow-green-500/20 transition-all hover:scale-105 active:scale-95"
+          >
+            <Play className="w-4 h-4 fill-current" />
+            Run
+          </button>
 
-          <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto no-scrollbar pb-1">
-            {/* Run Button */}
-            <button
-              onClick={() => {
-                handleRun();
-                if (user) trackAction(user.id, 'ACTION', 'Ran code in playground', { template: activeTemplate });
-              }}
-              className="flex items-center gap-2 px-6 py-2 bg-green-500 hover:bg-green-600 text-black rounded-xl font-black uppercase text-xs tracking-widest shadow-lg shadow-green-500/20 transition-all hover:scale-105 active:scale-95"
-            >
-              <Play className="w-4 h-4 fill-current" />
-              Run Code
-            </button>
-
-            {/* Template Switcher with Glass */}
-            <GlassSurface
-              borderRadius={50}
-              borderWidth={0.5}
-              opacity={0.4}
-              blur={10}
-              className="p-1 flex-1 md:flex-none shrink-0 min-w-fit"
-            >
-              <div className="flex w-max md:w-auto overflow-x-auto no-scrollbar scroll-smooth">
-                {(Object.keys(TEMPLATES) as TemplateType[]).map(t => (
-                  <button
-                    key={t}
-                    onClick={() => {
-                      handleTemplateSwitch(t);
-                      if (user) trackAction(user.id, 'CLICK', `Switched template to ${t} `);
-                    }}
-                    className={`relative flex-shrink-0 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeTemplate === t ? "text-white" : "text-white/40 hover:text-white"
-                      }`}
-                  >
-                    {/* Floating Background Pill - High Fidelity Glass */}
-                    {activeTemplate === t && (
-                      <motion.div
-                        layoutId="active-pill"
-                        drag="x"
-                        dragConstraints={{ left: 0, right: 0 }}
-                        dragElastic={1}
-                        onDragEnd={(_, info) => {
-                          const threshold = 40;
-                          const velocityThreshold = 500;
-                          const keys = Object.keys(TEMPLATES) as TemplateType[];
-                          const currentIndex = keys.indexOf(activeTemplate);
-
-                          if ((info.offset.x > threshold || info.velocity.x > velocityThreshold) && currentIndex < keys.length - 1) {
-                            handleTemplateSwitch(keys[currentIndex + 1]);
-                          } else if ((info.offset.x < -threshold || info.velocity.x < -velocityThreshold) && currentIndex > 0) {
-                            handleTemplateSwitch(keys[currentIndex - 1]);
-                          }
-                        }}
-                        whileDrag={{
-                          opacity: 0.9,
-                          scale: 1.1,
-                          backgroundColor: "rgba(255, 255, 255, 0.05)",
-                          backdropFilter: "blur(0px)",
-                          boxShadow: "0 20px 60px rgba(0,0,0,0.5)"
-                        }}
-                        whileTap={{ scale: 1.05 }}
-                        className="absolute inset-0 bg-white/20 backdrop-blur-2xl rounded-full border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing z-20"
-                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                      />
-                    )}
-
-                    <span className="relative z-10">{TEMPLATES[t].name}</span>
-                  </button>
-                ))}
-              </div>
-            </GlassSurface>
-
-            {/* Save Button */}
-            {user && (
-              <button
-                onClick={() => {
-                  handleSaveProject();
-                  if (user) trackAction(user.id, 'ACTION', 'Saved project in playground');
-                }}
-                className="p-2 rounded-xl bg-primary/20 hover:bg-primary/40 text-primary border border-primary/50 transition-all flex-shrink-0"
-              >
-                <Save className="w-5 h-5" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* --- MAIN CONTENT --- */}
-        <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0 relative z-10">
-          {/* Project Library Modal with Glass */}
-          <AnimatePresence>
-            {
-              showProjects && (
-                <motion.div
-                  initial={{ opacity: 0, x: -50, scale: 0.95 }}
-                  animate={{ opacity: 1, x: 0, scale: 1 }}
-                  exit={{ opacity: 0, x: -50, scale: 0.95 }}
-                  className="absolute left-4 top-4 bottom-4 w-80 z-50 shadow-2xl overflow-hidden rounded-[30px]"
-                >
-                  <GlassSurface
-                    width="100%"
-                    height="100%"
-                    borderRadius={30}
-                    borderWidth={0}
-                    opacity={0.8}
-                    blur={20}
-                    backgroundOpacity={0.6}
-                  >
-                    <div className="w-full h-full p-4 overflow-y-auto">
-                      <h3 className="font-bold text-white/50 mb-4 uppercase text-xs tracking-widest">Saved Projects</h3>
-                      {savedProjects.map(p => (
-                        <div
-                          key={p.id}
-                          onClick={() => handleLoadProject(p)}
-                          className="p-3 mb-2 rounded-xl bg-white/5 hover:bg-white/10 cursor-pointer border border-white/5 hover:border-primary/50 transition-all group"
-                        >
-                          <div className="font-bold text-sm group-hover:text-primary transition-colors">{p.name}</div>
-                          <div className="text-[10px] text-white/30 uppercase mt-1">{p.type} • {new Date(p.updatedAt).toLocaleDateString()}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </GlassSurface>
-                </motion.div>
-              )
-            }
-          </AnimatePresence >
-
-          {/* EDITOR PANEL with Glass effect */}
-          <div className="flex-1 flex flex-col min-w-0">
-            <div className="flex items-center gap-1 mb-2">
-              {Object.keys(files).map(f => (
+          {/* Template Switcher with Glass */}
+          <GlassSurface
+            borderRadius={50}
+            borderWidth={0.5}
+            opacity={0.4}
+            blur={10}
+            className="p-1 shrink-0"
+          >
+            <div className="flex gap-1">
+              {(Object.keys(TEMPLATES) as TemplateType[]).map(t => (
                 <button
-                  key={f}
-                  onClick={() => setActiveFile(f)}
-                  className={`px-3 py-1 rounded-t-lg text-xs font-mono border-t border-x relative z-10 ${activeFile === f
-                    ? "bg-white/10 border-white/20 text-white"
-                    : "bg-transparent border-transparent text-white/40 hover:text-white/60"
+                  key={t}
+                  onClick={() => {
+                    handleTemplateSwitch(t);
+                    if (user) trackAction(user.id, 'CLICK', `Switched template to ${t}`);
+                  }}
+                  className={`relative flex-shrink-0 px-3 md:px-4 py-1.5 md:py-2 rounded-full text-[8px] md:text-[10px] font-black uppercase tracking-widest transition-all ${activeTemplate === t ? "text-white" : "text-white/40 hover:text-white"
                     }`}
                 >
-                  {f}
+                  {activeTemplate === t && (
+                    <motion.div
+                      layoutId="active-pill"
+                      className="absolute inset-0 bg-white/20 backdrop-blur-2xl rounded-full border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3)] z-0"
+                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                    />
+                  )}
+                  <span className="relative z-10">{TEMPLATES[t].name}</span>
                 </button>
               ))}
             </div>
-            <div className="flex-1 relative">
-              <GlassSurface
-                width="100%"
-                height="100%"
-                borderRadius={20}
-                opacity={0.25}
-                blur={25}
-                backgroundOpacity={0.1}
-                className="overflow-hidden"
+          </GlassSurface>
+
+          {/* Save Button */}
+          {user && (
+            <button
+              onClick={() => {
+                handleSaveProject();
+                if (user) trackAction(user.id, 'ACTION', 'Saved project in playground');
+              }}
+              className="p-2 rounded-xl bg-primary/20 hover:bg-primary/40 text-primary border border-primary/50 transition-all flex-shrink-0"
+            >
+              <Save className="w-5 h-5" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* --- MAIN CONTENT --- */}
+      <div className="flex-1 flex flex-col md:flex-row gap-4 min-h-0 relative z-10">
+        {/* Project Library Modal with Glass */}
+        <AnimatePresence>
+          {
+            showProjects && (
+              <motion.div
+                initial={{ opacity: 0, x: -50, scale: 0.95 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                exit={{ opacity: 0, x: -50, scale: 0.95 }}
+                className="absolute left-4 top-4 bottom-4 w-80 z-50 shadow-2xl overflow-hidden rounded-[30px]"
               >
-                <MonacoEditor
-                  language={activeTemplate === 'react' ? 'javascript' : activeTemplate === 'node' ? 'javascript' : activeTemplate}
-                  value={files[activeFile]}
-                  onChange={handleEditorChange}
-                  transparent={true}
-                />
-              </GlassSurface>
-            </div>
+                <GlassSurface
+                  width="100%"
+                  height="100%"
+                  borderRadius={30}
+                  borderWidth={0}
+                  opacity={0.8}
+                  blur={20}
+                  backgroundOpacity={0.6}
+                >
+                  <div className="w-full h-full p-4 overflow-y-auto">
+                    <h3 className="font-bold text-white/50 mb-4 uppercase text-xs tracking-widest">Saved Projects</h3>
+                    {savedProjects.map(p => (
+                      <div
+                        key={p.id}
+                        onClick={() => handleLoadProject(p)}
+                        className="p-3 mb-2 rounded-xl bg-white/5 hover:bg-white/10 cursor-pointer border border-white/5 hover:border-primary/50 transition-all group"
+                      >
+                        <div className="font-bold text-sm group-hover:text-primary transition-colors">{p.name}</div>
+                        <div className="text-[10px] text-white/30 uppercase mt-1">{p.type} • {new Date(p.updatedAt).toLocaleDateString()}</div>
+                      </div>
+                    ))}
+                  </div>
+                </GlassSurface>
+              </motion.div>
+            )
+          }
+        </AnimatePresence >
+
+        {/* EDITOR PANEL with Glass effect */}
+        <div className="flex-1 flex flex-col min-w-0">
+          <div className="flex items-center gap-1 mb-2">
+            {Object.keys(files).map(f => (
+              <button
+                key={f}
+                onClick={() => setActiveFile(f)}
+                className={`px-3 py-1 rounded-t-lg text-xs font-mono border-t border-x relative z-10 ${activeFile === f
+                  ? "bg-white/10 border-white/20 text-white"
+                  : "bg-transparent border-transparent text-white/40 hover:text-white/60"
+                  }`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+          <div className="flex-1 relative">
+            <GlassSurface
+              width="100%"
+              height="100%"
+              borderRadius={20}
+              opacity={0.25}
+              blur={25}
+              backgroundOpacity={0.1}
+              className="overflow-hidden"
+            >
+              <MonacoEditor
+                language={activeTemplate === 'react' ? 'javascript' : activeTemplate === 'node' ? 'javascript' : activeTemplate}
+                value={files[activeFile]}
+                onChange={handleEditorChange}
+                transparent={true}
+              />
+            </GlassSurface>
+          </div>
+        </div>
+
+        {/* PREVIEW PANEL */}
+        <div className="flex-1 flex flex-col min-w-0 bg-[#000] rounded-xl border border-white/10 overflow-hidden">
+          {/* Use a Key to force remount on Run if needed, or just let iframe handle it */}
+          <div className="flex-1 relative bg-white">
+            <CodeRunner
+              language={activeTemplate}
+              files={files}
+              activeFile={activeFile}
+              triggerRun={triggerRun}
+              onConsole={log => setLogs(p => [...p, log])}
+              onError={err => setError(err)}
+            />
+            {/* Overlay for non-visual templates if needed? No, let them render to body */}
           </div>
 
-          {/* PREVIEW PANEL */}
-          <div className="flex-1 flex flex-col min-w-0 bg-[#000] rounded-xl border border-white/10 overflow-hidden">
-            {/* Use a Key to force remount on Run if needed, or just let iframe handle it */}
-            <div className="flex-1 relative bg-white">
-              <CodeRunner
-                language={activeTemplate}
-                files={files}
-                activeFile={activeFile}
-                triggerRun={triggerRun}
-                onConsole={log => setLogs(p => [...p, log])}
-                onError={err => setError(err)}
-              />
-              {/* Overlay for non-visual templates if needed? No, let them render to body */}
+          {/* CONSOLE */}
+          <div className="h-40 bg-[#111] border-t border-white/10 p-2 font-mono text-xs overflow-y-auto">
+            <div className="flex justify-between items-center mb-1 text-white/30 uppercase font-bold tracking-widest">
+              <span>Console</span>
+              <button onClick={() => setLogs([])}><Trash2 className="w-3 h-3 hover:text-white" /></button>
             </div>
-
-            {/* CONSOLE */}
-            <div className="h-40 bg-[#111] border-t border-white/10 p-2 font-mono text-xs overflow-y-auto">
-              <div className="flex justify-between items-center mb-1 text-white/30 uppercase font-bold tracking-widest">
-                <span>Console</span>
-                <button onClick={() => setLogs([])}><Trash2 className="w-3 h-3 hover:text-white" /></button>
-              </div>
-              {error && <div className="text-red-500 mb-1">Error: {error}</div>}
-              {logs.map((l, i) => (
-                <div key={i} className="text-green-400 border-b border-white/5 py-0.5">{l}</div>
-              ))}
-              {logs.length === 0 && !error && <div className="text-white/20 italic">Ready usually...</div>}
-            </div>
+            {error && <div className="text-red-500 mb-1">Error: {error}</div>}
+            {logs.map((l, i) => (
+              <div key={i} className="text-green-400 border-b border-white/5 py-0.5">{l}</div>
+            ))}
+            {logs.length === 0 && !error && <div className="text-white/20 italic">Ready usually...</div>}
           </div>
         </div>
       </div>
