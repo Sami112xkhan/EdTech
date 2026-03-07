@@ -1,6 +1,7 @@
 
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { User } from "../types"; // Will create types next
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { useLocation } from "react-router-dom";
+import { User } from "../types";
 import emailjs from '@emailjs/browser';
 import { toast } from "sonner";
 import { curriculum } from "../data/curriculum";
@@ -102,49 +103,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         const storedUser = localStorage.getItem("user");
     }, []);
-
-    // Periodic check for trial expiry (every 10 seconds)
-    // Unified Session & Status Sync Loop (Every 10 seconds)
-    useEffect(() => {
-        if (!isAuthenticated || !sessionId) return;
-
-        const syncInterval = setInterval(async () => {
-            try {
-                const response = await fetch('/api/auth/heartbeat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ sessionId }),
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.user) {
-                        // Update local user state with fresh backend data (picks up reactivation/payment status)
-                        setUser(data.user);
-                        localStorage.setItem('user', JSON.stringify(data.user));
-                    }
-                } else if (response.status === 401 || response.status === 403) {
-                    console.warn("Session invalidated or account suspended. Logging out.");
-                    logout();
-                }
-            } catch (error) {
-                console.warn("Session sync heartbeat failed", error);
-            }
-
-            // Check trial expiry locally for immediate UI feedback
-            if (user && user.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED') {
-                const now = new Date();
-                const expiry = new Date(user.trialExpiresAt);
-                if (now > expiry) {
-                    const expiredUser = { ...user, trialExpiresAt: 'EXPIRED' as const };
-                    setUser(expiredUser);
-                    localStorage.setItem("user", JSON.stringify(expiredUser));
-                }
-            }
-        }, 10000);
-
-        return () => clearInterval(syncInterval);
-    }, [isAuthenticated, sessionId, user?.purchasedCourses, user?.trialExpiresAt]);
 
     // Initialize databases if empty
     useEffect(() => {
@@ -699,6 +657,69 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.error('Failed to sync certificate rejection to API', error);
         }
     };
+
+    const location = useLocation();
+
+    const checkTrialExpiry = useCallback(() => {
+        if (user && user.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED') {
+            const now = new Date();
+            const expiry = new Date(user.trialExpiresAt);
+            if (now > expiry) {
+                // Predictive local update: If trial expired, we should proactively 
+                // remove trial-granted courses if we're not sure which ones they are.
+                // For now, we'll mark as EXPIRED and the ProtectedRoute will handle the rest.
+                const expiredUser = { ...user, trialExpiresAt: 'EXPIRED' as const };
+                setUser(expiredUser);
+                localStorage.setItem("user", JSON.stringify(expiredUser));
+
+                // Real-time DB Update
+                updateProfile({ trialExpiresAt: 'EXPIRED' as const });
+
+                return true;
+            }
+        }
+        return false;
+    }, [user, updateProfile]);
+
+    // Check expiry on every navigation for instant feedback
+    useEffect(() => {
+        checkTrialExpiry();
+    }, [location.pathname, checkTrialExpiry]);
+
+    // Periodic check for trial expiry (every 10 seconds)
+    // Unified Session & Status Sync Loop (Every 10 seconds)
+    useEffect(() => {
+        if (!isAuthenticated || !sessionId) return;
+
+        const syncInterval = setInterval(async () => {
+            try {
+                const response = await fetch('/api/auth/heartbeat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sessionId }),
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.user) {
+                        // Update local user state with fresh backend data
+                        setUser(data.user);
+                        localStorage.setItem('user', JSON.stringify(data.user));
+                    }
+                } else if (response.status === 401 || response.status === 403) {
+                    console.warn("Session invalidated or account suspended. Logging out.");
+                    logout();
+                }
+            } catch (error) {
+                console.warn("Session sync heartbeat failed", error);
+            }
+
+            // Also check locally within the interval for redundancy
+            checkTrialExpiry();
+        }, 10000);
+
+        return () => clearInterval(syncInterval);
+    }, [isAuthenticated, sessionId, user?.purchasedCourses, user?.trialExpiresAt, checkTrialExpiry, logout]);
 
     return (
         <AuthContext.Provider value={{

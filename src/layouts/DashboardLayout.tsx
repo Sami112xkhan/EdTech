@@ -355,7 +355,8 @@ const DashboardLayout: React.FC = () => {
 
                 {/* Trial Expired Overlay */}
                 {
-                    user?.trialExpiresAt === 'EXPIRED' && !(user.purchasedCourses && user.purchasedCourses.length > 0) && (
+                    (user?.trialExpiresAt === 'EXPIRED' || (user?.trialExpiresAt && new Date(user.trialExpiresAt) <= new Date())) &&
+                    !(user?.purchasedCourses && user.purchasedCourses.length > 0) && (
                         <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-xl flex items-center justify-center p-6">
                             <motion.div
                                 initial={{ scale: 0.9, opacity: 0 }}
