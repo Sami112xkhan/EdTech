@@ -22,7 +22,7 @@ const Landing: React.FC = () => {
     }, [isAuthenticated, user, navigate]);
 
     return (
-        <div className="min-h-screen bg-background relative">
+        <div className="min-h-screen bg-background relative pb-40">
             <div className="fixed inset-0 w-full h-full z-0 bg-black pointer-events-none">
                 <LaserFlow
                     flowSpeed={0.5}

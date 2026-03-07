@@ -1,7 +1,6 @@
-
 import React from "react";
 import { Link } from "react-router-dom";
-import { CheckCircle2, ShieldCheck, CreditCard, Lock, ChevronDown } from "lucide-react";
+import { CheckCircle2, ShieldCheck, CreditCard, Lock, ChevronDown, ArrowLeft } from "lucide-react";
 import Navbar from "../components/Navbar";
 
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -121,6 +120,13 @@ const Checkout: React.FC = () => {
 
     return (
         <div className="min-h-[100dvh] relative bg-background">
+            <Link
+                to="/"
+                className="fixed top-6 left-6 z-[60] flex items-center gap-2 px-6 py-3 bg-white/5 backdrop-blur-xl border border-white/10 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-all hover:scale-105 active:scale-95 group shadow-2xl"
+            >
+                <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+                <span className="text-xs font-black uppercase tracking-widest leading-none">Back</span>
+            </Link>
             <Navbar />
             <div className="flex items-center justify-center p-4 pt-24 min-h-[100dvh]">
                 <div className="w-full max-w-4xl grid md:grid-cols-2 gap-8 items-center">
