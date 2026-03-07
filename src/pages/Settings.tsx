@@ -415,17 +415,47 @@ const Settings: React.FC = () => {
                 </SettingsSection>
 
                 {/* ─── Subscription ─── */}
-                <div className="bg-secondary/30 border border-white/5 rounded-xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="bg-secondary/30 border border-white/5 rounded-xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4 relative overflow-hidden">
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center text-green-400">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${user?.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED'
+                            ? 'bg-amber-500/20 text-amber-400'
+                            : (user?.purchasedCourses?.length || 0) > 0
+                                ? 'bg-green-500/20 text-green-400'
+                                : 'bg-white/10 text-white/40'
+                            }`}>
                             <CreditCard className="w-6 h-6" />
                         </div>
                         <div>
-                            <h3 className="font-semibold">Lifetime Access</h3>
-                            <p className="text-sm text-green-400 font-medium">Active • Paid via Razorpay</p>
+                            <h3 className="font-semibold text-white">
+                                {user?.trialExpiresAt === 'EXPIRED'
+                                    ? "Trial Expired"
+                                    : (user?.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED')
+                                        ? "Trial Access"
+                                        : (user?.purchasedCourses?.length || 0) > 0
+                                            ? "Lifetime Access"
+                                            : "Free Plan"}
+                            </h3>
+                            <p className={`text-sm font-medium ${user?.trialExpiresAt === 'EXPIRED'
+                                    ? 'text-red-400'
+                                    : (user?.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED')
+                                        ? 'text-amber-400'
+                                        : (user?.purchasedCourses?.length || 0) > 0
+                                            ? 'text-green-400'
+                                            : 'text-zinc-500'
+                                }`}>
+                                {user?.trialExpiresAt === 'EXPIRED'
+                                    ? "Access limited. Upgrade to continue."
+                                    : (user?.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED')
+                                        ? "Limited Time Access • All Features"
+                                        : (user?.purchasedCourses?.length || 0) > 0
+                                            ? "Active • Paid via Razorpay"
+                                            : "Upgrade to unlock all courses"}
+                            </p>
                         </div>
                     </div>
-                    <div className="text-2xl font-bold">₹10,000</div>
+                    {(user?.purchasedCourses?.length || 0) > 0 && !(user?.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED') && (
+                        <div className="text-2xl font-bold text-white">₹10,000</div>
+                    )}
                 </div>
 
                 {/* ─── Data & Storage ─── */}

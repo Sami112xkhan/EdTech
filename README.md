@@ -6,29 +6,29 @@ A modern, high-performance, and visually stunning EdTech platform designed for t
 
 ## ✨ Latest Features
 
-### 🔑 Trial Access System
-- **Access Progenitor**: Admin-controlled generation of unique 8-character codes for **3-day** or **5-minute** trials.
-- **Live Sync**: Real-time countdown banner in the dashboard tracking remaining trial duration.
-- **Auto-Locking**: Automatic session termination and redirection to purchase once trial expires.
+### 🎓 Multi-Course Ecosystem
+- **Tri-Domain Curriculum**: Seamlessly switch between **Full Stack Development**, **Cybersecurity**, and **Data Science**.
+- **Course-Specific Ownership**: Purchase or Trial access is now scoped to specific courses. A user on a Cybersecurity trial only sees Cybersecurity content—locked domains stay locked until purchased.
+- **Interactive Roadmap**: A high-fidelity, motion-driven curriculum view for each domain with progress tracking.
 
-### 📝 Integrated Course Notes
-- **Contextual Viewer**: PDF course notes integrated directly into the video player sidebar.
-- **Notes Library**: A centralized, searchable repository for all course materials and cheat sheets.
-- **Global Search**: Find any material across the entire curriculum instantly.
+### 🔑 Advanced Trial & Access System
+- **Admin Code Progenitor**: Generate unique 8-character codes for specialized trial durations (3-day, 5-minute, etc.).
+- **Live Trial Timer**: A persistent, real-time countdown banner that locks the dashboard instantly upon expiry to prevent unauthorized access.
+- **Course-Aware Redemption**: Access codes are now linked to specific courses, automatically activating the correct curriculum upon use.
 
-### 🛡️ Premium Admin Control Center
-- **System Command Aesthetic**: A custom, high-end "system-command" UI with motion-driven transitions.
-- **Real-time Analytics**: Instant statistics for Total Members, PRO subscribers, Active Trials, and Pending Feedback.
-- **Membership Management**: Full control over user status, trial activation, and account deletion.
+### 🖥️ Persistent SQL Backend
+- **Database Architecture**: Migrated from local mocks to a **PostgreSQL** database managed by **Drizzle ORM**.
+- **Unified Session Sync**: Real-time heartbeat system ensures user sessions, trial timers, and progress are synced across multiple devices.
 
-### 🗣️ Transparency Program (Feedback)
-- **Voice of User**: Enhanced feedback system where users can submit proposals for new features.
-- **Status Tracking**: Users can monitor their submissions' progress (Under Review, Reviewed, Implemented) in real-time.
+### 🛡️ Enhanced Admin Control Center
+- **System Command Terminal**: A custom-designed dashboard for real-time monitoring of user activity and platform health.
+- **Granular User Stats**: Track membership types (PRO vs. TRIAL), active courses, XP levels, and engagement streaks.
+- **Suspension & Appeals**: Robust account management with instant revocation and integrated user appeals workflow.
 
-### 🚫 Account Suspension & Appeals
-- **Instant Revocation**: Admins can instantly revoke access, redirecting users to a locked "Suspended" state.
-- **Appeals Workflow**: Suspended users can submit appeal requests directly from the lockout screen.
-- **Restoration**: Admins can view appeals in a dedicated dashboard tab and restore access with a single click.
+### 📝 Strategic Learning Resources
+- **Integrated Note Viewer**: Searchable, PDF-backed course notes available directly in the learning interface.
+- **Centralized Library**: Browse and search all unlocked materials from one dedicated view.
+
 
 ## 🛠️ Tech Stack
 

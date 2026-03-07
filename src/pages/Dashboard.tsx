@@ -4,6 +4,7 @@ import { useSearchParams, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { curriculum } from "../data/curriculum";
 import { cybersecurityCurriculum } from "../data/cybersecurityCurriculum";
+import { dataScienceCurriculum } from "../data/dataScienceCurriculum";
 import { getPhasesStatus } from "../utils/progress";
 import { PlayCircle, Award, Clock, Lock, ShieldAlert, Flame, Download, BookOpen, Shield } from "lucide-react";
 import { jsPDF } from "jspdf";
@@ -26,7 +27,10 @@ const Dashboard: React.FC = () => {
     const [isRedeeming, setIsRedeeming] = React.useState(false);
     const [activeCourse, setActiveCourse] = useActiveCourse();
 
-    const activeCurriculum: Module[] = activeCourse === 'cyber' ? cybersecurityCurriculum : curriculum;
+    const activeCurriculum: Module[] =
+        activeCourse === 'cyber' ? cybersecurityCurriculum
+            : activeCourse === 'datascience' ? dataScienceCurriculum
+                : curriculum;
 
     const generateCertificate = () => {
         if (!user) return;
@@ -165,9 +169,10 @@ const Dashboard: React.FC = () => {
 
     useEffect(() => {
         if (searchParams.get("payment") === "success") {
-            completePurchase();
+            const courseParam = searchParams.get("course") || activeCourse;
+            completePurchase(courseParam);
         }
-    }, [searchParams, completePurchase]);
+    }, [searchParams, completePurchase, activeCourse]);
 
     const handleRedeem = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -182,15 +187,15 @@ const Dashboard: React.FC = () => {
     // Calculate Progress
     // Calculate Progress
     const completedLessons = user?.completedLessons || [];
-    const totalLessons = activeCurriculum.reduce((acc, phase) => acc + phase.lessons.length, 0);
+    const totalLessons = activeCurriculum.reduce((acc: number, phase: Module) => acc + phase.lessons.length, 0);
     const courseCompletedLessons = completedLessons.filter(id =>
-        activeCurriculum.some(phase => phase.lessons.some(l => l.id === id))
+        activeCurriculum.some((phase: Module) => phase.lessons.some(l => l.id === id))
     );
     const progress = totalLessons > 0 ? Math.round((courseCompletedLessons.length / totalLessons) * 100) : 0;
 
     // Trial Stats
     const isOnTrial = user?.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED';
-    const isExpired = user?.trialExpiresAt === 'EXPIRED';
+    const isExpired = user?.trialExpiresAt === 'EXPIRED' || (user?.trialExpiresAt && new Date(user.trialExpiresAt) < new Date());
 
     // ... rest of logic for nextLesson etc. ...
     // Determine Logic for Locking and Next Lesson
@@ -265,7 +270,7 @@ const Dashboard: React.FC = () => {
                         <div className="flex w-full md:w-auto">
                             <button
                                 onClick={() => setActiveCourse('fullstack')}
-                                className={`relative flex-1 md:flex-none px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeCourse === 'fullstack' ? 'text-white' : 'text-white/40 hover:text-white'}`}
+                                className={`relative flex-1 md:flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeCourse === 'fullstack' ? 'text-white' : 'text-white/40 hover:text-white'}`}
                             >
                                 {/* Floating Background Pill - High Fidelity Glass */}
                                 {activeCourse === 'fullstack' && (
@@ -293,14 +298,14 @@ const Dashboard: React.FC = () => {
                                         transition={{ type: "spring", stiffness: 400, damping: 30 }}
                                     />
                                 )}
-                                <span className="relative z-10 flex items-center justify-center gap-2 pointer-events-none">
+                                <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
                                     <BookOpen className="w-3.5 h-3.5" />
                                     Full Stack Web Dev
                                 </span>
                             </button>
                             <button
                                 onClick={() => setActiveCourse('cyber')}
-                                className={`relative flex-1 md:flex-none px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeCourse === 'cyber' ? 'text-white' : 'text-white/40 hover:text-white'}`}
+                                className={`relative flex-1 md:flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeCourse === 'cyber' ? 'text-white' : 'text-white/40 hover:text-white'}`}
                             >
                                 {/* Floating Background Pill - High Fidelity Glass */}
                                 {activeCourse === 'cyber' && (
@@ -312,7 +317,9 @@ const Dashboard: React.FC = () => {
                                         onDragEnd={(_, info) => {
                                             const threshold = 40;
                                             const velocityThreshold = 500;
-                                            if ((info.offset.x < -threshold || info.velocity.x < -velocityThreshold)) {
+                                            if ((info.offset.x > threshold || info.velocity.x > velocityThreshold)) {
+                                                setActiveCourse('datascience');
+                                            } else if ((info.offset.x < -threshold || info.velocity.x < -velocityThreshold)) {
                                                 setActiveCourse('fullstack');
                                             }
                                         }}
@@ -328,9 +335,44 @@ const Dashboard: React.FC = () => {
                                         transition={{ type: "spring", stiffness: 400, damping: 30 }}
                                     />
                                 )}
-                                <span className="relative z-10 flex items-center justify-center gap-2 pointer-events-none">
+                                <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
                                     <Shield className="w-3.5 h-3.5" />
-                                    90 Days CyberSec
+                                    Cyber Security
+                                </span>
+                            </button>
+                            <button
+                                onClick={() => setActiveCourse('datascience')}
+                                className={`relative flex-1 md:flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeCourse === 'datascience' ? 'text-white' : 'text-white/40 hover:text-white'}`}
+                            >
+                                {/* Floating Background Pill - High Fidelity Glass */}
+                                {activeCourse === 'datascience' && (
+                                    <motion.div
+                                        layoutId="dashboard-active-pill"
+                                        drag="x"
+                                        dragConstraints={{ left: 0, right: 0 }}
+                                        dragElastic={1}
+                                        onDragEnd={(_, info) => {
+                                            const threshold = 40;
+                                            const velocityThreshold = 500;
+                                            if ((info.offset.x < -threshold || info.velocity.x < -velocityThreshold)) {
+                                                setActiveCourse('cyber');
+                                            }
+                                        }}
+                                        whileDrag={{
+                                            opacity: 0.9,
+                                            scale: 1.1,
+                                            backgroundColor: "rgba(255, 255, 255, 0.05)",
+                                            backdropFilter: "blur(0px)",
+                                            boxShadow: "0 20px 60px rgba(0,0,0,0.5)"
+                                        }}
+                                        whileTap={{ scale: 1.05 }}
+                                        className="absolute inset-0 bg-white/20 backdrop-blur-2xl rounded-full border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing z-0"
+                                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                                    />
+                                )}
+                                <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
+                                    <Award className="w-3.5 h-3.5" />
+                                    Data Science
                                 </span>
                             </button>
                         </div>
@@ -355,7 +397,7 @@ const Dashboard: React.FC = () => {
                         </p>
                     </div>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full md:w-auto">
-                        {!user?.isPaid && !isOnTrial && (
+                        {!user?.purchasedCourses.includes(activeCourse) && !isOnTrial && (
                             <form onSubmit={handleRedeem} className="flex flex-1 sm:flex-none gap-2">
                                 <input
                                     type="text"
@@ -384,7 +426,7 @@ const Dashboard: React.FC = () => {
                     </div>
                 </div>
 
-                {isExpired && (
+                {isExpired || !user?.purchasedCourses.includes(activeCourse) ? (
                     <div className="bg-red-500/5 border border-red-500/20 p-4 md:p-6 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-red-500/40 to-transparent" />
                         <div className="flex items-center gap-5 relative z-10">
@@ -400,133 +442,133 @@ const Dashboard: React.FC = () => {
                             Upgrade Now
                         </Link>
                     </div>
-                )}
-
-                {/* Continue Learning */}
-                {nextLesson && (
-                    <div className="bg-secondary/30 backdrop-blur-xl border border-white/10 p-4 md:p-6 rounded-2xl relative overflow-hidden group">
-                        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <div className="relative z-10 flex flex-col md:flex-row gap-6 items-center">
-                            <Link
-                                to={`/learn/${nextPhaseId}/${nextLesson.id}`}
-                                className="w-full md:w-64 h-36 bg-black rounded-lg flex items-center justify-center border border-white/10 shrink-0 relative overflow-hidden group-hover:scale-[1.02] transition-transform duration-500"
-                            >
-                                <img
-                                    src={`https://img.youtube.com/vi/${nextLesson.youtubeId}/hqdefault.jpg`}
-                                    alt={nextLesson.title}
-                                    className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity"
-                                />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                                <PlayCircle className="w-12 h-12 text-white relative z-10 drop-shadow-lg group-hover:scale-110 transition-transform" />
-                            </Link>
-                            <div className="flex-1 space-y-2">
-                                <div className="text-xs font-semibold text-primary uppercase tracking-wider">Continue Learning</div>
-                                <h3 className="text-xl font-bold">
-                                    {phasesStatus.find(p => p.id === nextPhaseId)?.title.split(" — ")[0]}: {nextLesson.title}
-                                </h3>
-                                <p className="text-sm text-muted-foreground line-clamp-2">
-                                    {phasesStatus.find(p => p.id === nextPhaseId)?.description}
-                                </p>
-                                <div className="pt-2">
+                ) : (
+                    <div className="space-y-6">
+                        {/* Continue Learning */}
+                        {nextLesson && (
+                            <div className="bg-secondary/30 backdrop-blur-xl border border-white/10 p-4 md:p-6 rounded-2xl relative overflow-hidden group">
+                                <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <div className="relative z-10 flex flex-col md:flex-row gap-6 items-center">
                                     <Link
                                         to={`/learn/${nextPhaseId}/${nextLesson.id}`}
-                                        className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-white text-black font-semibold text-sm hover:bg-gray-200 transition-colors"
+                                        className="w-full md:w-64 h-36 bg-black rounded-lg flex items-center justify-center border border-white/10 shrink-0 relative overflow-hidden group-hover:scale-[1.02] transition-transform duration-500"
                                     >
-                                        Resume Lesson
+                                        <img
+                                            src={`https://img.youtube.com/vi/${nextLesson.youtubeId}/hqdefault.jpg`}
+                                            alt={nextLesson.title}
+                                            className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity"
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                                        <PlayCircle className="w-12 h-12 text-white relative z-10 drop-shadow-lg group-hover:scale-110 transition-transform" />
                                     </Link>
+                                    <div className="flex-1 space-y-2">
+                                        <div className="text-xs font-semibold text-primary uppercase tracking-wider">Continue Learning</div>
+                                        <h3 className="text-xl font-bold">
+                                            {phasesStatus.find(p => p.id === nextPhaseId)?.title.split(" — ")[0]}: {nextLesson.title}
+                                        </h3>
+                                        <p className="text-sm text-muted-foreground line-clamp-2">
+                                            {phasesStatus.find(p => p.id === nextPhaseId)?.description}
+                                        </p>
+                                        <div className="pt-2">
+                                            <Link
+                                                to={`/learn/${nextPhaseId}/${nextLesson.id}`}
+                                                className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-white text-black font-semibold text-sm hover:bg-gray-200 transition-colors"
+                                            >
+                                                Resume Lesson
+                                            </Link>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
+                        )}
+
+                        <div>
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-xl font-bold">Quick Stats</h2>
+                            </div>
+
+                            <MagicBento
+                                items={[
+                                    {
+                                        content: (
+                                            <>
+                                                <div className="text-sm text-muted-foreground mb-1 relative z-10">Total Lessons</div>
+                                                <div className="text-2xl font-bold relative z-10">{totalLessons}</div>
+                                            </>
+                                        )
+                                    },
+                                    {
+                                        content: (
+                                            <>
+                                                <div className="text-sm text-muted-foreground mb-1 relative z-10">Completed</div>
+                                                <div className="text-2xl font-bold relative z-10">{courseCompletedLessons.length}</div>
+                                            </>
+                                        )
+                                    },
+                                    {
+                                        content: (
+                                            <>
+                                                <div className="text-sm text-muted-foreground mb-1 relative z-10">Current Streak</div>
+                                                <div className="flex items-center gap-2 relative z-10">
+                                                    <Flame className="w-5 h-5 text-orange-500 fill-orange-500" />
+                                                    <div className="text-2xl font-bold text-orange-500">{user?.streak || 0}</div>
+                                                </div>
+                                            </>
+                                        )
+                                    },
+                                    {
+                                        content: (
+                                            <>
+                                                <div className="text-sm text-muted-foreground mb-1 relative z-10">Certificate</div>
+                                                <div className="relative z-10">
+                                                    {user?.certificateStatus === 'approved' ? (
+                                                        <button
+                                                            onClick={generateCertificate}
+                                                            className="flex items-center gap-2 px-3 py-1.5 bg-primary/20 hover:bg-primary/30 text-primary rounded-lg text-xs font-bold transition-all border border-primary/20 pointer-events-auto"
+                                                        >
+                                                            <Download className="w-3 h-3" /> Download
+                                                        </button>
+                                                    ) : user?.certificateStatus === 'pending' ? (
+                                                        <div className="flex items-center gap-2 text-yellow-400 font-bold text-sm animate-pulse">
+                                                            <Clock className="w-4 h-4" /> Pending
+                                                        </div>
+                                                    ) : progress === 100 ? (
+                                                        <button
+                                                            onClick={requestCertificate}
+                                                            className="flex items-center gap-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold transition-all border border-white/10 pointer-events-auto"
+                                                        >
+                                                            <Award className="w-3 h-3" /> Request
+                                                        </button>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2 text-muted-foreground/50 font-bold text-sm">
+                                                            <Lock className="w-4 h-4" /> Locked
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </>
+                                        )
+                                    }
+                                ]}
+                                textAutoHide={false}
+                            />
+                        </div>
+
+                        {/* CTA to Full Curriculum */}
+                        <div className="mt-8 flex justify-center">
+                            <Link
+                                to="/curriculum"
+                                className="px-8 py-3 bg-white/5 backdrop-blur-md border border-white/10 rounded-full text-sm font-medium text-white/90 hover:bg-white/10 hover:scale-105 transition-all shadow-lg shadow-purple-500/5 group relative overflow-hidden"
+                            >
+                                <span className="relative z-10 flex items-center gap-2">
+                                    View Full Curriculum <span className="group-hover:translate-x-1 transition-transform">&rarr;</span>
+                                </span>
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                            </Link>
                         </div>
                     </div>
                 )}
-
-                <div>
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-xl font-bold">Quick Stats</h2>
-                    </div>
-
-                    <MagicBento
-                        items={[
-                            {
-                                content: (
-                                    <>
-                                        <div className="text-sm text-muted-foreground mb-1 relative z-10">Total Lessons</div>
-                                        <div className="text-2xl font-bold relative z-10">{totalLessons}</div>
-                                    </>
-                                )
-                            },
-                            {
-                                content: (
-                                    <>
-                                        <div className="text-sm text-muted-foreground mb-1 relative z-10">Completed</div>
-                                        <div className="text-2xl font-bold relative z-10">{courseCompletedLessons.length}</div>
-                                    </>
-                                )
-                            },
-                            {
-                                content: (
-                                    <>
-                                        <div className="text-sm text-muted-foreground mb-1 relative z-10">Current Streak</div>
-                                        <div className="flex items-center gap-2 relative z-10">
-                                            <Flame className="w-5 h-5 text-orange-500 fill-orange-500" />
-                                            <div className="text-2xl font-bold text-orange-500">{user?.streak || 0}</div>
-                                        </div>
-                                    </>
-                                )
-                            },
-                            {
-                                content: (
-                                    <>
-                                        <div className="text-sm text-muted-foreground mb-1 relative z-10">Certificate</div>
-                                        <div className="relative z-10">
-                                            {user?.certificateStatus === 'approved' ? (
-                                                <button
-                                                    onClick={generateCertificate}
-                                                    className="flex items-center gap-2 px-3 py-1.5 bg-primary/20 hover:bg-primary/30 text-primary rounded-lg text-xs font-bold transition-all border border-primary/20 pointer-events-auto"
-                                                >
-                                                    <Download className="w-3 h-3" /> Download
-                                                </button>
-                                            ) : user?.certificateStatus === 'pending' ? (
-                                                <div className="flex items-center gap-2 text-yellow-400 font-bold text-sm animate-pulse">
-                                                    <Clock className="w-4 h-4" /> Pending
-                                                </div>
-                                            ) : progress === 100 ? (
-                                                <button
-                                                    onClick={requestCertificate}
-                                                    className="flex items-center gap-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold transition-all border border-white/10 pointer-events-auto"
-                                                >
-                                                    <Award className="w-3 h-3" /> Request
-                                                </button>
-                                            ) : (
-                                                <div className="flex items-center gap-2 text-muted-foreground/50 font-bold text-sm">
-                                                    <Lock className="w-4 h-4" /> Locked
-                                                </div>
-                                            )}
-                                        </div>
-                                    </>
-                                )
-                            }
-                        ]}
-                        textAutoHide={false}
-                    />
-                </div>
-
-
-                {/* CTA to Full Curriculum */}
-                <div className="mt-8 flex justify-center">
-                    <Link
-                        to="/curriculum"
-                        className="px-8 py-3 bg-white/5 backdrop-blur-md border border-white/10 rounded-full text-sm font-medium text-white/90 hover:bg-white/10 hover:scale-105 transition-all shadow-lg shadow-purple-500/5 group relative overflow-hidden"
-                    >
-                        <span className="relative z-10 flex items-center gap-2">
-                            View Full Curriculum <span className="group-hover:translate-x-1 transition-transform">&rarr;</span>
-                        </span>
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                    </Link>
-                </div>
             </div>
-        </div >
-
+        </div>
     );
 };
 

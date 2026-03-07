@@ -62,8 +62,7 @@ export const curriculum: Module[] = [
         title: "Streamlit Crash Course",
         duration: "11m",
         youtubeId: "D0D4Pa22iG0",
-        free: false,
-        notesPath: "https://drive.google.com/drive/u/0/folders/1-wk8nrebq2jM17T9pOkoXmyp83jk8fNo"
+        free: false
       },
       {
         id: "dsa-java",

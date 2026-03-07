@@ -2,8 +2,9 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { curriculum } from "../data/curriculum";
+import { Module, curriculum } from "../data/curriculum";
 import { cybersecurityCurriculum } from "../data/cybersecurityCurriculum";
+import { dataScienceCurriculum } from "../data/dataScienceCurriculum";
 import { getPhasesStatus } from "../utils/progress";
 import { PlayCircle, Award, Clock, Lock, FileText, Download, Search, BookOpen, Shield } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -18,13 +19,19 @@ const CurriculumPage: React.FC = () => {
     const [activePhaseId, setActivePhaseId] = useState<string | null>(null);
     const searchQuery = noteSearch; // Align variable names
 
-    const activeCurriculum = activeCourse === 'cyber' ? cybersecurityCurriculum : curriculum;
+    const activeCurriculum =
+        activeCourse === 'cyber' ? cybersecurityCurriculum
+            : activeCourse === 'datascience' ? dataScienceCurriculum
+                : curriculum;
 
     // Calculate Progress logic reused for display
     const completedLessons = user?.completedLessons || [];
 
     // Get status of all phases (locked/completed)
-    const phasesStatus = getPhasesStatus(activeCurriculum, completedLessons);
+    const phasesStatus = getPhasesStatus(activeCurriculum, completedLessons).map(phase => ({
+        ...phase,
+        locked: phase.locked || !user?.purchasedCourses.includes(activeCourse)
+    }));
 
     // Filter notes for the library
     const allNotes = phasesStatus.flatMap(phase =>
@@ -54,7 +61,7 @@ const CurriculumPage: React.FC = () => {
                     <div className="flex w-full md:w-auto">
                         <button
                             onClick={() => { setActiveCourse('fullstack'); setActivePhaseId(null); }}
-                            className={`relative flex-1 md:flex-none px-3 md:px-6 py-3 md:py-2.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all text-center ${activeCourse === 'fullstack' ? 'text-white' : 'text-white/40 hover:text-white'}`}
+                            className={`relative flex-1 md:flex-none px-4 md:px-8 py-3 md:py-2.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all text-center min-w-[120px] md:min-w-[160px] ${activeCourse === 'fullstack' ? 'text-white' : 'text-white/40 hover:text-white'}`}
                         >
                             {/* Floating Background Pill - High Fidelity Glass */}
                             {activeCourse === 'fullstack' && (
@@ -83,14 +90,14 @@ const CurriculumPage: React.FC = () => {
                                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
                                 />
                             )}
-                            <span className="relative z-10 flex items-center justify-center gap-2 pointer-events-none">
-                                <BookOpen className="w-4 h-4" />
-                                Full Stack Web Dev
+                            <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none">
+                                <BookOpen className="w-3.5 h-3.5" />
+                                Full Stack
                             </span>
                         </button>
                         <button
                             onClick={() => { setActiveCourse('cyber'); setActivePhaseId(null); }}
-                            className={`relative flex-1 md:flex-none px-3 md:px-6 py-3 md:py-2.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all text-center ${activeCourse === 'cyber' ? 'text-white' : 'text-white/40 hover:text-white'}`}
+                            className={`relative flex-1 md:flex-none px-4 md:px-8 py-3 md:py-2.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all text-center min-w-[120px] md:min-w-[160px] ${activeCourse === 'cyber' ? 'text-white' : 'text-white/40 hover:text-white'}`}
                         >
                             {/* Floating Background Pill - High Fidelity Glass */}
                             {activeCourse === 'cyber' && (
@@ -119,9 +126,45 @@ const CurriculumPage: React.FC = () => {
                                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
                                 />
                             )}
-                            <span className="relative z-10 flex items-center justify-center gap-2 pointer-events-none">
-                                <Shield className="w-4 h-4" />
-                                90 Days CyberSec
+                            <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
+                                <Shield className="w-3.5 h-3.5" />
+                                Cybersecurity
+                            </span>
+                        </button>
+                        <button
+                            onClick={() => { setActiveCourse('datascience'); setActivePhaseId(null); }}
+                            className={`relative flex-1 md:flex-none px-4 md:px-8 py-3 md:py-2.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all text-center min-w-[120px] md:min-w-[160px] ${activeCourse === 'datascience' ? 'text-white' : 'text-white/40 hover:text-white'}`}
+                        >
+                            {/* Floating Background Pill - High Fidelity Glass */}
+                            {activeCourse === 'datascience' && (
+                                <motion.div
+                                    layoutId="curriculum-active-pill"
+                                    drag="x"
+                                    dragConstraints={{ left: 0, right: 0 }}
+                                    dragElastic={1}
+                                    onDragEnd={(_, info) => {
+                                        const threshold = 40;
+                                        const velocityThreshold = 500;
+                                        if ((info.offset.x < -threshold || info.velocity.x < -velocityThreshold)) {
+                                            setActiveCourse('cyber');
+                                            setActivePhaseId(null);
+                                        }
+                                    }}
+                                    whileDrag={{
+                                        opacity: 0.9,
+                                        scale: 1.1,
+                                        backgroundColor: "rgba(255, 255, 255, 0.05)",
+                                        backdropFilter: "blur(0px)",
+                                        boxShadow: "0 20px 60px rgba(0,0,0,0.5)"
+                                    }}
+                                    whileTap={{ scale: 1.05 }}
+                                    className="absolute inset-0 bg-white/20 backdrop-blur-2xl rounded-full border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing z-0"
+                                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                                />
+                            )}
+                            <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
+                                <Award className="w-3.5 h-3.5" />
+                                Data Science
                             </span>
                         </button>
                     </div>
@@ -131,12 +174,14 @@ const CurriculumPage: React.FC = () => {
             <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 px-2 md:px-0">
                 <div className="space-y-2">
                     <h1 className="text-3xl md:text-5xl font-black tracking-tighter text-white leading-none">
-                        {activeCourse === 'cyber' ? (<>CYBER <span className="text-primary italic">SECURITY</span></>) : (<>CURRICULUM <span className="text-primary italic">CORE</span></>)}
+                        {activeCourse === 'cyber' ? (<>CYBER <span className="text-primary italic">SECURITY</span></>) : activeCourse === 'datascience' ? (<>DATA <span className="text-primary italic">SCIENCE</span></>) : (<>CURRICULUM <span className="text-primary italic">CORE</span></>)}
                     </h1>
                     <p className="text-sm text-muted-foreground max-w-xl font-medium leading-relaxed opacity-80">
                         {activeCourse === 'cyber'
                             ? 'Master cybersecurity in 90 days — from networking and Linux to ethical hacking and cloud security.'
-                            : 'Master the full stack architecture through our structured, performance-driven transition roadmap.'}
+                            : activeCourse === 'datascience'
+                                ? 'Unlock the power of data through Python, math, machine learning, and visualization.'
+                                : 'Master the full stack architecture through our structured, performance-driven transition roadmap.'}
                     </p>
                 </div>
 
@@ -379,7 +424,7 @@ const CurriculumPage: React.FC = () => {
                                                         </p>
                                                     </div>
 
-                                                    {!note.isLocked && user?.isPaid && (
+                                                    {!note.isLocked && user?.purchasedCourses.includes(activeCourse) && (
                                                         <div className="flex gap-2">
                                                             <a href={note.notesPath} target="_blank" rel="noreferrer" className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all hover:scale-105 active:scale-95" title="View Online">
                                                                 <BookOpen className="w-4 h-4" />

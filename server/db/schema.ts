@@ -12,7 +12,7 @@ export const users = pgTable("users", {
     createdAt: timestamp("created_at").defaultNow().notNull(),
     lastLoginAt: timestamp("last_login_at").defaultNow().notNull(),
     role: text("role").default("student").notNull(), // 'student' or 'admin'
-    isPaid: boolean("is_paid").default(false).notNull(),
+    purchasedCourses: text("purchased_courses").array().default(sql`'{}'`).notNull(),
     completedLessons: text("completed_lessons").array().default(sql`'{}'`).notNull(),
     streak: integer("streak").default(0).notNull(),
     xp: integer("xp").default(0).notNull(),
@@ -20,6 +20,7 @@ export const users = pgTable("users", {
     status: text("status").default("active").notNull(), // 'active' or 'inactive'
     isVerified: boolean("is_verified").default(false).notNull(),
     verificationCode: text("verification_code"),
+    trialExpiresAt: timestamp("trial_expires_at"),
     certificateStatus: text("certificate_status").default("locked").notNull(), // 'locked','eligible','pending','approved'
     certificateIssueDate: timestamp("certificate_issue_date"),
     emailNotifs: boolean("email_notifs").default(true).notNull(),

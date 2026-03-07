@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import Hero from '../components/Hero';
 import Curriculum from '../components/Curriculum';
@@ -7,6 +9,18 @@ import GradualBlur from '../components/GradualBlur';
 import { motion } from "motion/react";
 
 const Landing: React.FC = () => {
+    const { isAuthenticated, user } = useAuth();
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        if (isAuthenticated && user) {
+            const hasActiveTrial = user.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED' && new Date(user.trialExpiresAt) > new Date();
+            if ((user.purchasedCourses && user.purchasedCourses.length > 0) || hasActiveTrial) {
+                navigate('/dashboard', { replace: true });
+            }
+        }
+    }, [isAuthenticated, user, navigate]);
+
     return (
         <div className="min-h-screen bg-background relative">
             <div className="fixed inset-0 w-full h-full z-0 bg-black pointer-events-none">

@@ -26,7 +26,6 @@ const Navbar: React.FC = () => {
     const navLinks = [
         { name: "Home", path: "/" },
         { name: "About", path: "/about" },
-        { name: "AI Assistant", path: "/ai-assistant" },
         ...(!isAuthenticated ? [{ name: "Login", path: "/login" }] : [])
     ];
 
@@ -40,7 +39,7 @@ const Navbar: React.FC = () => {
             opacity={isMobileMenuOpen ? 0.95 : 0.6}
             backgroundOpacity={isMobileMenuOpen ? 0.9 : 0.4}
             blur={isMobileMenuOpen ? 40 : 15}
-            className={`!fixed top-4 md:top-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 w-[92%] md:w-fit md:min-w-[650px] md:max-w-[90vw] lg:max-w-5xl shadow-2xl shadow-black/20 ${isMobileMenuOpen ? "bg-black/80" : ""}`}
+            className={`!fixed top-4 md:top-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 w-[92%] md:w-fit md:min-w-[650px] md:max-w-[90vw] shadow-2xl shadow-black/20 ${isMobileMenuOpen ? "bg-black/80" : ""}`}
         >
             <div className="w-full flex flex-col">
                 <div className="w-full max-w-7xl mx-auto px-4 md:px-6 h-14 md:h-16 flex items-center justify-between gap-4 md:gap-8 shrink-0">
@@ -54,7 +53,7 @@ const Navbar: React.FC = () => {
                                 window.scrollTo({ top: 0, behavior: "smooth" });
                             }
                         }}
-                        className="flex items-center gap-3 group md:flex-1 md:min-w-0"
+                        className="flex items-center gap-3 group shrink-0"
                     >
                         <motion.div
                             initial={{ rotate: 0 }}
@@ -82,7 +81,7 @@ const Navbar: React.FC = () => {
                     </Link>
 
                     {/* Desktop Nav */}
-                    <div className="hidden md:flex items-center justify-center gap-2 relative z-30 md:flex-1" onMouseLeave={() => setHoveredTab(null)}>
+                    <div className="hidden md:flex items-center justify-center gap-1 lg:gap-2 relative z-30 shrink-0" onMouseLeave={() => setHoveredTab(null)}>
                         {navLinks.map((link, i) => (
                             <motion.div
                                 key={link.name}
@@ -133,7 +132,7 @@ const Navbar: React.FC = () => {
                     </div>
 
                     {/* CTA Buttons */}
-                    <div className="hidden md:flex items-center justify-end gap-4 md:flex-1 md:min-w-0">
+                    <div className="hidden md:flex items-center justify-end gap-2 lg:gap-4 shrink-0">
                         {isAuthenticated ? (
                             <div className="flex items-center gap-3">
                                 {/* Gamification Stats */}

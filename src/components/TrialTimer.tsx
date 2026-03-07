@@ -10,7 +10,7 @@ const TrialTimer: React.FC = () => {
     const [isVisible, setIsVisible] = useState(false);
 
     useEffect(() => {
-        if (!user || user.isPaid || !user.trialExpiresAt || user.trialExpiresAt === 'EXPIRED') {
+        if (!user || !user.trialExpiresAt || user.trialExpiresAt === 'EXPIRED') {
             setIsVisible(false);
             return;
         }

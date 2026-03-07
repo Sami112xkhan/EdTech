@@ -8,7 +8,6 @@ import GlassSurface from "./GlassSurface";
 
 
 const Hero: React.FC = () => {
-    const currentPrice = 10000;
 
     return (
         <section className="relative min-h-screen flex items-center justify-center pt-36 md:pt-32 overflow-hidden">
@@ -57,9 +56,9 @@ const Hero: React.FC = () => {
                         showBorder={false}
                         className="inline-flex text-5xl md:text-7xl font-bold tracking-tight px-0"
                     >
-                        Full Stack Developer
+                        Developer
                     </GradientText>
-                    <br /> in One Comprehensive Course.
+                    <br /> in our Specialized Tracks.
                 </motion.h1>
 
                 <motion.p
@@ -68,47 +67,48 @@ const Hero: React.FC = () => {
                     transition={{ duration: 0.6, delay: 0.2 }}
                     className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto mb-10"
                 >
-                    Master Python, React, Backend, Database, Deployment, and build a real-world Portfolio.
-                    Lifetime access + AI Mentor for a single price.
+                    Master Full Stack Web Development, Data Science, or Cybersecurity. Build real-world portfolios with Lifetime access and AI Mentorship.
                 </motion.p>
 
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 0.3 }}
-                    className="flex flex-col sm:flex-row items-center justify-center gap-4 relative z-20"
+                    className="flex flex-col sm:flex-row items-center justify-center gap-4 relative z-20 flex-wrap"
                 >
                     <div className="relative group">
                         <Link
-                            to="/checkout"
-                            className="w-full sm:w-auto px-8 py-4 rounded-full bg-primary hover:bg-primary/90 text-white font-semibold text-lg shadow-xl shadow-primary/25 transition-all hover:scale-105 flex items-center justify-center gap-2 relative z-10"
+                            to="/checkout?course=fullstack"
+                            className="w-full sm:w-auto px-6 py-4 rounded-full bg-primary hover:bg-primary/90 text-white font-semibold text-sm shadow-xl shadow-primary/25 transition-all hover:scale-105 flex items-center justify-center gap-2 relative z-10"
                         >
-                            Secure Your Spot — ₹{currentPrice.toLocaleString()}
-                            <ArrowRight className="w-5 h-5" />
+                            Full Stack Web Dev — ₹10,000
+                            <ArrowRight className="w-4 h-4" />
                         </Link>
+                    </div>
 
-                        {/* Glass Tooltip */}
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-64 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-20">
-                            <GlassSurface
-                                borderRadius={15}
-                                borderWidth={0.1}
-                                opacity={0.6}
-                                backgroundOpacity={0.6}
-                                blur={10}
-                                className="p-4 shadow-xl"
-                            >
-                                <p className="text-xs text-center text-white/90 font-medium leading-relaxed">
-                                    Secure your spot today to unlock premium content and accelerate your journey to becoming a professional developer.
-                                </p>
-                            </GlassSurface>
-                            {/* Arrow/Triangle for tooltip */}
-                            <div className="w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[8px] border-t-white/20 absolute left-1/2 -translate-x-1/2 top-full"></div>
-                        </div>
+                    <div className="relative group">
+                        <Link
+                            to="/checkout?course=datascience"
+                            className="w-full sm:w-auto px-6 py-4 rounded-full bg-indigo-600 hover:bg-indigo-500 border border-white/10 text-white font-semibold text-sm shadow-xl transition-all hover:scale-105 flex items-center justify-center gap-2 relative z-10"
+                        >
+                            Data Science — ₹8,000
+                            <ArrowRight className="w-4 h-4" />
+                        </Link>
+                    </div>
+
+                    <div className="relative group">
+                        <Link
+                            to="/checkout?course=cyber"
+                            className="w-full sm:w-auto px-6 py-4 rounded-full bg-teal-600 hover:bg-teal-500 border border-white/10 text-white font-semibold text-sm shadow-xl transition-all hover:scale-105 flex items-center justify-center gap-2 relative z-10"
+                        >
+                            Cyber Security — ₹5,000
+                            <ArrowRight className="w-4 h-4" />
+                        </Link>
                     </div>
 
                     <a
                         href="#curriculum"
-                        className="w-full sm:w-auto px-8 py-4 rounded-full glass hover:bg-white/10 text-white font-medium text-lg transition-all flex items-center justify-center"
+                        className="w-full sm:w-auto px-6 py-4 rounded-full glass hover:bg-white/10 text-white font-medium text-sm transition-all flex items-center justify-center h-full sm:ml-2"
                     >
                         View Curriculum
                     </a>

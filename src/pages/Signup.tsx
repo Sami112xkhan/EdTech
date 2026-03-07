@@ -32,10 +32,11 @@ const Signup: React.FC = () => {
         setIsLoading(true);
         try {
             await signup({
+                id: Math.random().toString(36).substr(2, 9),
                 name: data.fullName,
                 username: data.username,
                 email: data.email,
-                isPaid: false,
+                purchasedCourses: [],
                 role: 'user',
                 status: 'active',
                 completedLessons: [],

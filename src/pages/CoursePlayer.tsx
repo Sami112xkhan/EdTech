@@ -3,9 +3,15 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { curriculum } from "../data/curriculum";
 import { cybersecurityCurriculum } from "../data/cybersecurityCurriculum";
+import { dataScienceCurriculum } from "../data/dataScienceCurriculum";
 import { getPhasesStatus } from "../utils/progress";
 import { ChevronLeft, ChevronRight, CheckCircle, FileText, Save, Lock } from "lucide-react";
 import type { Module } from "../data/curriculum";
+
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 const CoursePlayer: React.FC = () => {
     const { user, markLessonComplete, addXp } = useAuth();
@@ -14,9 +20,11 @@ const CoursePlayer: React.FC = () => {
     const [note, setNote] = useState("");
     const [activeTab, setActiveTab] = useState<"notes" | "material">("notes");
     const [isCompleting, setIsCompleting] = useState(false);
+    const [markdownContent, setMarkdownContent] = useState<string | null>(null);
 
     // Resolve which curriculum to use based on moduleId prefix
-    const activeCurriculum: Module[] = moduleId?.startsWith('cyber-') ? cybersecurityCurriculum : curriculum;
+    const activeCurriculum: Module[] = moduleId?.startsWith('cyber-') ? cybersecurityCurriculum :
+        moduleId?.startsWith('ds-') ? dataScienceCurriculum : curriculum;
 
     // Find current lesson and module
     const currentModule = activeCurriculum.find(m => m.id === moduleId);
@@ -33,6 +41,11 @@ const CoursePlayer: React.FC = () => {
     // Navigation logic
     const nextLesson = currentModule?.lessons[currentLessonIndex + 1];
     const prevLesson = currentModule?.lessons[currentLessonIndex - 1];
+
+    // Access Check
+    const hasAccess = user?.role === 'admin' || user?.purchasedCourses?.includes(
+        moduleId?.startsWith('cyber-') ? 'cyber' : moduleId?.startsWith('ds-') ? 'datascience' : 'fullstack'
+    );
 
     useEffect(() => {
         const loadNote = async () => {
@@ -62,6 +75,16 @@ const CoursePlayer: React.FC = () => {
 
         // Default to material tab if lesson has notes
         if (currentLesson?.notesPath) setActiveTab("material");
+
+        // Fetch markdown content if there is no video and notes path is markdown
+        if (!currentLesson?.youtubeId && currentLesson?.notesPath?.endsWith('.md')) {
+            fetch(currentLesson.notesPath)
+                .then(res => res.text())
+                .then(text => setMarkdownContent(text))
+                .catch(err => console.error("Failed to load markdown:", err));
+        } else {
+            setMarkdownContent(null);
+        }
     }, [moduleId, lessonId, currentLesson, user?.email]);
 
     const handleSaveNote = async () => {
@@ -121,18 +144,20 @@ const CoursePlayer: React.FC = () => {
 
     return (
         <div className="min-h-0 flex flex-col lg:flex-row gap-6 lg:h-[calc(100vh-120px)]">
-            {/* Main Content: Video */}
-            <div className="flex-1 flex flex-col min-h-0 bg-background/50 rounded-2xl overflow-hidden border border-white/5 shadow-2xl">
-                <div className="w-full bg-black shadow-inner relative" style={{ aspectRatio: '16/9' }}>
-                    <iframe
-                        className="absolute inset-0 w-full h-full"
-                        src={`https://www.youtube.com/embed/${currentLesson.youtubeId}?modestbranding=1&rel=0&autoplay=1`}
-                        title="Course Video"
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowFullScreen
-                    ></iframe>
-                </div>
+            {/* Main Content: Video or Markdown */}
+            <div className={`flex-1 flex flex-col min-h-0 bg-background/50 rounded-2xl overflow-hidden border border-white/5 shadow-2xl ${!currentLesson.youtubeId ? 'bg-secondary/10' : ''}`}>
+                {currentLesson.youtubeId && (
+                    <div className="w-full bg-black shadow-inner relative" style={{ aspectRatio: '16/9' }}>
+                        <iframe
+                            className="absolute inset-0 w-full h-full"
+                            src={`https://www.youtube.com/embed/${currentLesson.youtubeId}?modestbranding=1&rel=0&autoplay=1`}
+                            title="Course Video"
+                            frameBorder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            allowFullScreen
+                        ></iframe>
+                    </div>
+                )}
 
                 <div className="p-4 md:p-6 flex-1 overflow-auto bg-gradient-to-b from-transparent to-secondary/10">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -187,6 +212,74 @@ const CoursePlayer: React.FC = () => {
                             </Link>
                         )}
                     </div>
+
+                    {/* Markdown Content Block */}
+                    {!currentLesson.youtubeId && markdownContent && (
+                        <div className="text-white/90 leading-relaxed max-w-4xl mx-auto rounded-2xl mt-4">
+                            <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                    code({ node, inline, className, children, ...props }: any) {
+                                        const match = /language-(\w+)/.exec(className || '');
+                                        return !inline && match ? (
+                                            <div className="relative group rounded-xl overflow-hidden my-4 shadow-xl border border-white/10">
+                                                <div className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                                    <button
+                                                        onClick={() => navigator.clipboard.writeText(String(children))}
+                                                        className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-md text-xs font-medium text-white/90 transition-all backdrop-blur-md"
+                                                    >
+                                                        Copy Code
+                                                    </button>
+                                                </div>
+                                                <SyntaxHighlighter
+                                                    style={vscDarkPlus}
+                                                    language={match[1]}
+                                                    PreTag="div"
+                                                    customStyle={{ margin: 0, padding: '1.5rem', fontSize: '0.9rem', backgroundColor: '#0d0d12' }}
+                                                    {...props}
+                                                >
+                                                    {String(children).replace(/\n$/, '')}
+                                                </SyntaxHighlighter>
+                                            </div>
+                                        ) : (
+                                            <code className={`bg-primary/20 text-primary px-1.5 py-0.5 rounded-md text-sm font-mono whitespace-nowrap`} {...props}>
+                                                {children}
+                                            </code>
+                                        );
+                                    },
+                                    p: ({ children }: any) => <p className="mb-6 text-base text-muted-foreground leading-loose">{children}</p>,
+                                    ul: ({ children }: any) => <ul className="list-disc pl-6 mb-6 space-y-2 text-muted-foreground marker:text-primary">{children}</ul>,
+                                    ol: ({ children }: any) => <ol className="list-decimal pl-6 mb-6 space-y-2 text-muted-foreground marker:text-primary">{children}</ol>,
+                                    li: ({ children }: any) => <li className="pl-2">{children}</li>,
+                                    h1: ({ children }: any) => <h1 className="text-3xl md:text-4xl font-black mb-6 mt-12 first:mt-2 text-white tracking-tight">{children}</h1>,
+                                    h2: ({ children }: any) => <h2 className="text-2xl mt-12 mb-5 font-bold text-white tracking-tight">{children}</h2>,
+                                    h3: ({ children }: any) => <h3 className="text-xl mt-8 mb-4 font-bold text-white">{children}</h3>,
+                                    h4: ({ children }: any) => <h4 className="text-lg mt-6 mb-3 font-semibold text-white/90">{children}</h4>,
+                                    blockquote: ({ children }: any) => (
+                                        <blockquote className="border-l-4 border-primary/50 pl-6 py-2 my-8 bg-primary/5 rounded-r-2xl italic text-muted-foreground">
+                                            {children}
+                                        </blockquote>
+                                    ),
+                                    a: ({ children, href }: any) => (
+                                        <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary-foreground underline underline-offset-4 decoration-primary/30 hover:decoration-primary transition-all font-medium">
+                                            {children}
+                                        </a>
+                                    ),
+                                    strong: ({ children }: any) => <strong className="font-bold text-white">{children}</strong>,
+                                    hr: () => <hr className="my-10 border-white/10" />,
+                                    img: (props: any) => (
+                                        <div className="my-8 rounded-2xl overflow-hidden border border-white/10 shadow-2xl relative">
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+                                            <img className="w-full h-auto object-cover" {...props} />
+                                        </div>
+                                    ),
+                                }}
+                            >
+                                {markdownContent}
+                            </ReactMarkdown>
+                        </div>
+                    )}
+
                 </div>
             </div>
 
@@ -243,13 +336,13 @@ const CoursePlayer: React.FC = () => {
                                             </p>
                                         </div>
                                         <div className="flex flex-col gap-3 px-4">
-                                            {!user?.isPaid || isPhaseLocked ? (
+                                            {!hasAccess || isPhaseLocked ? (
                                                 <div className="w-full py-6 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center justify-center gap-2 group relative overflow-hidden">
                                                     <div className="absolute inset-0 bg-black/40 z-10" />
                                                     <Lock className="w-6 h-6 text-white/50 relative z-20 mb-1" />
                                                     <span className="text-xs font-black uppercase tracking-widest text-white/70 relative z-20">Downloads Locked</span>
                                                     <p className="text-[10px] text-muted-foreground relative z-20">
-                                                        {!user?.isPaid ? "Available in Full Version" : "Complete previous phases to unlock"}
+                                                        {!hasAccess ? "Available in Full Version" : "Complete previous phases to unlock"}
                                                     </p>
                                                     <Link to="/curriculum" className="absolute inset-0 z-30" />
                                                 </div>

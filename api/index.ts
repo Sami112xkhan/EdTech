@@ -88,7 +88,7 @@ app.post("/api/auth/google", async (req, res) => {
             isActive: true,
         }).returning();
 
-        res.json({ user, sessionId: session.id, isPaid: user.isPaid });
+        res.json({ user, sessionId: session.id, isPaid: (user.purchasedCourses || []).length > 0 });
     } catch (error) {
         console.error("Auth sync error:", error);
         res.status(500).json({ error: "Failed to sync auth" });
@@ -211,7 +211,7 @@ app.post("/api/auth/login", async (req, res) => {
             isActive: true,
         }).returning();
 
-        res.json({ user, sessionId: session.id, isPaid: user.isPaid });
+        res.json({ user, sessionId: session.id, isPaid: (user.purchasedCourses || []).length > 0 });
     } catch (error) {
         console.error("Login error:", error);
         res.status(500).json({ error: "Login failed" });
@@ -322,7 +322,21 @@ app.post("/api/progress/lesson", async (req, res) => {
 
     try {
         // Fetch current lessons
-        const [user] = await db.select().from(users).where(eq(users.email, email));
+        let [user] = await db.select().from(users).where(eq(users.email, email));
+
+        // Auto-create Admin if missing
+        if (!user && email === 'admin@devmastery.com') {
+            const hashedPassword = await bcrypt.hash("admin@12345", 10);
+            [user] = await db.insert(users).values({
+                email,
+                password: hashedPassword,
+                name: "Administrator",
+                role: "admin",
+                isVerified: true,
+                purchasedCourses: ['fullstack', 'cyber', 'datascience']
+            }).returning();
+        }
+
         if (!user) return res.status(404).json({ error: "User not found" });
 
         const completedLessons = user.completedLessons || [];
@@ -358,12 +372,20 @@ app.post("/api/auth/logout", async (req, res) => {
 
 // Purchase Sync Hook
 app.post("/api/auth/purchase", async (req, res) => {
-    const { email } = req.body;
+    const { email, courseId } = req.body;
     if (!email) return res.status(400).json({ error: "Email required" });
 
     try {
+        const [existingUser] = await db.select().from(users).where(eq(users.email, email));
+        if (!existingUser) return res.status(404).json({ error: "User not found" });
+
+        const currentCourses = existingUser.purchasedCourses || [];
+        if (courseId && !currentCourses.includes(courseId)) {
+            currentCourses.push(courseId);
+        }
+
         const [user] = await db.update(users)
-            .set({ isPaid: true })
+            .set({ purchasedCourses: currentCourses })
             .where(eq(users.email, email))
             .returning();
         res.json({ success: true, user });
@@ -453,7 +475,7 @@ app.delete("/api/feedback/:id", async (req, res) => {
 app.get("/api/admin/stats", async (req, res) => {
     try {
         const totalUsers = await db.select({ count: sql<number>`count(*)` }).from(users);
-        const proMembers = await db.select({ count: sql<number>`count(*)` }).from(users).where(eq(users.isPaid, true));
+        const proMembers = await db.select({ count: sql<number>`count(*)` }).from(users).where(sql`array_length(${users.purchasedCourses}, 1) > 0`);
         // Active Users (Heartbeat in last 5 mins or isActive is true)
         const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000);
         const activeUsersCount = await db.select({ count: sql<number>`count(distinct user_id)` })
@@ -491,7 +513,10 @@ app.get("/api/admin/stats", async (req, res) => {
         });
     } catch (error) {
         console.error("Admin stats error:", error);
-        res.status(500).json({ error: "Failed to fetch admin stats" });
+        res.status(500).json({
+            error: "Failed to fetch admin stats",
+            details: error instanceof Error ? error.message : String(error)
+        });
     }
 });
 
@@ -499,6 +524,7 @@ app.get("/api/admin/stats", async (req, res) => {
 app.post("/api/track", async (req, res) => {
     const { userId, type, description, path, metadata } = req.body;
     if (!userId || !type) return res.status(400).json({ error: "userId and type required" });
+    if (userId === 'admin-id') return res.json({ success: true, bypassed: true });
 
     try {
         await db.insert(activityLogs).values({
@@ -787,7 +813,7 @@ app.post("/api/playground/save", async (req, res) => {
                 name: "Administrator",
                 role: "admin",
                 isVerified: true,
-                isPaid: true
+                purchasedCourses: ['fullstack', 'cyber', 'datascience']
             }).returning();
         }
 
@@ -924,7 +950,7 @@ app.post("/api/admin/codes/:code/revoke", async (req, res) => {
 
 // Redeem a code (user-facing)
 app.post("/api/codes/redeem", async (req, res) => {
-    const { code, email } = req.body;
+    const { code, email, courseId = 'fullstack' } = req.body;
     if (!code || !email) return res.status(400).json({ error: "Code and email required" });
 
     const normalizedCode = code.toUpperCase().trim();
@@ -954,16 +980,36 @@ app.post("/api/codes/redeem", async (req, res) => {
             trialExpiresAt = new Date(now.getTime() + duration).toISOString();
         }
 
-        // Mark code as used
+        // Update user access tier and specific course
+        const [existingUser] = await db.select().from(users).where(eq(users.email, email));
+
+        if (!existingUser && email !== 'admin@devmastery.com') {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        const currentCourses = existingUser?.purchasedCourses || [];
+        if (!currentCourses.includes(courseId)) {
+            currentCourses.push(courseId);
+        }
+
+        let updatedUser;
+        if (existingUser) {
+            const [updated] = await db.update(users)
+                .set({
+                    purchasedCourses: currentCourses,
+                    trialExpiresAt: trialExpiresAt ? new Date(trialExpiresAt) : null
+                })
+                .where(eq(users.email, email))
+                .returning();
+            updatedUser = updated;
+        } else {
+            updatedUser = { email: 'admin@devmastery.com', purchasedCourses: currentCourses };
+        }
+
+        // Mark code as used ONLY after successful user update
         await db.update(accessCodes)
             .set({ isUsed: true, usedBy: email, usedAt: now })
             .where(eq(accessCodes.id, accessCode.id));
-
-        // Update user access tier
-        const [updatedUser] = await db.update(users)
-            .set({ isPaid: isPaidFlag })
-            .where(eq(users.email, email))
-            .returning();
 
         res.json({
             success: true,
@@ -974,7 +1020,10 @@ app.post("/api/codes/redeem", async (req, res) => {
         });
     } catch (error) {
         console.error("Code redeem error:", error);
-        res.status(500).json({ error: "Failed to redeem code" });
+        res.status(500).json({
+            error: "Failed to redeem code",
+            details: error instanceof Error ? error.message : String(error)
+        });
     }
 });
 

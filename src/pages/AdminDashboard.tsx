@@ -201,7 +201,7 @@ const AdminDashboard: React.FC = () => {
 
         // 1. Apply category filter
         if (filterRole === 'pro') {
-            result = result.filter(u => u.isPaid);
+            result = result.filter(u => u.purchasedCourses && u.purchasedCourses.length > 0);
         } else if (filterRole === 'online') {
             result = result.filter(u => u.isOnline || isOnline(u.lastSeen));
         }
@@ -220,15 +220,15 @@ const AdminDashboard: React.FC = () => {
     // Statistics
     const stats = useMemo(() => {
         const totalUsers = users.length;
-        const proUsers = users.filter(u => u.isPaid).length;
+        const proUsers = users.filter(u => u.purchasedCourses && u.purchasedCourses.length > 0).length;
         const activeTrials = users.filter(u => u.trialExpiresAt && u.trialExpiresAt !== 'EXPIRED').length;
         const pendingFeedback = feedback.filter(f => f.status === 'pending').length;
 
         return [
-            { id: 'all', label: 'Total Members', value: sqlStats?.totalUsers ?? totalUsers, icon: Users, color: 'indigo', trend: sqlStats ? 'SQL' : '+12%' },
-            { id: 'pro', label: 'PRO Members', value: sqlStats?.proMembers ?? proUsers, icon: Award, color: 'primary', trend: sqlStats ? 'SQL' : '+5%' },
-            { id: 'online', label: 'Live Active', value: sqlStats?.activeUsers ?? activeTrials, icon: Clock, color: 'amber', trend: 'Live' },
-            { id: 'today', label: 'New Today', value: sqlStats?.newToday ?? pendingFeedback, icon: MessageSquare, color: 'rose', trend: 'Today' }
+            { id: 'all', label: 'Total Members', value: sqlStats?.totalUsers ?? totalUsers, icon: Users, color: 'indigo', trend: 'Global' },
+            { id: 'pro', label: 'PRO Members', value: sqlStats?.proMembers ?? proUsers, icon: Award, color: 'primary', trend: 'Lifetime' },
+            { id: 'online', label: 'Active Trials', value: activeTrials, icon: Clock, color: 'amber', trend: 'Trials' },
+            { id: 'today', label: 'New Today', value: sqlStats?.newToday ?? 0, icon: TrendingUp, color: 'rose', trend: 'Today' }
         ];
     }, [users, feedback, sqlStats]);
 
@@ -440,13 +440,28 @@ const AdminDashboard: React.FC = () => {
                                                                     </div>
                                                                     <div className="space-y-1">
                                                                         <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Plan</div>
-                                                                        <div className={`text-sm font-bold ${u.isPaid ? 'text-yellow-400' : 'text-zinc-500'}`}>
-                                                                            {u.isPaid ? (
-                                                                                (() => {
-                                                                                    const usedCode = codes.find(c => c.usedBy === u.email && c.type === 'lifetime');
-                                                                                    return usedCode ? `⭐ PRO (CODE: ${usedCode.code})` : '⭐ PRO (PURCHASE)';
-                                                                                })()
-                                                                            ) : 'FREE'}
+                                                                        <div className="text-sm font-bold flex flex-wrap gap-2">
+                                                                            {u.trialExpiresAt && u.trialExpiresAt !== 'EXPIRED' ? (
+                                                                                <span className="text-amber-400">⚡ TRIAL</span>
+                                                                            ) : (u.purchasedCourses && u.purchasedCourses.length > 0) ? (
+                                                                                <span className="text-yellow-400">⭐ PRO</span>
+                                                                            ) : (
+                                                                                <span className="text-zinc-500">FREE</span>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="space-y-1">
+                                                                        <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Courses</div>
+                                                                        <div className="flex flex-wrap gap-1">
+                                                                            {u.purchasedCourses && u.purchasedCourses.length > 0 ? (
+                                                                                u.purchasedCourses.map((c: string) => (
+                                                                                    <span key={c} className="px-2 py-0.5 rounded-md bg-white/5 text-[10px] font-black uppercase text-white/70 border border-white/5">
+                                                                                        {c}
+                                                                                    </span>
+                                                                                ))
+                                                                            ) : (
+                                                                                <span className="text-[10px] font-bold text-muted-foreground/20 italic">None</span>
+                                                                            )}
                                                                         </div>
                                                                     </div>
                                                                     <div className="space-y-1">

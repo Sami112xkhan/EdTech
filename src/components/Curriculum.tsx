@@ -5,25 +5,31 @@ import * as Accordion from "@radix-ui/react-accordion";
 import { ChevronDown, PlayCircle, Lock, BookOpen, Shield } from "lucide-react";
 import { curriculum } from "../data/curriculum";
 import { cybersecurityCurriculum } from "../data/cybersecurityCurriculum";
+import { dataScienceCurriculum } from "../data/dataScienceCurriculum";
 import type { Module } from "../data/curriculum";
 import GlassSurface from "./GlassSurface";
 import { useActiveCourse } from "../hooks/useActiveCourse";
 
 const Curriculum: React.FC = () => {
     const [activeCourse, setActiveCourse] = useActiveCourse();
-    const activeCurriculum: Module[] = activeCourse === 'cyber' ? cybersecurityCurriculum : curriculum;
+    const activeCurriculum: Module[] =
+        activeCourse === 'cyber' ? cybersecurityCurriculum :
+            activeCourse === 'datascience' ? dataScienceCurriculum : curriculum;
 
     return (
         <section id="curriculum" className="py-24 relative">
             <div className="container max-w-4xl mx-auto px-6">
                 <div className="text-center mb-10">
                     <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                        {activeCourse === 'cyber' ? 'Master Cybersecurity in 90 Days' : 'Master the Modern Stack'}
+                        {activeCourse === 'cyber' ? 'Master Cybersecurity in 90 Days' :
+                            activeCourse === 'datascience' ? 'Data Science for Beginners' : 'Master the Modern Stack'}
                     </h2>
                     <p className="text-muted-foreground">
                         {activeCourse === 'cyber'
                             ? 'From networking fundamentals to ethical hacking — your complete cybersecurity journey.'
-                            : "From 'Hello World' to deployed SaaS application."}
+                            : activeCourse === 'datascience'
+                                ? 'Learn the concepts behind data science, visualization, and real-world deployment.'
+                                : "From 'Hello World' to deployed SaaS application."}
                     </p>
                 </div>
 
@@ -67,7 +73,7 @@ const Curriculum: React.FC = () => {
                                         transition={{ type: "spring", stiffness: 400, damping: 30 }}
                                     />
                                 )}
-                                <span className="relative z-10 flex items-center justify-center gap-2 pointer-events-none">
+                                <span className="relative z-10 flex items-center justify-center gap-2 pointer-events-none whitespace-nowrap">
                                     <BookOpen className="w-4 h-4" />
                                     Full Stack Web Dev
                                 </span>
@@ -102,9 +108,44 @@ const Curriculum: React.FC = () => {
                                         transition={{ type: "spring", stiffness: 400, damping: 30 }}
                                     />
                                 )}
-                                <span className="relative z-10 flex items-center justify-center gap-2 pointer-events-none">
+                                <span className="relative z-10 flex items-center justify-center gap-2 pointer-events-none whitespace-nowrap">
                                     <Shield className="w-4 h-4" />
-                                    90 Days CyberSec
+                                    Cyber Security
+                                </span>
+                            </button>
+                            <button
+                                onClick={() => setActiveCourse('datascience')}
+                                className={`relative flex-1 md:flex-none px-3 md:px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all text-center ${activeCourse === 'datascience' ? 'text-white' : 'text-white/40 hover:text-white'}`}
+                            >
+                                {/* Floating Background Pill - High Fidelity Glass */}
+                                {activeCourse === 'datascience' && (
+                                    <motion.div
+                                        layoutId="home-curriculum-active-pill"
+                                        drag="x"
+                                        dragConstraints={{ left: 0, right: 0 }}
+                                        dragElastic={1}
+                                        onDragEnd={(_, info) => {
+                                            const threshold = 40;
+                                            const velocityThreshold = 500;
+                                            if ((info.offset.x < -threshold || info.velocity.x < -velocityThreshold)) {
+                                                setActiveCourse('cyber');
+                                            }
+                                        }}
+                                        whileDrag={{
+                                            opacity: 0.9,
+                                            scale: 1.1,
+                                            backgroundColor: "rgba(255, 255, 255, 0.05)",
+                                            backdropFilter: "blur(0px)",
+                                            boxShadow: "0 20px 60px rgba(0,0,0,0.5)"
+                                        }}
+                                        whileTap={{ scale: 1.05 }}
+                                        className="absolute inset-0 bg-white/20 backdrop-blur-2xl rounded-full border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing z-0"
+                                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                                    />
+                                )}
+                                <span className="relative z-10 flex items-center justify-center gap-2 pointer-events-none whitespace-nowrap">
+                                    <BookOpen className="w-4 h-4" />
+                                    Data Science
                                 </span>
                             </button>
                         </div>

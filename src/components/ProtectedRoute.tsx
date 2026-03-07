@@ -28,7 +28,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ requirePayment = false 
     if (requirePayment) {
         const hasActiveTrial = user?.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED' && new Date(user.trialExpiresAt) > new Date();
 
-        if (!user?.isPaid && !hasActiveTrial) {
+        if (user?.purchasedCourses.length === 0 && !hasActiveTrial) {
             return <Navigate to="/checkout" replace />;
         }
     }

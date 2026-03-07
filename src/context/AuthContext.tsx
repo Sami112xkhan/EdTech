@@ -4,6 +4,8 @@ import { User } from "../types"; // Will create types next
 import emailjs from '@emailjs/browser';
 import { toast } from "sonner";
 import { curriculum } from "../data/curriculum";
+import { cybersecurityCurriculum } from "../data/cybersecurityCurriculum";
+import { dataScienceCurriculum } from "../data/dataScienceCurriculum";
 import { isPhaseComplete } from "../utils/progress";
 
 interface AuthContextType {
@@ -12,7 +14,7 @@ interface AuthContextType {
     login: (userData: User) => Promise<void>;
     signup: (userData: User) => Promise<void>;
     logout: () => void;
-    completePurchase: () => void;
+    completePurchase: (courseId: string) => void;
     getAllUsers: () => Promise<any[]>;
     updateUserStatus: (email: string, status: 'active' | 'inactive') => Promise<void>;
     deleteUser: (email: string) => Promise<void>;
@@ -22,7 +24,7 @@ interface AuthContextType {
     loginWithGoogle: (credential: string) => Promise<void>;
     // Trial System
     generateAccessCode: (type: '3days' | '5mins') => Promise<string>;
-    redeemCode: (code: string) => Promise<{ success: boolean; message: string }>;
+    redeemCode: (code: string, courseId?: string) => Promise<{ success: boolean; message: string }>;
     getAllAccessCodes: () => Promise<any[]>;
     revokeAccessCode: (code: string) => Promise<void>;
     addXp: (amount: number) => void;
@@ -130,7 +132,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
 
             // Check trial expiry locally for immediate UI feedback
-            if (user && !user.isPaid && user.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED') {
+            if (user && user.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED') {
                 const now = new Date();
                 const expiry = new Date(user.trialExpiresAt);
                 if (now > expiry) {
@@ -142,7 +144,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }, 10000);
 
         return () => clearInterval(syncInterval);
-    }, [isAuthenticated, sessionId, user?.isPaid, user?.trialExpiresAt]);
+    }, [isAuthenticated, sessionId, user?.purchasedCourses, user?.trialExpiresAt]);
 
     // Initialize databases if empty
     useEffect(() => {
@@ -170,7 +172,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
-    const redeemCode = async (code: string): Promise<{ success: boolean; message: string }> => {
+    const redeemCode = async (code: string, courseId: string = 'fullstack'): Promise<{ success: boolean; message: string }> => {
         if (!user) return { success: false, message: "Please login first" };
 
         const normalizedCode = code.toUpperCase().trim();
@@ -180,15 +182,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const response = await fetch('/api/codes/redeem', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ code: normalizedCode, email: user.email }),
+                body: JSON.stringify({ code: normalizedCode, email: user.email, courseId }),
             });
             const data = await response.json();
             if (response.ok && data.success) {
                 // Update local user state with new tier
+                // Default to specifically requested course (e.g. Data Science, Cyber)
+                const newCourses = [...(user.purchasedCourses || [])];
+                if (!newCourses.includes(courseId)) {
+                    newCourses.push(courseId);
+                }
                 const updatedUser = {
                     ...user,
                     trialExpiresAt: data.trialExpiresAt,
-                    isPaid: data.isPaid !== undefined ? data.isPaid : user.isPaid
+                    purchasedCourses: newCourses
                 };
                 setUser(updatedUser);
                 localStorage.setItem("user", JSON.stringify(updatedUser));
@@ -229,7 +236,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 name: 'Administrator',
                 username: 'admin',
                 email: 'admin@devmastery.com',
-                isPaid: true,
+                purchasedCourses: ['fullstack', 'cyber', 'datascience'],
                 role: 'admin',
                 status: 'active',
                 isVerified: true,
@@ -290,7 +297,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 name: name || 'Learner',
                 username: email.split('@')[0],
                 email: email,
-                isPaid: false,
+                purchasedCourses: [],
                 role: 'user',
                 status: 'active',
                 isVerified: true,
@@ -459,9 +466,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.removeItem("sessionId");
     };
 
-    const completePurchase = async () => {
+    const completePurchase = async (courseId: string) => {
         if (user) {
-            const updatedUser = { ...user, isPaid: true };
+            const currentCourses = user.purchasedCourses || [];
+            if (currentCourses.includes(courseId)) return;
+
+            const updatedUser = { ...user, purchasedCourses: [...currentCourses, courseId] };
             setUser(updatedUser);
             localStorage.setItem("user", JSON.stringify(updatedUser)); // Update session
 
@@ -470,7 +480,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 await fetch('/api/auth/purchase', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: user.email }),
+                    body: JSON.stringify({ email: user.email, courseId }),
                 });
             } catch (e) {
                 console.warn("Failed to sync purchase to SQL backend", e);
@@ -550,17 +560,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     description: "Progress synced to cloud."
                 });
 
-                // Check for Module Unlock
-                curriculum.forEach((module, index) => {
-                    const nextModule = curriculum[index + 1];
-                    if (nextModule && isPhaseComplete(module, updatedLessons)) {
-                        if (!isPhaseComplete(module, prev.completedLessons)) {
-                            toast.success(`Module Unlocked: ${nextModule.title} 🔓`, {
-                                description: "New lessons and materials are now available.",
-                                duration: 5000
-                            });
+                // Check for Module Unlock across all curriculums
+                const allCurriculums = [curriculum, cybersecurityCurriculum, dataScienceCurriculum];
+
+                allCurriculums.forEach(curr => {
+                    curr.forEach((module, index) => {
+                        const nextModule = curr[index + 1];
+                        if (nextModule && isPhaseComplete(module, updatedLessons)) {
+                            if (!isPhaseComplete(module, prev.completedLessons)) {
+                                toast.success(`Module Unlocked: ${nextModule.title} 🔓`, {
+                                    description: "New lessons and materials are now available.",
+                                    duration: 5000
+                                });
+                            }
                         }
-                    }
+                    });
                 });
 
                 return updatedUser;
