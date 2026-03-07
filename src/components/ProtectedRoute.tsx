@@ -27,17 +27,20 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ requirePayment = false 
 
     if (requirePayment) {
         const now = new Date();
+
+        // Strict Enforcement: If user HAS a trialExpiresAt and it is EXPIRED, 
+        // they must be redirected, unless they have made a permanent purchase 
+        // (which now clears trialExpiresAt in AuthContext).
+        const isTrialExpired = user?.trialExpiresAt === 'EXPIRED' ||
+            (user?.trialExpiresAt && new Date(user.trialExpiresAt) <= now);
+
+        if (isTrialExpired) {
+            return <Navigate to="/checkout" replace />;
+        }
+
         const hasActiveTrial = user?.trialExpiresAt &&
             user.trialExpiresAt !== 'EXPIRED' &&
             new Date(user.trialExpiresAt) > now;
-
-        // Strict Enforcement: If trial ended, redirect to checkout
-        // This handles cases where trial courses are still in local cached purchasedCourses
-        const isTrialExpired = user?.trialExpiresAt === 'EXPIRED' || (user?.trialExpiresAt && new Date(user.trialExpiresAt) <= now);
-
-        if (isTrialExpired && user?.purchasedCourses.length === 0) {
-            return <Navigate to="/checkout" replace />;
-        }
 
         if (user?.purchasedCourses.length === 0 && !hasActiveTrial) {
             return <Navigate to="/checkout" replace />;

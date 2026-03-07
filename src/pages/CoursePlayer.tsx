@@ -148,14 +148,36 @@ const CoursePlayer: React.FC = () => {
             <div className={`flex-1 flex flex-col min-h-0 bg-background/50 rounded-2xl overflow-hidden border border-white/5 shadow-2xl ${!currentLesson.youtubeId ? 'bg-secondary/10' : ''}`}>
                 {currentLesson.youtubeId && (
                     <div className="w-full bg-black shadow-inner relative" style={{ aspectRatio: '16/9' }}>
-                        <iframe
-                            className="absolute inset-0 w-full h-full"
-                            src={`https://www.youtube.com/embed/${currentLesson.youtubeId}?modestbranding=1&rel=0&autoplay=1`}
-                            title="Course Video"
-                            frameBorder="0"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                            allowFullScreen
-                        ></iframe>
+                        {(!hasAccess || (user?.trialExpiresAt === 'EXPIRED' || (user?.trialExpiresAt && new Date(user.trialExpiresAt) <= new Date()))) ? (
+                            <div className="absolute inset-0 z-50 bg-[#0a0a0a] flex flex-col items-center justify-center p-6 text-center">
+                                <div className="absolute inset-0 bg-gradient-to-b from-primary/10 to-transparent opacity-20" />
+                                <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6 border border-primary/20 relative">
+                                    <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full" />
+                                    <Lock className="w-10 h-10 text-primary relative z-10" />
+                                </div>
+                                <h3 className="text-2xl font-black text-white mb-2 uppercase tracking-tighter">Access Locked</h3>
+                                <p className="text-muted-foreground text-sm max-w-sm mb-8 leading-relaxed">
+                                    {user?.trialExpiresAt === 'EXPIRED' || (user?.trialExpiresAt && new Date(user.trialExpiresAt) <= new Date())
+                                        ? "Your trial period has ended. Get the full version to unlock all videos and resources."
+                                        : "This course track is not included in your current subscription. Upgrade now to gain access."}
+                                </p>
+                                <Link
+                                    to="/checkout"
+                                    className="px-8 py-3 bg-primary text-white rounded-xl text-sm font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-primary/20"
+                                >
+                                    Unlock Everything
+                                </Link>
+                            </div>
+                        ) : (
+                            <iframe
+                                className="absolute inset-0 w-full h-full"
+                                src={`https://www.youtube.com/embed/${currentLesson.youtubeId}?modestbranding=1&rel=0&autoplay=1`}
+                                title="Course Video"
+                                frameBorder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                allowFullScreen
+                            ></iframe>
+                        )}
                     </div>
                 )}
 

@@ -28,10 +28,15 @@ const CurriculumPage: React.FC = () => {
     const completedLessons = user?.completedLessons || [];
 
     // Get status of all phases (locked/completed)
-    const phasesStatus = getPhasesStatus(activeCurriculum, completedLessons).map(phase => ({
-        ...phase,
-        locked: phase.locked || !user?.purchasedCourses.includes(activeCourse)
-    }));
+    const phasesStatus = getPhasesStatus(activeCurriculum, completedLessons).map(phase => {
+        const isExpired = user?.trialExpiresAt === 'EXPIRED' ||
+            (user?.trialExpiresAt && new Date(user.trialExpiresAt) <= new Date());
+
+        return {
+            ...phase,
+            locked: phase.locked || isExpired || !user?.purchasedCourses.includes(activeCourse)
+        };
+    });
 
     // Filter notes for the library
     const allNotes = phasesStatus.flatMap(phase =>

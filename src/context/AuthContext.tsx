@@ -429,9 +429,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const currentCourses = user.purchasedCourses || [];
             if (currentCourses.includes(courseId)) return;
 
-            const updatedUser = { ...user, purchasedCourses: [...currentCourses, courseId] };
+            const updatedUser = {
+                ...user,
+                purchasedCourses: [...currentCourses, courseId],
+                trialExpiresAt: undefined // Clear trial status on permanent purchase
+            };
             setUser(updatedUser);
-            localStorage.setItem("user", JSON.stringify(updatedUser)); // Update session
+            localStorage.setItem("user", JSON.stringify(updatedUser));
 
             // Sync Purchase to SQL
             try {
