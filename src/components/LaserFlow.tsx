@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { useTheme } from '../context/ThemeContext';
 import './LaserFlow.css';
 
 const VERT = `
@@ -283,6 +284,7 @@ export const LaserFlow: React.FC<LaserFlowProps> = ({
     fogFallSpeed = 0.6,
     color = '#FF79C6'
 }) => {
+    const { frostedMode } = useTheme();
     const mountRef = useRef<HTMLDivElement>(null);
     const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
     const uniformsRef = useRef<Record<string, THREE.IUniform> | null>(null);
@@ -310,6 +312,7 @@ export const LaserFlow: React.FC<LaserFlowProps> = ({
     };
 
     useEffect(() => {
+        if (frostedMode) return;
         const mount = mountRef.current;
         if (!mount) return;
 
@@ -603,7 +606,13 @@ export const LaserFlow: React.FC<LaserFlowProps> = ({
         color
     ]);
 
-    return <div ref={mountRef} className={`laser-flow-container ${className || ''}`} style={style} />;
+    return (
+        <div ref={mountRef} className={`laser-flow-container ${className || ''}`} style={style}>
+            {frostedMode && (
+                <div className="absolute inset-0 frosted-bg" />
+            )}
+        </div>
+    );
 };
 
 export default LaserFlow;

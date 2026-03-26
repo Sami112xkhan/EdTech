@@ -139,7 +139,12 @@ const Settings: React.FC = () => {
     };
 
     // Appearance (Global Theme Context)
-    const { fontSize, setFontSize, accentColor, setAccentColor, codeFont, setCodeFont } = useTheme();
+    const { 
+        fontSize, setFontSize, 
+        accentColor, setAccentColor, 
+        codeFont, setCodeFont,
+        frostedMode, setFrostedMode
+    } = useTheme();
 
     // Notifications
     const [emailNotifs, setEmailNotifs] = useState(() => user?.emailNotifs ?? loadPref('emailNotifs', true));
@@ -315,19 +320,28 @@ const Settings: React.FC = () => {
 
                 {/* ─── Appearance (no Theme) ─── */}
                 <SettingsSection title="Appearance" icon={<Palette className="w-5 h-5" />}>
-                    <Select
-                        label="Accent Color"
-                        icon={<Palette className="w-4 h-4" />}
-                        value={accentColor}
-                        onChange={setAccentColor}
-                        options={[
-                            { value: 'purple', label: '💜 Purple' },
-                            { value: 'blue', label: '💙 Blue' },
-                            { value: 'green', label: '💚 Green' },
-                            { value: 'orange', label: '🧡 Orange' },
-                            { value: 'pink', label: '💗 Pink' },
-                        ]}
+                    <Toggle
+                        label="Frosted Glass Mode"
+                        description="Disables heavy backgrounds for a high-performance, frosted glass look"
+                        icon={<Monitor className="w-4 h-4" />}
+                        enabled={frostedMode}
+                        onChange={setFrostedMode}
                     />
+                    {!frostedMode && (
+                        <Select
+                            label="Accent Color"
+                            icon={<Palette className="w-4 h-4" />}
+                            value={accentColor}
+                            onChange={setAccentColor}
+                            options={[
+                                { value: 'purple', label: '💜 Purple' },
+                                { value: 'blue', label: '💙 Blue' },
+                                { value: 'green', label: '💚 Green' },
+                                { value: 'orange', label: '🧡 Orange' },
+                                { value: 'pink', label: '💗 Pink' },
+                            ]}
+                        />
+                    )}
                     <Select
                         label="Font Size"
                         icon={<Globe className="w-4 h-4" />}

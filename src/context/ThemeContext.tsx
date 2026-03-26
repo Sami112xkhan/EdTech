@@ -8,6 +8,8 @@ type ThemeContextType = {
     setAccentColor: (color: string) => void;
     codeFont: string;
     setCodeFont: (font: string) => void;
+    frostedMode: boolean;
+    setFrostedMode: (v: boolean) => void;
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -58,6 +60,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const [fontSize, setFontSizeState] = useState(() => loadPref('fontSize', 'medium'));
     const [accentColor, setAccentColorState] = useState(() => loadPref('accentColor', 'purple'));
     const [codeFont, setCodeFontState] = useState(() => loadPref('codeFont', 'fira'));
+    const [frostedMode, setFrostedModeState] = useState(() => loadPref('frostedMode', false));
 
     // ... wrappers ...
     const setFontSize = (value: string) => {
@@ -73,6 +76,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const setCodeFont = (value: string) => {
         setCodeFontState(value);
         localStorage.setItem('settings_codeFont', JSON.stringify(value));
+    };
+
+    const setFrostedMode = (value: boolean) => {
+        setFrostedModeState(value);
+        localStorage.setItem('settings_frostedMode', JSON.stringify(value));
     };
 
     // ─── Effects to Apply Styles ───
@@ -109,7 +117,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         <ThemeContext.Provider value={{
             fontSize, setFontSize,
             accentColor, setAccentColor,
-            codeFont, setCodeFont
+            codeFont, setCodeFont,
+            frostedMode, setFrostedMode
         }}>
             {children}
         </ThemeContext.Provider>

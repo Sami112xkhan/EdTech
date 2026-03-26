@@ -1,6 +1,18 @@
 import { useRef, useEffect } from 'react';
 import { Renderer, Program, Mesh, Triangle, Vec2 } from 'ogl';
+import { useTheme } from '../context/ThemeContext';
 import './DarkVeil.css';
+
+interface DarkVeilProps {
+    hueShift?: number;
+    noiseIntensity?: number;
+    scanlineIntensity?: number;
+    speed?: number;
+    scanlineFrequency?: number;
+    warpAmount?: number;
+    resolutionScale?: number;
+    accentColor?: [number, number, number];
+}
 
 const vertex = `
 attribute vec2 position;
@@ -97,8 +109,11 @@ export default function DarkVeil({
     resolutionScale = 1,
     accentColor = [1.0, 1.0, 1.0]
 }: DarkVeilProps) {
+    const { frostedMode } = useTheme();
     const ref = useRef<HTMLCanvasElement>(null);
+
     useEffect(() => {
+        if (frostedMode) return;
         const canvas = ref.current;
         if (!canvas || !canvas.parentElement) return;
         const parent = canvas.parentElement;
@@ -161,6 +176,11 @@ export default function DarkVeil({
             cancelAnimationFrame(frame);
             window.removeEventListener('resize', resize);
         };
-    }, [hueShift, noiseIntensity, scanlineIntensity, speed, scanlineFrequency, warpAmount, resolutionScale, accentColor]);
+    }, [hueShift, noiseIntensity, scanlineIntensity, speed, scanlineFrequency, warpAmount, resolutionScale, accentColor, frostedMode]);
+
+    if (frostedMode) {
+        return <div className="absolute inset-0 frosted-bg" />;
+    }
+
     return <canvas ref={ref} className="darkveil-canvas" />;
 }

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Renderer, Triangle, Program, Mesh } from 'ogl';
+import { useTheme } from '../../context/ThemeContext';
 import './Prism.css';
 
 interface PrismProps {
@@ -39,9 +40,11 @@ const Prism: React.FC<PrismProps> = ({
     timeScale = 0.5,
     accentColor = [1.0, 1.0, 1.0]
 }) => {
+    const { frostedMode } = useTheme();
     const containerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
+        if (frostedMode) return;
         const container = containerRef.current;
         if (!container) return;
 
@@ -463,7 +466,13 @@ const Prism: React.FC<PrismProps> = ({
         suspendWhenOffscreen
     ]);
 
-    return <div className="prism-container" ref={containerRef} />;
+    return (
+        <div className="prism-container" ref={containerRef}>
+            {frostedMode && (
+                <div className="absolute inset-0 frosted-bg" />
+            )}
+        </div>
+    );
 };
 
 export default Prism;

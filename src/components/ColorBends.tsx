@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { useTheme } from '../context/ThemeContext';
 import './ColorBends.css';
 
 const MAX_COLORS = 8;
@@ -127,6 +128,7 @@ export default function ColorBends({
     parallax = 0.5,
     noise = 0.1
 }: ColorBendsProps) {
+    const { frostedMode } = useTheme();
     const containerRef = useRef<HTMLDivElement>(null);
     const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
     const rafRef = useRef<number | null>(null);
@@ -139,6 +141,7 @@ export default function ColorBends({
     const pointerSmoothRef = useRef(8);
 
     useEffect(() => {
+        if (frostedMode) return;
         const container = containerRef.current;
         if (!container) return;
 
@@ -313,5 +316,11 @@ export default function ColorBends({
         };
     }, []);
 
-    return <div ref={containerRef} className={`color-bends-container ${className}`} style={style} />;
+    return (
+        <div ref={containerRef} className={`color-bends-container ${className}`} style={style}>
+            {frostedMode && (
+                <div className="absolute inset-0 frosted-bg" />
+            )}
+        </div>
+    );
 }
