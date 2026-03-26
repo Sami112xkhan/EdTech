@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { curriculum } from "../data/curriculum";
 import { cybersecurityCurriculum } from "../data/cybersecurityCurriculum";
 import { dataScienceCurriculum } from "../data/dataScienceCurriculum";
+import { aiCurriculum } from "../data/aiCurriculum";
 import { getPhasesStatus } from "../utils/progress";
 import { ChevronLeft, ChevronRight, CheckCircle, FileText, Save, Lock } from "lucide-react";
 import type { Module } from "../data/curriculum";
@@ -24,7 +25,8 @@ const CoursePlayer: React.FC = () => {
 
     // Resolve which curriculum to use based on moduleId prefix
     const activeCurriculum: Module[] = moduleId?.startsWith('cyber-') ? cybersecurityCurriculum :
-        moduleId?.startsWith('ds-') ? dataScienceCurriculum : curriculum;
+        moduleId?.startsWith('ds-') ? dataScienceCurriculum :
+            moduleId?.startsWith('ai-') ? aiCurriculum : curriculum;
 
     // Find current lesson and module
     const currentModule = activeCurriculum.find(m => m.id === moduleId);
@@ -36,7 +38,7 @@ const CoursePlayer: React.FC = () => {
     // Check if phase is locked
     const phasesStatus = user ? getPhasesStatus(activeCurriculum, user.completedLessons) : [];
     const currentPhaseStatus = phasesStatus.find(p => p.id === moduleId);
-    const isPhaseLocked = currentPhaseStatus?.locked ?? false;
+    const isPhaseLocked = user?.role === 'admin' ? false : (currentPhaseStatus?.locked ?? false);
 
     // Navigation logic
     const nextLesson = currentModule?.lessons[currentLessonIndex + 1];
@@ -44,7 +46,9 @@ const CoursePlayer: React.FC = () => {
 
     // Access Check
     const hasAccess = user?.role === 'admin' || user?.purchasedCourses?.includes(
-        moduleId?.startsWith('cyber-') ? 'cyber' : moduleId?.startsWith('ds-') ? 'datascience' : 'fullstack'
+        moduleId?.startsWith('cyber-') ? 'cyber' :
+            moduleId?.startsWith('ds-') ? 'datascience' :
+                moduleId?.startsWith('ai-') ? 'ai' : 'fullstack'
     );
 
     useEffect(() => {
@@ -148,7 +152,7 @@ const CoursePlayer: React.FC = () => {
             <div className={`flex-1 flex flex-col min-h-0 bg-background/50 rounded-2xl overflow-hidden border border-white/5 shadow-2xl ${!currentLesson.youtubeId ? 'bg-secondary/10' : ''}`}>
                 {currentLesson.youtubeId && (
                     <div className="w-full bg-black shadow-inner relative" style={{ aspectRatio: '16/9' }}>
-                        {(!hasAccess || (user?.trialExpiresAt === 'EXPIRED' || (user?.trialExpiresAt && new Date(user.trialExpiresAt) <= new Date()))) ? (
+                        {(!hasAccess || (user?.role !== 'admin' && (user?.trialExpiresAt === 'EXPIRED' || (user?.trialExpiresAt && new Date(user.trialExpiresAt) <= new Date())))) ? (
                             <div className="absolute inset-0 z-50 bg-[#0a0a0a] flex flex-col items-center justify-center p-6 text-center">
                                 <div className="absolute inset-0 bg-gradient-to-b from-primary/10 to-transparent opacity-20" />
                                 <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6 border border-primary/20 relative">

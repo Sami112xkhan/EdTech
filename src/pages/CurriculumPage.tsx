@@ -5,14 +5,17 @@ import { useAuth } from "../context/AuthContext";
 import { Module, curriculum } from "../data/curriculum";
 import { cybersecurityCurriculum } from "../data/cybersecurityCurriculum";
 import { dataScienceCurriculum } from "../data/dataScienceCurriculum";
+import { aiCurriculum } from "../data/aiCurriculum";
 import { getPhasesStatus } from "../utils/progress";
-import { PlayCircle, Award, Clock, Lock, FileText, Download, Search, BookOpen, Shield } from "lucide-react";
+import { PlayCircle, Award, Clock, Lock, FileText, Download, Search, BookOpen, Shield, Bot } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import GlassSurface from "../components/GlassSurface";
 import { useActiveCourse } from "../hooks/useActiveCourse";
+import { useOffer } from "../context/OfferContext";
 
 const CurriculumPage: React.FC = () => {
     const { user } = useAuth();
+    const { isOfferActive } = useOffer();
     const [activeView, setActiveView] = useState<'roadmap' | 'notes'>('roadmap');
     const [activeCourse, setActiveCourse] = useActiveCourse();
     const [noteSearch, setNoteSearch] = useState("");
@@ -22,19 +25,20 @@ const CurriculumPage: React.FC = () => {
     const activeCurriculum =
         activeCourse === 'cyber' ? cybersecurityCurriculum
             : activeCourse === 'datascience' ? dataScienceCurriculum
-                : curriculum;
+                : activeCourse === 'ai' ? aiCurriculum
+                    : curriculum;
 
     // Calculate Progress logic reused for display
     const completedLessons = user?.completedLessons || [];
 
     // Get status of all phases (locked/completed)
     const phasesStatus = getPhasesStatus(activeCurriculum, completedLessons).map(phase => {
-        const isExpired = user?.trialExpiresAt === 'EXPIRED' ||
-            (user?.trialExpiresAt && new Date(user.trialExpiresAt) <= new Date());
+        const isExpired = user?.role !== 'admin' && (user?.trialExpiresAt === 'EXPIRED' ||
+            (user?.trialExpiresAt && new Date(user.trialExpiresAt) <= new Date()));
 
         return {
             ...phase,
-            locked: phase.locked || isExpired || !user?.purchasedCourses.includes(activeCourse)
+            locked: user?.role === 'admin' ? false : (phase.locked || isExpired || !user?.purchasedCourses.includes(activeCourse))
         };
     });
 
@@ -97,7 +101,7 @@ const CurriculumPage: React.FC = () => {
                             )}
                             <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none">
                                 <BookOpen className="w-3.5 h-3.5" />
-                                Full Stack
+                                {isOfferActive ? 'Full Stack + AI' : 'Full Stack'}
                             </span>
                         </button>
                         <button
@@ -170,6 +174,23 @@ const CurriculumPage: React.FC = () => {
                             <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
                                 <Award className="w-3.5 h-3.5" />
                                 Data Science
+                            </span>
+                        </button>
+                        <button
+                            onClick={() => { setActiveCourse('ai'); setActivePhaseId(null); }}
+                            className={`relative flex-1 md:flex-none px-4 md:px-8 py-3 md:py-2.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all text-center min-w-[120px] md:min-w-[160px] ${activeCourse === 'ai' ? 'text-white' : 'text-white/40 hover:text-white'}`}
+                        >
+                            {/* Floating Background Pill - High Fidelity Glass */}
+                            {activeCourse === 'ai' && (
+                                <motion.div
+                                    layoutId="curriculum-active-pill"
+                                    className="absolute inset-0 bg-white/20 backdrop-blur-2xl rounded-full border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)] z-0"
+                                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                                />
+                            )}
+                            <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
+                                <Bot className="w-3.5 h-3.5" />
+                                AI Course
                             </span>
                         </button>
                     </div>

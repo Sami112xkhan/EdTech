@@ -5,11 +5,13 @@ import Navbar from "../components/Navbar";
 
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useOffer } from "../context/OfferContext";
 import { initializePayment } from "../utils/razorpay";
 import { useActiveCourse } from "../hooks/useActiveCourse";
 
 const Checkout: React.FC = () => {
     const { user, completePurchase, redeemCode } = useAuth();
+    const { isOfferActive } = useOffer();
     const navigate = useNavigate();
     const [accessCode, setAccessCode] = React.useState("");
     const [loading, setLoading] = React.useState(false);
@@ -29,11 +31,20 @@ const Checkout: React.FC = () => {
     // Dynamic Product Configuration
     const courseDetails = {
         'fullstack': {
-            title: "Full Stack Web Development",
+            title: isOfferActive ? "Full Stack + AI Course Bundle" : "Full Stack Web Dev",
+            badge: isOfferActive ? "🔥 Limited 2-Day Offer" : undefined,
             price: 15000,
-            salePrice: 10000,
-            features: [
-                "Lifetime Access to Course Content",
+            salePrice: isOfferActive ? 10000 : 8000,
+            features: isOfferActive ? [
+                "Lifetime Access to Full Stack Content",
+                "🆕 AI & Machine Learning Course Included",
+                "Frontend & Backend Deep Dive",
+                "AI Mentor Support (Beta)",
+                "5+ Real World Projects",
+                "Certificate of Completion",
+                "Discord Community Access"
+            ] : [
+                "Lifetime Access to Full Stack Content",
                 "Frontend & Backend Deep Dive",
                 "AI Mentor Support (Beta)",
                 "5+ Real World Projects",
@@ -62,6 +73,19 @@ const Checkout: React.FC = () => {
                 "Python & Data Wrangling Projects",
                 "Advanced Data Visualization",
                 "Certificate of Completion",
+                "Discord Community Access"
+            ]
+        },
+        'ai_upgrade': {
+            title: "AI Course Upgrade",
+            badge: "✨ Exclusive for Full Stack Students",
+            price: 5000,
+            salePrice: 2000,
+            features: [
+                "Complete AI & ML Course Content",
+                "Builds on Your Full Stack Skills",
+                "Hands-on AI Projects",
+                "Early Access to New AI Modules",
                 "Discord Community Access"
             ]
         }
@@ -108,7 +132,7 @@ const Checkout: React.FC = () => {
             },
             (response) => {
                 console.log("Payment Success:", response);
-                completePurchase(selectedCourse); // Grant specific course
+                completePurchase(selectedCourse === 'ai_upgrade' ? 'ai_upgrade' : selectedCourse); // Grant specific course
                 navigate('/dashboard');
             },
             (error) => {
@@ -153,7 +177,27 @@ const Checkout: React.FC = () => {
                                 <>
                                     <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)} />
                                     <div className="absolute top-[calc(100%+8px)] left-0 w-full bg-[#1a1a1a]/95 backdrop-blur-3xl border border-white/10 rounded-[2rem] shadow-2xl shadow-black/50 z-50 flex flex-col py-2 px-2">
-                                        {Object.entries(courseDetails).map(([key, course]) => (
+                                        {Object.entries(courseDetails)
+                                            .filter(([key]) => {
+                                                const purchased = user?.purchasedCourses || [];
+                                                // If user is on trial (or trial expired), they haven't truly purchased — show all courses
+                                                const isTrialUser = user?.trialExpiresAt;
+                                                // Only hide courses that were permanently purchased (not trial)
+                                                if (!isTrialUser) {
+                                                    if (key === 'fullstack' && purchased.includes('fullstack')) return false;
+                                                    if (key === 'cyber' && purchased.includes('cyber')) return false;
+                                                    if (key === 'datascience' && purchased.includes('datascience')) return false;
+                                                }
+                                                // Show ai_upgrade only if user has permanently purchased ANY course but not ai yet
+                                                if (key === 'ai_upgrade') {
+                                                    if (!isOfferActive) return false; // Offer is inactive
+                                                    if (isTrialUser) return false; // trial users haven't paid, no upgrade path
+                                                    const hasAnyCourse = purchased.includes('fullstack') || purchased.includes('cyber') || purchased.includes('datascience');
+                                                    return hasAnyCourse && !purchased.includes('ai');
+                                                }
+                                                return true;
+                                            })
+                                            .map(([key, course]) => (
                                             <button
                                                 key={key}
                                                 onClick={() => {

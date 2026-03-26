@@ -5,13 +5,15 @@ import { useAuth } from "../context/AuthContext";
 import { curriculum } from "../data/curriculum";
 import { cybersecurityCurriculum } from "../data/cybersecurityCurriculum";
 import { dataScienceCurriculum } from "../data/dataScienceCurriculum";
+import { aiCurriculum } from "../data/aiCurriculum";
 import { getPhasesStatus } from "../utils/progress";
-import { PlayCircle, Award, Clock, Lock, ShieldAlert, Flame, Download, BookOpen, Shield } from "lucide-react";
+import { PlayCircle, Award, Clock, Lock, ShieldAlert, Flame, Download, BookOpen, Shield, Bot, Zap, ArrowRight } from "lucide-react";
 import { jsPDF } from "jspdf";
 import type { Module } from "../data/curriculum";
 import { motion, AnimatePresence } from "motion/react";
 import GlassSurface from "../components/GlassSurface";
 import { useActiveCourse } from "../hooks/useActiveCourse";
+import { useOffer } from "../context/OfferContext";
 
 import DarkVeil from "../components/DarkVeil";
 import MagicBento from "../components/MagicBento";
@@ -19,6 +21,7 @@ import { useTheme, ACCENT_COLORS, BACKGROUND_CALIBRATION, ACCENT_RGB } from "../
 
 const Dashboard: React.FC = () => {
     const { accentColor } = useTheme();
+    const { isOfferActive } = useOffer();
     // ... rest of component ...
     const [searchParams] = useSearchParams();
     const { completePurchase, user, redeemCode, requestCertificate } = useAuth();
@@ -30,7 +33,13 @@ const Dashboard: React.FC = () => {
     const activeCurriculum: Module[] =
         activeCourse === 'cyber' ? cybersecurityCurriculum
             : activeCourse === 'datascience' ? dataScienceCurriculum
-                : curriculum;
+                : activeCourse === 'ai' ? aiCurriculum
+                    : curriculum;
+
+    // AI upgrade logic: user has any course but not ai
+    const hasAnyCourse = user?.purchasedCourses.includes('fullstack') || user?.purchasedCourses.includes('cyber') || user?.purchasedCourses.includes('datascience');
+    const hasAI = user?.purchasedCourses.includes('ai');
+    const showAIUpgrade = user?.role !== 'admin' && isOfferActive && activeCourse === 'ai' && hasAnyCourse && !hasAI;
 
     const generateCertificate = () => {
         if (!user) return;
@@ -195,7 +204,7 @@ const Dashboard: React.FC = () => {
 
     // Trial Stats
     const isOnTrial = user?.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED';
-    const isExpired = user?.trialExpiresAt === 'EXPIRED' || (user?.trialExpiresAt && new Date(user.trialExpiresAt) < new Date());
+    const isExpired = user?.role !== 'admin' && (user?.trialExpiresAt === 'EXPIRED' || (user?.trialExpiresAt && new Date(user.trialExpiresAt) < new Date()));
 
     // ... rest of logic for nextLesson etc. ...
     // Determine Logic for Locking and Next Lesson
@@ -300,7 +309,7 @@ const Dashboard: React.FC = () => {
                                 )}
                                 <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
                                     <BookOpen className="w-3.5 h-3.5" />
-                                    Full Stack Web Dev
+                                    {isOfferActive ? 'Full Stack + AI' : 'Full Stack'}
                                 </span>
                             </button>
                             <button
@@ -344,7 +353,6 @@ const Dashboard: React.FC = () => {
                                 onClick={() => setActiveCourse('datascience')}
                                 className={`relative flex-1 md:flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeCourse === 'datascience' ? 'text-white' : 'text-white/40 hover:text-white'}`}
                             >
-                                {/* Floating Background Pill - High Fidelity Glass */}
                                 {activeCourse === 'datascience' && (
                                     <motion.div
                                         layoutId="dashboard-active-pill"
@@ -356,6 +364,8 @@ const Dashboard: React.FC = () => {
                                             const velocityThreshold = 500;
                                             if ((info.offset.x < -threshold || info.velocity.x < -velocityThreshold)) {
                                                 setActiveCourse('cyber');
+                                            } else if ((info.offset.x > threshold || info.velocity.x > velocityThreshold)) {
+                                                setActiveCourse('ai');
                                             }
                                         }}
                                         whileDrag={{
@@ -373,6 +383,40 @@ const Dashboard: React.FC = () => {
                                 <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
                                     <Award className="w-3.5 h-3.5" />
                                     Data Science
+                                </span>
+                            </button>
+                            <button
+                                onClick={() => setActiveCourse('ai')}
+                                className={`relative flex-1 md:flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeCourse === 'ai' ? 'text-white' : 'text-white/40 hover:text-white'}`}
+                            >
+                                {activeCourse === 'ai' && (
+                                    <motion.div
+                                        layoutId="dashboard-active-pill"
+                                        drag="x"
+                                        dragConstraints={{ left: 0, right: 0 }}
+                                        dragElastic={1}
+                                        onDragEnd={(_, info) => {
+                                            const threshold = 40;
+                                            const velocityThreshold = 500;
+                                            if ((info.offset.x < -threshold || info.velocity.x < -velocityThreshold)) {
+                                                setActiveCourse('datascience');
+                                            }
+                                        }}
+                                        whileDrag={{
+                                            opacity: 0.9,
+                                            scale: 1.1,
+                                            backgroundColor: "rgba(255, 255, 255, 0.05)",
+                                            backdropFilter: "blur(0px)",
+                                            boxShadow: "0 20px 60px rgba(0,0,0,0.5)"
+                                        }}
+                                        whileTap={{ scale: 1.05 }}
+                                        className="absolute inset-0 bg-white/20 backdrop-blur-2xl rounded-full border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing z-0"
+                                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                                    />
+                                )}
+                                <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
+                                    <Bot className="w-3.5 h-3.5" />
+                                    AI Course
                                 </span>
                             </button>
                         </div>
@@ -426,7 +470,29 @@ const Dashboard: React.FC = () => {
                     </div>
                 </div>
 
-                {isExpired || !user?.purchasedCourses.includes(activeCourse) ? (
+                {/* AI Upgrade Offer for existing fullstack users */}
+                {showAIUpgrade && (
+                    <div className="bg-gradient-to-r from-violet-500/10 via-fuchsia-500/10 to-cyan-500/10 border border-violet-500/30 p-4 md:p-6 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden animate-in slide-in-from-top duration-500">
+                        <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-violet-400/60 to-transparent" />
+                        <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 via-transparent to-cyan-500/5 pointer-events-none" />
+                        <div className="flex items-center gap-5 relative z-10">
+                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500/30 to-cyan-500/30 flex items-center justify-center border border-violet-400/30 shadow-lg shadow-violet-500/20">
+                                <Zap className="w-7 h-7 text-violet-300" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-black text-white uppercase tracking-tight flex items-center gap-2">
+                                    Unlock AI Course <span className="text-xs font-bold text-violet-400 bg-violet-500/20 px-2 py-0.5 rounded-full normal-case">Special Offer</span>
+                                </h3>
+                                <p className="text-xs text-muted-foreground font-medium mt-1">As an existing Full Stack student, upgrade to the AI Course for just <span className="text-white font-black">₹2,000</span>!</p>
+                            </div>
+                        </div>
+                        <Link to="/checkout?course=ai_upgrade" className="w-full md:w-auto px-8 py-4 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white font-black uppercase tracking-widest text-xs rounded-2xl flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-violet-500/20">
+                            Upgrade Now — ₹2,000 <ArrowRight className="w-4 h-4" />
+                        </Link>
+                    </div>
+                )}
+
+                {(isExpired || (!user?.purchasedCourses.includes(activeCourse) && user?.role !== 'admin')) && !showAIUpgrade ? (
                     <div className="bg-red-500/5 border border-red-500/20 p-4 md:p-6 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-red-500/40 to-transparent" />
                         <div className="flex items-center gap-5 relative z-10">
@@ -435,14 +501,14 @@ const Dashboard: React.FC = () => {
                             </div>
                             <div>
                                 <h3 className="text-xl font-black text-white uppercase tracking-tight">Access Locked</h3>
-                                <p className="text-xs text-muted-foreground font-medium mt-1">Trial period expired. Restore access to continue your journey.</p>
+                                <p className="text-xs text-muted-foreground font-medium mt-1">{activeCourse === 'ai' ? (isOfferActive ? 'Get the Full Stack + AI Bundle to unlock this course.' : 'Get the Full Stack Web Dev course to unlock.') : 'Trial period expired. Restore access to continue your journey.'}</p>
                             </div>
                         </div>
-                        <Link to="/curriculum" className="w-full md:w-auto px-8 py-4 bg-white text-black font-black uppercase tracking-widest text-xs rounded-2xl flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-white/5">
-                            Upgrade Now
+                        <Link to={activeCourse === 'ai' ? "/checkout?course=fullstack" : `/checkout?course=${activeCourse}`} className="w-full md:w-auto px-8 py-4 bg-white text-black font-black uppercase tracking-widest text-xs rounded-2xl flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-white/5">
+                            {activeCourse === 'ai' ? (isOfferActive ? 'Get Bundle — ₹10,000' : 'Get Full Stack — ₹8,000') : 'Upgrade Now'}
                         </Link>
                     </div>
-                ) : (
+                ) : showAIUpgrade ? null : (
                     <div className="space-y-6">
                         {/* Continue Learning */}
                         {nextLesson && (

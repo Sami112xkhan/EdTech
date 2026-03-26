@@ -28,6 +28,7 @@ import Suspended from "./pages/Suspended";
 import PlaygroundPage from "./pages/PlaygroundPage";
 import About from "./pages/About";
 import { FeedbackProvider } from "./context/FeedbackContext";
+import { OfferProvider } from "./context/OfferContext";
 import NavigationTracker from "./components/NavigationTracker";
 
 import { Analytics } from "@vercel/analytics/react";
@@ -37,10 +38,12 @@ function App() {
         <BrowserRouter>
             <AuthProvider>
                 <ThemeProvider>
-                    <FeedbackProvider>
-                        <NavigationTracker />
-                        <Routes>
-                            <Route element={<RootLayout />}>
+                    <OfferProvider>
+                        <FeedbackProvider>
+                            <NavigationTracker />
+                            <Routes>
+                                <Route element={<RootLayout />}>
+
                                 {/* Public Routes */}
                                 <Route path="/" element={<Landing />} />
                                 <Route path="/about" element={<About />} />
@@ -83,6 +86,7 @@ function App() {
                             }
                         }} />
                     </FeedbackProvider>
+                    </OfferProvider>
                 </ThemeProvider>
             </AuthProvider>
         </BrowserRouter>

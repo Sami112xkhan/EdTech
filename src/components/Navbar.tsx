@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X, Terminal, Flame } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useOffer } from "../context/OfferContext";
 import { motion } from "motion/react";
 import GlassSurface from "./GlassSurface";
 
@@ -12,6 +13,7 @@ const Navbar: React.FC = () => {
     const [hoveredTab, setHoveredTab] = useState<string | null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const { isAuthenticated, user, logout } = useAuth();
+    const { isOfferActive } = useOffer();
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -167,7 +169,7 @@ const Navbar: React.FC = () => {
                                     to="/checkout"
                                     className="px-5 py-2.5 rounded-full bg-primary hover:bg-primary/90 text-white text-sm font-semibold shadow-lg shadow-primary/25 transition-all hover:scale-105"
                                 >
-                                    Secure Your Spot
+                                    {isOfferActive ? 'Secure Your Spot — Full Stack + AI Bundle' : 'Secure Your Spot — Full Stack Web Dev'}
                                 </Link>
                             </>
                         )}
@@ -264,7 +266,7 @@ const Navbar: React.FC = () => {
                                     onClick={() => setIsMobileMenuOpen(false)}
                                     className="w-full py-3 rounded-xl bg-white text-black font-bold text-center shadow-lg hover:bg-gray-100 transition-colors"
                                 >
-                                    Secure Your Spot — ₹10,000
+                                    {isOfferActive ? 'Secure Your Spot — Full Stack + AI Bundle' : 'Secure Your Spot'}
                                 </Link>
                             </div>
                         )}

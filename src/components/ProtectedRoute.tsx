@@ -25,7 +25,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ requirePayment = false 
         return <Navigate to="/dashboard" replace />;
     }
 
-    if (requirePayment) {
+    if (requirePayment && user?.role !== 'admin') {
         const now = new Date();
 
         // Strict Enforcement: If user HAS a trialExpiresAt and it is EXPIRED, 

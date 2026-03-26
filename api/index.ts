@@ -380,8 +380,23 @@ app.post("/api/auth/purchase", async (req, res) => {
         if (!existingUser) return res.status(404).json({ error: "User not found" });
 
         const currentCourses = existingUser.purchasedCourses || [];
-        if (courseId && !currentCourses.includes(courseId)) {
-            currentCourses.push(courseId);
+
+        // Determine which courses to grant
+        let coursesToGrant: string[] = [];
+        if (courseId === 'fullstack') {
+            // Full Stack + AI Bundle: grant both
+            coursesToGrant = ['fullstack', 'ai'];
+        } else if (courseId === 'ai_upgrade') {
+            // Upgrade: grant just the AI course
+            coursesToGrant = ['ai'];
+        } else if (courseId) {
+            coursesToGrant = [courseId];
+        }
+
+        for (const c of coursesToGrant) {
+            if (!currentCourses.includes(c)) {
+                currentCourses.push(c);
+            }
         }
 
         const [user] = await db.update(users)
@@ -468,6 +483,43 @@ app.delete("/api/feedback/:id", async (req, res) => {
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: "Failed to delete feedback" });
+    }
+});
+
+// Global Settings (Public)
+app.get("/api/settings/offer", async (req, res) => {
+    try {
+        const [setting] = await db.select().from(systemSettings).where(eq(systemSettings.key, 'bundle_offer_active'));
+        const isActive = setting ? setting.value === 'true' : true;
+        console.log(`[API] Fetching offer state: ${isActive} (from DB: ${setting?.value})`);
+        res.json({ isActive });
+    } catch (error) {
+        console.error("[API] Failed to fetch settings", error);
+        res.status(500).json({ error: "Failed to fetch settings" });
+    }
+});
+
+// Admin Update Settings
+app.post("/api/admin/settings/offer", async (req, res) => {
+    const { isActive } = req.body;
+    console.log(`[API] Toggling offer to: ${isActive}`);
+    try {
+        // Upsert the setting
+        const existing = await db.select().from(systemSettings).where(eq(systemSettings.key, 'bundle_offer_active'));
+        if (existing.length > 0) {
+            await db.update(systemSettings)
+                .set({ value: String(isActive) })
+                .where(eq(systemSettings.key, 'bundle_offer_active'));
+            console.log(`[API] Updated existing setting to ${isActive}`);
+        } else {
+            await db.insert(systemSettings)
+                .values({ key: 'bundle_offer_active', value: String(isActive) });
+            console.log(`[API] Inserted new setting as ${isActive}`);
+        }
+        res.json({ success: true, isActive });
+    } catch (error) {
+        console.error("[API] Failed to update settings", error);
+        res.status(500).json({ error: "Failed to update settings" });
     }
 });
 

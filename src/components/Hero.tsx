@@ -3,11 +3,13 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, CheckCircle2, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
+import { useOffer } from "../context/OfferContext";
 import GradientText from "./GradientText";
 import GlassSurface from "./GlassSurface";
 
 
 const Hero: React.FC = () => {
+    const { isOfferActive } = useOffer();
 
     return (
         <section className="relative min-h-screen flex items-center justify-center pt-36 md:pt-32 overflow-hidden">
@@ -77,11 +79,18 @@ const Hero: React.FC = () => {
                     className="flex flex-col sm:flex-row items-center justify-center gap-4 relative z-20 flex-wrap"
                 >
                     <div className="relative group">
+                        {isOfferActive && (
+                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20">
+                                <span className="px-3 py-0.5 bg-gradient-to-r from-amber-500 to-orange-500 text-black text-[10px] font-black uppercase tracking-widest rounded-full shadow-lg shadow-amber-500/30 whitespace-nowrap animate-pulse">
+                                    🔥 Limited 2-Day Offer
+                                </span>
+                            </div>
+                        )}
                         <Link
                             to="/checkout?course=fullstack"
                             className="w-full sm:w-auto px-6 py-4 rounded-full bg-primary hover:bg-primary/90 text-white font-semibold text-sm shadow-xl shadow-primary/25 transition-all hover:scale-105 flex items-center justify-center gap-2 relative z-10"
                         >
-                            Full Stack Web Dev — ₹10,000
+                            {isOfferActive ? 'Full Stack + AI Bundle — ₹10,000' : 'Full Stack Web Dev — ₹10,000'}
                             <ArrowRight className="w-4 h-4" />
                         </Link>
                     </div>

@@ -427,11 +427,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const completePurchase = async (courseId: string) => {
         if (user) {
             const currentCourses = user.purchasedCourses || [];
-            if (currentCourses.includes(courseId)) return;
+
+            // Determine which courses to grant locally
+            let coursesToGrant: string[] = [];
+            if (courseId === 'fullstack') {
+                coursesToGrant = ['fullstack', 'ai'];
+            } else if (courseId === 'ai_upgrade') {
+                coursesToGrant = ['ai'];
+            } else {
+                coursesToGrant = [courseId];
+            }
+
+            const newCourses = coursesToGrant.filter(c => !currentCourses.includes(c));
+            if (newCourses.length === 0) return;
 
             const updatedUser = {
                 ...user,
-                purchasedCourses: [...currentCourses, courseId],
+                purchasedCourses: [...currentCourses, ...newCourses],
                 trialExpiresAt: undefined // Clear trial status on permanent purchase
             };
             setUser(updatedUser);

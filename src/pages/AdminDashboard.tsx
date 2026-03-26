@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useFeedback } from '../context/FeedbackContext';
 import { User } from '../types';
+import { useOffer } from '../context/OfferContext';
 import { motion, AnimatePresence } from 'motion/react';
 import {
     Trash2,
@@ -59,6 +60,8 @@ const AdminDashboard: React.FC = () => {
         deleteFeedback,
         replyToFeedback
     } = useFeedback();
+
+    const { isOfferActive, toggleOffer } = useOffer();
 
     const navigate = useNavigate();
     const [users, setUsers] = useState<any[]>([]);
@@ -805,10 +808,41 @@ const AdminDashboard: React.FC = () => {
                             initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -20 }}
-                            className="bg-secondary/10 rounded-[2.5rem] border border-white/5 overflow-hidden shadow-2xl"
+                            className="space-y-6"
                         >
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left min-w-[900px]">
+                            {/* Global Course Settings */}
+                            <div className="bg-secondary/10 rounded-[2.5rem] border border-white/5 p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative group">
+                                <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <div className="flex items-center gap-5 relative z-10">
+                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border shadow-lg transition-colors ${isOfferActive ? 'bg-primary/20 border-primary/30 text-primary shadow-primary/20' : 'bg-white/5 border-white/10 text-white/40'}`}>
+                                        <Zap className="w-7 h-7" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-black text-white uppercase tracking-tight">Full Stack + AI Bundle Offer</h3>
+                                        <p className="text-xs text-muted-foreground mt-1 max-w-md">Toggle the 2-day limited offer. When disabled, the standard Full Stack Web Dev course will be shown instead of the bundle.</p>
+                                    </div>
+                                </div>
+                                <div className="relative z-10">
+                                    <button
+                                        onClick={async () => {
+                                            try {
+                                                await toggleOffer(!isOfferActive);
+                                                toast.success(`Bundle offer ${!isOfferActive ? 'enabled' : 'disabled'}`);
+                                            } catch (e) {
+                                                toast.error("Failed to update offer state");
+                                            }
+                                        }}
+                                        className={`w-16 h-8 rounded-full flex items-center p-1 transition-all ${isOfferActive ? 'bg-primary border-primary' : 'bg-white/10 border-white/20'} border`}
+                                    >
+                                        <div className={`w-6 h-6 rounded-full bg-white transition-transform shadow-sm ${isOfferActive ? 'translate-x-8' : 'translate-x-0'}`} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Users Progress Table */}
+                            <div className="bg-secondary/10 rounded-[2.5rem] border border-white/5 overflow-hidden shadow-2xl">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left min-w-[900px]">
                                     <thead className="bg-white/5 border-b border-white/5">
                                         <tr>
                                             <th className="px-6 md:px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Student</th>
@@ -932,8 +966,9 @@ const AdminDashboard: React.FC = () => {
                                     </tbody>
                                 </table>
                             </div>
-                        </motion.div>
-                    )}
+                        </div>
+                    </motion.div>
+                )}
 
                     {activeTab === 'codes' && (
                         <motion.div
