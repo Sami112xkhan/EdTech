@@ -41,7 +41,7 @@ export default function App() {
 
   return (
     <div style={{ textAlign: 'center', padding: '2rem', color: '#fff' }}>
-      <h1>Hello Monaco! 🚀</h1>
+      <h1>Hello Monaco!</h1>
       <p>This is a React component running in the browser.</p>
 
       <button
@@ -69,11 +69,11 @@ export default function App() {
     icon: Terminal,
     defaultFile: "main.py",
     files: {
-      "main.py": `print("Hello from Python! 🐍")
+      "main.py": `print("Hello from Python!")
 
 def factorial(n):
-if n == 0: return 1
-return n * factorial(n - 1)
+    if n == 0: return 1
+    return n * factorial(n - 1)
 
 print(f"Factorial of 5 is {factorial(5)}")
 `
@@ -84,7 +84,7 @@ print(f"Factorial of 5 is {factorial(5)}")
     icon: Terminal,
     defaultFile: "index.js",
     files: {
-      "index.js": `console.log("Hello from Node.js (Web)! 🟩");
+      "index.js": `console.log("Hello from Node.js (Web)!");
 console.log("Standard JS features work here.");
 
 const data = [1, 2, 3, 4, 5];
@@ -98,7 +98,7 @@ console.log("Doubled:", doubled);
     icon: Code,
     defaultFile: "script.js",
     files: {
-      "script.js": `console.log("Hello Vanilla JS! 🍦");
+      "script.js": `console.log("Hello Vanilla JS!");
 document.body.innerHTML += "<h1>Hello from JS</h1>";
 `
     }
@@ -114,7 +114,7 @@ document.body.innerHTML += "<h1>Hello from JS</h1>";
     <title>My Web App</title>
   </head>
   <body>
-    <h1>Hello Web! 🎨</h1>
+    <h1>Hello Web!</h1>
     <p>Edit HTML, CSS, and JS in the tabs above.</p>
   </body>
 </html>`,
@@ -126,7 +126,8 @@ document.body.innerHTML += "<h1>Hello from JS</h1>";
 
 const PlaygroundPage: React.FC = () => {
   const { user } = useAuth();
-  const { accentColor } = useTheme();
+  const { theme, accentColor } = useTheme();
+  const isRich = theme === 'rich';
 
   // --- State ---
   const [activeTemplate, setActiveTemplate] = useState<TemplateType>("react");
@@ -268,11 +269,12 @@ const PlaygroundPage: React.FC = () => {
     }
   };
 
-  const accentRGB = ACCENT_RGB[accentColor] || ACCENT_RGB.purple;
+  const accentRGB = ACCENT_RGB[accentColor] || ACCENT_RGB.blue;
 
   return (
-    <div className="h-full flex flex-col gap-4 relative overflow-hidden text-white p-4">
+    <div className={`h-full flex flex-col gap-4 relative overflow-hidden p-4 ${isRich ? 'text-gray-900' : 'text-white'}`}>
       {/* BACKGROUND ANIMATION */}
+      {!isRich && (
       <div className="absolute inset-0 z-0 pointer-events-none opacity-50">
         <Prism
           animationType="rotate"
@@ -287,6 +289,7 @@ const PlaygroundPage: React.FC = () => {
           glow={1.2}
         />
       </div>
+      )}
 
       {/* --- HEADER --- */}
       {/* --- HEADER --- */}
@@ -295,7 +298,7 @@ const PlaygroundPage: React.FC = () => {
           {/* New Project Button */}
           <button
             onClick={handleNewProject}
-            className="p-2 md:p-3 rounded-xl md:rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all text-primary shrink-0"
+            className={`p-2 md:p-3 rounded-xl md:rounded-2xl transition-all text-primary shrink-0 ${isRich ? 'bg-gray-100 hover:bg-gray-200 border border-black/[0.06]' : 'bg-white/5 hover:bg-white/10 border border-white/10'}`}
             title="New Project"
           >
             <Plus className="w-4 h-4" />
@@ -304,7 +307,7 @@ const PlaygroundPage: React.FC = () => {
           {/* Library Button */}
           <button
             onClick={() => setShowProjects(!showProjects)}
-            className="flex items-center gap-2 px-3 md:px-4 py-2 md:py-3 rounded-xl md:rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all font-black uppercase text-[10px] md:text-xs tracking-widest text-primary shrink-0"
+            className={`flex items-center gap-2 px-3 md:px-4 py-2 md:py-3 rounded-xl md:rounded-2xl transition-all font-black uppercase text-[10px] md:text-xs tracking-widest text-primary shrink-0 ${isRich ? 'bg-gray-100 hover:bg-gray-200 border border-black/[0.06]' : 'bg-white/5 hover:bg-white/10 border border-white/10'}`}
           >
             <FolderOpen className="w-4 h-4" />
             Library
@@ -317,7 +320,7 @@ const PlaygroundPage: React.FC = () => {
               onChange={e => setProjectName(e.target.value)}
               className="bg-transparent text-sm md:text-lg font-black focus:outline-none w-full"
             />
-            <div className="flex items-center gap-2 text-[8px] md:text-[10px] uppercase font-bold text-white/40">
+            <div className={`flex items-center gap-2 text-[8px] md:text-[10px] uppercase font-bold ${isRich ? 'text-gray-400' : 'text-white/40'}`}>
               <span className="truncate">{TEMPLATES[activeTemplate].name}</span>
               {currentProjectId && <span className="text-green-500 flex items-center gap-1 shrink-0"><Sparkles className="w-3 h-3" /> Synced</span>}
             </div>
@@ -337,7 +340,23 @@ const PlaygroundPage: React.FC = () => {
             Run
           </button>
 
-          {/* Template Switcher with Glass */}
+          {/* Template Switcher */}
+          {isRich ? (
+            <div className="flex gap-1 p-1 rounded-full bg-gray-100 border border-black/[0.06] shrink-0">
+              {(Object.keys(TEMPLATES) as TemplateType[]).map(t => (
+                <button
+                  key={t}
+                  onClick={() => {
+                    handleTemplateSwitch(t);
+                    if (user) trackAction(user.id, 'CLICK', `Switched template to ${t}`);
+                  }}
+                  className={`relative flex-shrink-0 px-3 md:px-4 py-1.5 md:py-2 rounded-full text-[8px] md:text-[10px] font-black uppercase tracking-widest transition-all ${activeTemplate === t ? 'bg-emerald-900 text-white shadow-md' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'}`}
+                >
+                  <span className="relative z-10">{TEMPLATES[t].name}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
           <GlassSurface
             borderRadius={50}
             borderWidth={0.5}
@@ -353,8 +372,7 @@ const PlaygroundPage: React.FC = () => {
                     handleTemplateSwitch(t);
                     if (user) trackAction(user.id, 'CLICK', `Switched template to ${t}`);
                   }}
-                  className={`relative flex-shrink-0 px-3 md:px-4 py-1.5 md:py-2 rounded-full text-[8px] md:text-[10px] font-black uppercase tracking-widest transition-all ${activeTemplate === t ? "text-white" : "text-white/40 hover:text-white"
-                    }`}
+                  className={`relative flex-shrink-0 px-3 md:px-4 py-1.5 md:py-2 rounded-full text-[8px] md:text-[10px] font-black uppercase tracking-widest transition-all ${activeTemplate === t ? 'text-white' : 'text-white/40 hover:text-white'}`}
                 >
                   {activeTemplate === t && (
                     <motion.div
@@ -368,6 +386,7 @@ const PlaygroundPage: React.FC = () => {
               ))}
             </div>
           </GlassSurface>
+          )}
 
           {/* Save Button */}
           {user && (
@@ -396,29 +415,29 @@ const PlaygroundPage: React.FC = () => {
                 exit={{ opacity: 0, x: -50, scale: 0.95 }}
                 className="absolute left-4 top-4 bottom-4 w-80 z-50 shadow-2xl overflow-hidden rounded-[30px]"
               >
-                <GlassSurface
-                  width="100%"
-                  height="100%"
-                  borderRadius={30}
-                  borderWidth={0}
-                  opacity={0.8}
-                  blur={20}
-                  backgroundOpacity={0.6}
-                >
-                  <div className="w-full h-full p-4 overflow-y-auto">
-                    <h3 className="font-bold text-white/50 mb-4 uppercase text-xs tracking-widest">Saved Projects</h3>
+                {isRich ? (
+                  <div className="w-full h-full p-4 overflow-y-auto bg-white border border-black/[0.06] rounded-[30px] shadow-2xl">
+                    <h3 className="font-bold mb-4 uppercase text-xs tracking-widest text-gray-400">Saved Projects</h3>
                     {savedProjects.map(p => (
-                      <div
-                        key={p.id}
-                        onClick={() => handleLoadProject(p)}
-                        className="p-3 mb-2 rounded-xl bg-white/5 hover:bg-white/10 cursor-pointer border border-white/5 hover:border-primary/50 transition-all group"
-                      >
+                      <div key={p.id} onClick={() => handleLoadProject(p)} className="p-3 mb-2 rounded-xl cursor-pointer transition-all group bg-gray-100 hover:bg-gray-200 border border-black/[0.06] hover:border-primary/50">
                         <div className="font-bold text-sm group-hover:text-primary transition-colors">{p.name}</div>
-                        <div className="text-[10px] text-white/30 uppercase mt-1">{p.type} • {new Date(p.updatedAt).toLocaleDateString()}</div>
+                        <div className="text-[10px] text-gray-400 uppercase mt-1">{p.type} • {new Date(p.updatedAt).toLocaleDateString()}</div>
                       </div>
                     ))}
                   </div>
-                </GlassSurface>
+                ) : (
+                  <GlassSurface width="100%" height="100%" borderRadius={30} borderWidth={0} opacity={0.8} blur={20} backgroundOpacity={0.6}>
+                    <div className="w-full h-full p-4 overflow-y-auto">
+                      <h3 className="font-bold text-white/50 mb-4 uppercase text-xs tracking-widest">Saved Projects</h3>
+                      {savedProjects.map(p => (
+                        <div key={p.id} onClick={() => handleLoadProject(p)} className="p-3 mb-2 rounded-xl bg-white/5 hover:bg-white/10 cursor-pointer border border-white/5 hover:border-primary/50 transition-all group">
+                          <div className="font-bold text-sm group-hover:text-primary transition-colors">{p.name}</div>
+                          <div className="text-[10px] text-white/30 uppercase mt-1">{p.type} • {new Date(p.updatedAt).toLocaleDateString()}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </GlassSurface>
+                )}
               </motion.div>
             )
           }
@@ -432,8 +451,8 @@ const PlaygroundPage: React.FC = () => {
                 key={f}
                 onClick={() => setActiveFile(f)}
                 className={`px-3 py-1 rounded-t-lg text-xs font-mono border-t border-x relative z-10 ${activeFile === f
-                  ? "bg-white/10 border-white/20 text-white"
-                  : "bg-transparent border-transparent text-white/40 hover:text-white/60"
+                  ? (isRich ? 'bg-gray-200 border-gray-300 text-gray-900' : 'bg-white/10 border-white/20 text-white')
+                  : (isRich ? 'bg-transparent border-transparent text-gray-400 hover:text-gray-700' : 'bg-transparent border-transparent text-white/40 hover:text-white/60')
                   }`}
               >
                 {f}
@@ -441,6 +460,16 @@ const PlaygroundPage: React.FC = () => {
             ))}
           </div>
           <div className="flex-1 relative">
+            {isRich ? (
+              <div className="w-full h-full rounded-xl bg-white border border-black/[0.06] overflow-hidden">
+                <MonacoEditor
+                  language={activeTemplate === 'react' ? 'javascript' : activeTemplate === 'node' ? 'javascript' : activeTemplate}
+                  value={files[activeFile]}
+                  onChange={handleEditorChange}
+                  transparent={false}
+                />
+              </div>
+            ) : (
             <GlassSurface
               width="100%"
               height="100%"
@@ -457,11 +486,12 @@ const PlaygroundPage: React.FC = () => {
                 transparent={true}
               />
             </GlassSurface>
+            )}
           </div>
         </div>
 
         {/* PREVIEW PANEL */}
-        <div className="flex-1 flex flex-col min-w-0 bg-[#000] rounded-xl border border-white/10 overflow-hidden">
+        <div className={`flex-1 flex flex-col min-w-0 rounded-xl overflow-hidden ${isRich ? 'bg-white border border-black/[0.06]' : 'bg-[#000] border border-white/10'}`}>
           {/* Use a Key to force remount on Run if needed, or just let iframe handle it */}
           <div className="flex-1 relative bg-white">
             <CodeRunner
@@ -476,16 +506,16 @@ const PlaygroundPage: React.FC = () => {
           </div>
 
           {/* CONSOLE */}
-          <div className="h-40 bg-[#111] border-t border-white/10 p-2 font-mono text-xs overflow-y-auto">
-            <div className="flex justify-between items-center mb-1 text-white/30 uppercase font-bold tracking-widest">
+          <div className={`h-40 border-t p-2 font-mono text-xs overflow-y-auto ${isRich ? 'bg-gray-50 border-black/[0.06]' : 'bg-[#111] border-white/10'}`}>
+            <div className={`flex justify-between items-center mb-1 uppercase font-bold tracking-widest ${isRich ? 'text-gray-400' : 'text-white/30'}`}>
               <span>Console</span>
-              <button onClick={() => setLogs([])}><Trash2 className="w-3 h-3 hover:text-white" /></button>
+              <button onClick={() => setLogs([])}><Trash2 className={`w-3 h-3 ${isRich ? 'hover:text-gray-900' : 'hover:text-white'}`} /></button>
             </div>
             {error && <div className="text-red-500 mb-1">Error: {error}</div>}
             {logs.map((l, i) => (
-              <div key={i} className="text-green-400 border-b border-white/5 py-0.5">{l}</div>
+              <div key={i} className={`border-b py-0.5 ${isRich ? 'text-green-600 border-black/[0.06]' : 'text-green-400 border-white/5'}`}>{l}</div>
             ))}
-            {logs.length === 0 && !error && <div className="text-white/20 italic">Ready usually...</div>}
+            {logs.length === 0 && !error && <div className={`${isRich ? 'text-gray-300' : 'text-white/20'} italic`}>Ready usually...</div>}
           </div>
         </div>
       </div>

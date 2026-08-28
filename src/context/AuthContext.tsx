@@ -530,7 +530,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 localStorage.setItem("user", JSON.stringify(updatedUser));
 
                 // Visual Feedback
-                toast.success("Lesson Completed! 🔥", {
+                toast.success("Lesson Completed!", {
                     description: "Progress synced to cloud."
                 });
 
@@ -574,12 +574,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const newLevel = Math.floor(newXp / 100) + 1;
 
             if (newLevel > (prev.level || 1)) {
-                toast.success(`LEVEL UP! You are now Level ${newLevel} 🚀`, {
+                toast.success(`LEVEL UP! You are now Level ${newLevel}`, {
                     description: "Keep going to unlock new perks!",
                     duration: 5000
                 });
             } else {
-                toast.success(`+${amount} XP Gained! ⚡️`);
+                toast.success(`+${amount} XP Gained!`);
             }
 
             const updatedUser = { ...prev, xp: newXp, level: newLevel };

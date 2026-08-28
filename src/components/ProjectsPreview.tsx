@@ -14,7 +14,7 @@ const ProjectsPreview: React.FC = () => {
                     viewport={{ once: true }}
                     className="text-center mb-16"
                 >
-                    <h2 className="text-3xl md:text-5xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400">
+                    <h2 className="text-3xl md:text-5xl font-bold mb-6 text-white">
                         Build a Real-World Portfolio
                     </h2>
                     <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
@@ -37,7 +37,7 @@ const ProjectsPreview: React.FC = () => {
                                 opacity={0.4}
                             >
                                 <div className="flex items-start justify-between mb-6">
-                                    <div className="p-3 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-white/10 group-hover:scale-110 transition-transform duration-300">
+                                    <div className="p-3 rounded-xl bg-[#2997ff]/10 border border-white/10 group-hover:scale-110 transition-transform duration-300">
                                         {getIcon(project.icon)}
                                     </div>
                                     <div className="flex gap-2">
@@ -77,8 +77,8 @@ const ProjectsPreview: React.FC = () => {
 
 const getIcon = (iconName: string) => {
     switch (iconName) {
-        case 'terminal': return <Terminal className="w-6 h-6 text-indigo-400" />;
-        case 'database': return <Database className="w-6 h-6 text-purple-400" />;
+        case 'terminal': return <Terminal className="w-6 h-6 text-[#2997ff]" />;
+        case 'database': return <Database className="w-6 h-6 text-[#06b6d4]" />;
         case 'globe': return <Globe className="w-6 h-6 text-pink-400" />;
         default: return <Code className="w-6 h-6 text-blue-400" />;
     }

@@ -228,7 +228,7 @@ const AdminDashboard: React.FC = () => {
         const pendingFeedback = feedback.filter(f => f.status === 'pending').length;
 
         return [
-            { id: 'all', label: 'Total Members', value: sqlStats?.totalUsers ?? totalUsers, icon: Users, color: 'indigo', trend: 'Global' },
+            { id: 'all', label: 'Total Members', value: sqlStats?.totalUsers ?? totalUsers, icon: Users, color: 'blue', trend: 'Global' },
             { id: 'pro', label: 'PRO Members', value: sqlStats?.proMembers ?? proUsers, icon: Award, color: 'primary', trend: 'Lifetime' },
             { id: 'online', label: 'Active Trials', value: activeTrials, icon: Clock, color: 'amber', trend: 'Trials' },
             { id: 'today', label: 'New Today', value: sqlStats?.newToday ?? 0, icon: TrendingUp, color: 'rose', trend: 'Today' }
@@ -238,20 +238,20 @@ const AdminDashboard: React.FC = () => {
     return (
         <div className="min-h-screen bg-background pb-20">
             {/* Header */}
-            <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-white/5 px-6 py-4 mb-8">
+            <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-black/[0.06] px-6 py-4 mb-8">
                 <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <div className="flex items-center gap-2 mb-1">
                             <ShieldCheck className="w-5 h-5 text-primary" />
                             <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">System Command</span>
                         </div>
-                        <h1 className="text-2xl font-black text-white">Admin Control Center</h1>
+                        <h1 className="text-2xl font-black text-gray-900">Admin Control Center</h1>
                     </div>
 
                     <div className="flex items-center gap-3">
                         <Link
                             to="/dashboard"
-                            className="flex items-center gap-2 px-5 py-2.5 bg-secondary/50 text-white font-bold rounded-xl hover:bg-secondary transition-all border border-white/5 active:scale-95"
+                            className="flex items-center gap-2 px-5 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-all border border-black/[0.06] active:scale-95"
                         >
                             <PanelLeft className="w-4 h-4" /> Learner View
                         </Link>
@@ -278,18 +278,18 @@ const AdminDashboard: React.FC = () => {
                                 setActiveTab('users');
                                 setFilterRole(stat.id as 'all' | 'pro' | 'online');
                             }}
-                            className="p-6 rounded-[2.5rem] bg-secondary/10 border border-white/5 relative overflow-hidden group hover:border-primary/30 transition-all cursor-pointer"
+                            className="p-6 rounded-[2.5rem] bg-white border border-black/[0.06] relative overflow-hidden group hover:border-primary/30 transition-all cursor-pointer"
                         >
                             <div className={`absolute top-0 right-0 w-32 h-32 bg-${stat.color}-500/5 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-${stat.color}-500/10 transition-colors`} />
 
                             <div className="relative z-10">
                                 <div className="flex items-start justify-between mb-4">
-                                    <div className={`p-3 rounded-2xl bg-${stat.color}-500/10 text-${stat.color}-400 border border-${stat.color}-500/20`}>
+                                    <div className={`p-3 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200`}>
                                         <stat.icon className="w-6 h-6" />
                                     </div>
                                     <span className="text-[10px] font-black px-2 py-1 rounded bg-white/5 text-muted-foreground uppercase tracking-widest">{stat.trend}</span>
                                 </div>
-                                <h3 className="text-3xl font-black text-white mb-1">{stat.value}</h3>
+                                <h3 className="text-xl md:text-3xl font-black text-gray-900 mb-1">{stat.value}</h3>
                                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{stat.label}</p>
                             </div>
                         </motion.div>
@@ -297,8 +297,8 @@ const AdminDashboard: React.FC = () => {
                 </div>
 
                 {/* Tab Navigation */}
-                <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 border-b border-white/5 pb-8">
-                    <div className="flex p-1.5 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-xl w-full xl:w-fit overflow-x-auto no-scrollbar">
+                <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 border-b border-black/[0.06] pb-8">
+                    <div className="flex p-1.5 bg-gray-100 rounded-2xl border border-black/[0.06] w-full xl:w-fit overflow-x-auto no-scrollbar">
                         {[
                             { id: 'users', icon: Users, label: 'Members' },
                             { id: 'feedback', icon: MessageSquare, label: 'Feedback' },
@@ -310,7 +310,7 @@ const AdminDashboard: React.FC = () => {
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id as any)}
-                                className={`flex-1 xl:flex-none flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-[10px] whitespace-nowrap font-black uppercase tracking-widest transition-all ${activeTab === tab.id ? 'bg-primary text-white shadow-xl shadow-primary/20' : 'text-muted-foreground hover:text-white hover:bg-white/5'}`}
+                                className={`flex-1 xl:flex-none flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-[10px] whitespace-nowrap font-black uppercase tracking-widest transition-all ${activeTab === tab.id ? 'bg-primary text-white shadow-xl shadow-primary/20' : 'text-muted-foreground hover:text-gray-900 hover:bg-gray-200'}`}
                             >
                                 <tab.icon className="w-4 h-4" />
                                 {tab.label}
@@ -355,20 +355,20 @@ const AdminDashboard: React.FC = () => {
                                             <th className="px-6 md:px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground text-right">Actions</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-white/5">
+                                    <tbody className="divide-y divide-black/[0.06]">
                                         {filteredUsers.map((u) => (
                                             <React.Fragment key={u.email}>
                                                 <tr
-                                                    className="group hover:bg-white/[0.02] transition-colors relative cursor-pointer"
+                                                    className="group hover:bg-gray-50 transition-colors relative cursor-pointer"
                                                     onClick={() => setExpandedUser(expandedUser === u.email ? null : u.email)}
                                                 >
                                                     <td className="px-8 py-6">
                                                         <div className="flex items-center gap-4">
-                                                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 group-hover:from-indigo-500/30 group-hover:to-purple-500/30 flex items-center justify-center font-black text-white border border-white/10 transition-all scale-100 group-hover:scale-110">
+                                                            <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center font-black text-emerald-700 border border-emerald-200 transition-all scale-100 group-hover:scale-110">
                                                                 {u.name?.charAt(0).toUpperCase()}
                                                             </div>
                                                             <div>
-                                                                <div className="font-black text-white text-base group-hover:text-primary transition-colors flex items-center gap-2">
+                                                                <div className="font-black text-gray-900 text-base group-hover:text-primary transition-colors flex items-center gap-2">
                                                                     {u.name}
                                                                     <ChevronRight className={`w-3 h-3 transition-transform ${expandedUser === u.email ? 'rotate-90' : ''}`} />
                                                                 </div>
@@ -388,7 +388,7 @@ const AdminDashboard: React.FC = () => {
                                                         </div>
                                                     </td>
                                                     <td className="px-8 py-6">
-                                                        <div className="text-xs font-bold text-white">
+                                                        <div className="text-xs font-bold text-gray-700">
                                                             {(() => {
                                                                 const stats = getPhasesStatus(curriculum, u.completedLessons);
                                                                 const current = stats.find(p => !p.locked && !p.completed) || stats[stats.length - 1];
@@ -445,9 +445,9 @@ const AdminDashboard: React.FC = () => {
                                                                         <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Plan</div>
                                                                         <div className="text-sm font-bold flex flex-wrap gap-2">
                                                                             {u.trialExpiresAt && u.trialExpiresAt !== 'EXPIRED' ? (
-                                                                                <span className="text-amber-400">⚡ TRIAL</span>
+                                                                                <span className="text-amber-400">TRIAL</span>
                                                                             ) : (u.purchasedCourses && u.purchasedCourses.length > 0) ? (
-                                                                                <span className="text-yellow-400">⭐ PRO</span>
+                                                                                <span className="text-yellow-400">PRO</span>
                                                                             ) : (
                                                                                 <span className="text-zinc-500">FREE</span>
                                                                             )}
@@ -458,7 +458,7 @@ const AdminDashboard: React.FC = () => {
                                                                         <div className="flex flex-wrap gap-1">
                                                                             {u.purchasedCourses && u.purchasedCourses.length > 0 ? (
                                                                                 u.purchasedCourses.map((c: string) => (
-                                                                                    <span key={c} className="px-2 py-0.5 rounded-md bg-white/5 text-[10px] font-black uppercase text-white/70 border border-white/5">
+                                                                                    <span key={c} className="px-2 py-0.5 rounded-md bg-white/5 text-[10px] font-black uppercase text-gray-500 border border-black/[0.06]">
                                                                                         {c}
                                                                                     </span>
                                                                                 ))
@@ -487,7 +487,7 @@ const AdminDashboard: React.FC = () => {
                                                                     </div>
                                                                     <div className="space-y-1">
                                                                         <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Streak</div>
-                                                                        <div className="text-sm font-bold text-orange-400">🔥 {u.streak || 0} days</div>
+                                                                        <div className="text-sm font-bold text-orange-400">{u.streak || 0} days</div>
                                                                     </div>
                                                                     <div className="space-y-1">
                                                                         <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Lessons Done</div>
@@ -577,7 +577,7 @@ const AdminDashboard: React.FC = () => {
                                         </span>
                                     </div>
 
-                                    <div className="p-6 bg-black/40 rounded-3xl border border-white/5 min-h-[100px] relative overflow-hidden mb-6">
+                                    <div className="p-6 bg-gray-50 rounded-3xl border border-black/[0.06] min-h-[100px] relative overflow-hidden mb-6">
                                         <div className="absolute top-0 right-0 p-4 opacity-5">
                                             <MessageSquare className="w-16 h-16" />
                                         </div>
@@ -606,7 +606,7 @@ const AdminDashboard: React.FC = () => {
                                                 const reply = prompt("Enter the official response:");
                                                 if (reply) replyToFeedback(item.id, reply);
                                             }}
-                                            className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white font-black rounded-2xl text-xs uppercase tracking-widest transition-all border border-white/10"
+                                            className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white font-black rounded-2xl text-xs uppercase tracking-widest transition-all border border-black/[0.06]"
                                         >
                                             Transmit
                                         </button>
@@ -669,7 +669,7 @@ const AdminDashboard: React.FC = () => {
                                                 </span>
                                             </div>
 
-                                            <div className="p-5 bg-black/40 rounded-2xl border border-white/5 mb-6">
+                                            <div className="p-5 bg-gray-50 rounded-2xl border border-black/[0.06] mb-6">
                                                 <div className="flex items-center justify-between mb-3">
                                                     <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Course Progress</span>
                                                     <span className="text-sm font-black text-white">{progress}%</span>
@@ -746,7 +746,7 @@ const AdminDashboard: React.FC = () => {
                                             </span>
                                         </div>
 
-                                        <div className="p-5 bg-black/40 rounded-2xl border border-white/5 mb-6 relative">
+                                        <div className="p-5 bg-gray-50 rounded-2xl border border-black/[0.06] mb-6 relative">
                                             <div className="absolute top-2 right-4 opacity-10">
                                                 <AlertTriangle className="w-8 h-8 text-red-500" />
                                             </div>
@@ -814,7 +814,7 @@ const AdminDashboard: React.FC = () => {
                             <div className="bg-secondary/10 rounded-[2.5rem] border border-white/5 p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative group">
                                 <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                                 <div className="flex items-center gap-5 relative z-10">
-                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border shadow-lg transition-colors ${isOfferActive ? 'bg-primary/20 border-primary/30 text-primary shadow-primary/20' : 'bg-white/5 border-white/10 text-white/40'}`}>
+                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border shadow-lg transition-colors ${isOfferActive ? 'bg-primary/20 border-primary/30 text-primary shadow-primary/20' : 'bg-white/5 border-white/10 text-gray-400'}`}>
                                         <Zap className="w-7 h-7" />
                                     </div>
                                     <div>
@@ -851,7 +851,7 @@ const AdminDashboard: React.FC = () => {
                                             <th className="px-6 md:px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground text-right">Actions</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-white/5">
+                                    <tbody className="divide-y divide-black/[0.06]">
                                         {users.filter(u => u.role !== 'admin').map((u) => {
                                             const totalLessons = 31;
                                             const completedCount = u.completedLessons?.length || 0;
@@ -863,7 +863,7 @@ const AdminDashboard: React.FC = () => {
                                                         <td className="px-8 py-6">
                                                             <div className="flex items-center gap-4">
                                                                 <ChevronRight className={`w-4 h-4 text-zinc-500 transition-transform ${expandedProgressUser === u.email ? 'rotate-90' : ''}`} />
-                                                                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center font-bold text-white border border-white/10">
+                                                                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center font-bold text-white border border-black/[0.06]">
                                                                     {u.name?.charAt(0).toUpperCase()}
                                                                 </div>
                                                                 <div>
@@ -933,7 +933,7 @@ const AdminDashboard: React.FC = () => {
                                                                         const phaseTotal = phase.lessons.length;
                                                                         const phaseProgress = Math.round((phaseCompleted / phaseTotal) * 100);
                                                                         return (
-                                                                            <div key={phase.id} className="p-4 rounded-2xl bg-white/5 border border-white/5">
+                                                                            <div key={phase.id} className="p-4 rounded-2xl bg-white/5 border border-black/[0.06]">
                                                                                 <div className="flex items-center justify-between mb-3">
                                                                                     <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{phase.title}</span>
                                                                                     <span className={`text-[10px] font-black ${phaseProgress === 100 ? 'text-green-400' : 'text-zinc-500'}`}>{phaseCompleted}/{phaseTotal}</span>
@@ -987,9 +987,7 @@ const AdminDashboard: React.FC = () => {
                                         </div>
                                         <h3 className="text-3xl md:text-5xl font-black text-white mb-3 tracking-tighter uppercase">PROGENITOR <span className="text-primary italic">X</span></h3>
                                         <p className="text-muted-foreground text-sm md:text-lg font-medium opacity-60">Authorize high-sync architectural access across the grid.</p>
-                                    </div>
-
-                                    <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-center gap-6 bg-black/40 p-6 md:p-8 rounded-[2.5rem] border border-white/5 shadow-inner">
+                                    </div>                                     <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-center gap-6 bg-gray-50 p-6 md:p-8 rounded-[2.5rem] border border-black/[0.06]">
                                         <div className="flex p-1.5 bg-white/5 rounded-2xl border border-white/5 w-full lg:w-auto">
                                             {[
                                                 { id: '3days', label: '72H LEVEL' },
@@ -1054,14 +1052,14 @@ const AdminDashboard: React.FC = () => {
                                                 <th className="px-8 py-6">Linked Entity</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-white/5">
+                                        <tbody className="divide-y divide-black/[0.06]">
                                             {codes.map((c: any) => (
                                                 <tr key={c.code} className="group hover:bg-white/[0.02] transition-colors">
                                                     <td className="px-10 py-6 font-mono font-black text-white text-xl tracking-[0.2em]">{c.code}</td>
                                                     <td className="px-10 py-6">
                                                         <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl font-black text-[10px] uppercase tracking-widest ${c.type === 'lifetime' ? 'text-green-400 bg-green-400/10 border border-green-500/20' :
                                                             c.type === '5mins' ? 'text-amber-400 bg-amber-400/5' :
-                                                                'text-indigo-400 bg-indigo-400/5'
+                                                                'text-[#2997ff] bg-[#2997ff]/5'
                                                             }`}>
                                                             {c.type === 'lifetime' ? <Award className="w-3.5 h-3.5" /> : <Zap className="w-3.5 h-3.5" />}
                                                             {c.type === 'lifetime' ? 'Progenitor Core' : c.type === '5mins' ? 'Low-Orbit' : 'High-Sync'}
@@ -1159,7 +1157,7 @@ const AdminDashboard: React.FC = () => {
                                             <th className="px-8 py-5 text-right">Time</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-white/5">
+                                    <tbody className="divide-y divide-black/[0.06]">
                                         {Object.entries(groupedLogs).map(([email, logs]) => {
                                             const isExpanded = expandedEmails.has(email);
                                             const firstLog = logs[0];
@@ -1184,7 +1182,7 @@ const AdminDashboard: React.FC = () => {
                                                             </div>
                                                         </td>
                                                         <td className="px-8 py-5">
-                                                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/5">
+                                                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-black/[0.06]">
                                                                 <TrendingUp className="w-3 h-3 text-primary/60" />
                                                                 <span className="text-[10px] font-black uppercase tracking-widest text-white/50">
                                                                     {logs.length} Actions
@@ -1223,7 +1221,7 @@ const AdminDashboard: React.FC = () => {
                                                                 <div className="flex items-center gap-3">
                                                                     <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border ${log.type === 'NAVIGATE' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
                                                                         log.type === 'CLICK' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                                                                            'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                                                                            'bg-[#2997ff]/10 text-[#2997ff] border-[#2997ff]/20'
                                                                         }`}>
                                                                         {log.type}
                                                                     </span>

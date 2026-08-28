@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useFeedback } from '../context/FeedbackContext';
+import { useTheme } from '../context/ThemeContext';
 import { MessageSquarePlus, Send, CheckCircle2, AlertCircle, Clock, TrendingUp } from 'lucide-react';
 import { motion } from 'motion/react';
 
 const Feedback: React.FC = () => {
     const { user } = useAuth();
+    const { theme } = useTheme();
+    const isRich = theme === 'rich';
     const { addFeedback, feedback } = useFeedback();
     const [content, setContent] = useState('');
     const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -39,7 +42,7 @@ const Feedback: React.FC = () => {
                     <MessageSquarePlus className="w-8 h-8" />
                     <span className="text-[10px] font-black uppercase tracking-[0.3em] font-sans">User Voice Program</span>
                 </div>
-                <h1 className="text-4xl font-black tracking-tight text-white">Help Us Build the Future</h1>
+                <h1 className={`text-2xl md:text-4xl font-black tracking-tight ${isRich ? 'text-gray-900' : 'text-white'}`}>Help Us Build the Future</h1>
                 <p className="text-muted-foreground text-lg leading-relaxed">
                     Your suggestions directly influence our roadmap. Tell us what you want to see next.
                 </p>
@@ -48,7 +51,7 @@ const Feedback: React.FC = () => {
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="p-8 rounded-[2.5rem] bg-secondary/10 border border-white/5 backdrop-blur-xl relative overflow-hidden"
+                className={`p-8 rounded-[2.5rem] relative overflow-hidden ${isRich ? 'bg-white border border-black/[0.06]' : 'bg-secondary/10 border border-white/5 backdrop-blur-xl'}`}
             >
                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-16 -mt-16" />
 
@@ -62,19 +65,19 @@ const Feedback: React.FC = () => {
                             value={content}
                             onChange={(e) => setContent(e.target.value)}
                             placeholder="I would love to see a module on..."
-                            className="w-full min-h-[160px] p-6 rounded-[2rem] bg-black/40 border border-white/10 focus:border-primary/50 focus:ring-4 focus:ring-primary/10 outline-none transition-all resize-none text-base placeholder:text-zinc-700 text-white font-medium"
+                            className={`w-full min-h-[160px] p-6 rounded-[2rem] border focus:border-primary/50 focus:ring-4 focus:ring-primary/10 outline-none transition-all resize-none text-base placeholder:text-zinc-700 font-medium ${isRich ? 'bg-gray-50 border-black/[0.06] text-gray-900' : 'bg-black/40 border-white/10 text-white'}`}
                             required
                         />
                     </div>
 
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-6 pt-4 border-t border-white/5">
+                    <div className={`flex flex-col sm:flex-row items-center justify-between gap-6 pt-4 border-t ${isRich ? 'border-black/[0.06]' : 'border-white/5'}`}>
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center font-black text-white border border-white/10 text-sm">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm ${isRich ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-[#2997ff]/20 text-white border border-white/10'}`}>
                                 {user?.name.charAt(0)}
                             </div>
                             <div className="text-xs">
                                 <span className="text-zinc-500 font-bold block uppercase tracking-tighter">Authenticated as</span>
-                                <span className="text-white font-black">{user?.name}</span>
+                                <span className={`font-black ${isRich ? 'text-gray-900' : 'text-white'}`}>{user?.name}</span>
                             </div>
                         </div>
 
@@ -116,11 +119,11 @@ const Feedback: React.FC = () => {
                                 key={item.id}
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                className="p-6 rounded-3xl bg-secondary/5 border border-white/5 flex flex-col gap-4 group hover:bg-white/[0.02] transition-all"
+                                className={`p-6 rounded-3xl flex flex-col gap-4 group transition-all ${isRich ? 'bg-gray-50 border border-black/[0.06] hover:bg-gray-100' : 'bg-secondary/5 border border-white/5 hover:bg-white/[0.02]'}`}
                             >
                                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                                     <div className="space-y-2 w-full">
-                                        <p className="text-sm text-zinc-300 font-medium group-hover:text-white transition-colors">
+                                        <p className={`text-sm font-medium transition-colors ${isRich ? 'text-gray-700 group-hover:text-gray-900' : 'text-zinc-300 group-hover:text-white'}`}>
                                             {item.content}
                                         </p>
                                         <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest block">

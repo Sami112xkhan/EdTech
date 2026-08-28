@@ -20,12 +20,15 @@ const Toggle: React.FC<{
     label: string;
     description?: string;
     icon?: React.ReactNode;
-}> = ({ enabled, onChange, label, description, icon }) => (
+}> = ({ enabled, onChange, label, description, icon }) => {
+    const { theme } = useTheme();
+    const isRich = theme === 'rich';
+    return (
     <div className="flex items-center justify-between py-3.5">
         <div className="flex items-center gap-3 flex-1 min-w-0">
             {icon && <div className="text-muted-foreground shrink-0">{icon}</div>}
             <div className="min-w-0">
-                <p className="text-sm font-medium text-white">{label}</p>
+                <p className={`text-sm font-medium ${isRich ? "text-gray-900" : "text-white"}`}>{label}</p>
                 {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
             </div>
         </div>
@@ -42,6 +45,7 @@ const Toggle: React.FC<{
         </button>
     </div>
 );
+};
 
 // ─── Select Dropdown ───
 const Select: React.FC<{
@@ -51,6 +55,8 @@ const Select: React.FC<{
     label: string;
     icon?: React.ReactNode;
 }> = ({ value, onChange, options, label, icon }) => {
+    const { theme } = useTheme();
+    const isRich = theme === 'rich';
     const [open, setOpen] = useState(false);
     const ref = React.useRef<HTMLDivElement>(null);
 
@@ -67,12 +73,12 @@ const Select: React.FC<{
         <div className="flex flex-col sm:flex-row sm:items-center justify-between py-3.5 gap-3 sm:gap-0">
             <div className="flex items-center gap-3">
                 {icon && <div className="text-muted-foreground shrink-0">{icon}</div>}
-                <p className="text-sm font-medium text-white">{label}</p>
+                <p className={`text-sm font-medium ${isRich ? "text-gray-900" : "text-white"}`}>{label}</p>
             </div>
             <div className="relative w-full sm:w-auto" ref={ref}>
                 <button
                     onClick={() => setOpen(!open)}
-                    className="w-full sm:w-auto flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white hover:bg-white/10 transition-colors min-w-[150px] justify-between"
+                    className={`w-full sm:w-auto flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm ${isRich ? 'bg-gray-100 border border-black/[0.06] text-gray-900 hover:bg-gray-200' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'} transition-colors min-w-[120px] sm:min-w-[150px] justify-between`}
                 >
                     {options.find(o => o.value === value)?.label}
                     <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -83,13 +89,13 @@ const Select: React.FC<{
                             initial={{ opacity: 0, y: -4 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -4 }}
-                            className="absolute right-0 top-full mt-1 w-full bg-[#1a1a1a] border border-white/10 rounded-lg shadow-2xl z-50 overflow-hidden"
+                            className={`absolute right-0 top-full mt-1 w-full rounded-lg shadow-2xl z-50 overflow-hidden ${isRich ? "bg-white border border-black/[0.06]" : "bg-[#1a1a1a] border border-white/10"}`}
                         >
                             {options.map(opt => (
                                 <button
                                     key={opt.value}
                                     onClick={() => { onChange(opt.value); setOpen(false); }}
-                                    className={`w-full text-left px-3 py-2 text-sm hover:bg-white/10 transition-colors flex items-center justify-between ${value === opt.value ? 'text-primary' : 'text-white/80'}`}
+                                    className={`w-full text-left px-3 py-2 text-sm transition-colors flex items-center justify-between ${isRich ? 'hover:bg-gray-100 text-gray-700' : 'hover:bg-white/10 text-white/80'} ${value === opt.value ? 'text-primary' : ''}`}
                                 >
                                     {opt.label}
                                     {value === opt.value && <Check className="w-3.5 h-3.5" />}
@@ -109,18 +115,22 @@ const SettingsSection: React.FC<{
     icon: React.ReactNode;
     children: React.ReactNode;
     badge?: string;
-}> = ({ title, icon, children, badge }) => (
-    <div className="bg-secondary/30 border border-white/5 rounded-xl p-6 space-y-1">
+}> = ({ title, icon, children, badge }) => {
+    const { theme } = useTheme();
+    const isRich = theme === 'rich';
+    return (
+    <div className={`p-6 space-y-1 rounded-xl ${isRich ? "bg-white border border-black/[0.06]" : "bg-secondary/30 border border-white/5"}`}>
         <div className="flex items-center gap-3 mb-4">
             <div className="text-primary">{icon}</div>
-            <h2 className="text-lg font-bold text-white">{title}</h2>
+            <h2 className={`text-lg font-bold ${isRich ? "text-gray-900" : "text-white"}`}>{title}</h2>
             {badge && (
                 <span className="px-2 py-0.5 bg-primary/20 text-primary text-[9px] font-black uppercase tracking-widest rounded-full">{badge}</span>
             )}
         </div>
         <div className="divide-y divide-white/5">{children}</div>
     </div>
-);
+    );
+};
 
 // ─── Main Component ───
 const Settings: React.FC = () => {
@@ -140,11 +150,14 @@ const Settings: React.FC = () => {
 
     // Appearance (Global Theme Context)
     const { 
+        theme, setTheme,
         fontSize, setFontSize, 
         accentColor, setAccentColor, 
         codeFont, setCodeFont,
         frostedMode, setFrostedMode
     } = useTheme();
+    const isRich = theme === 'rich';
+    const isDark = theme === 'dark-gamer';
 
     // Notifications
     const [emailNotifs, setEmailNotifs] = useState(() => user?.emailNotifs ?? loadPref('emailNotifs', true));
@@ -164,8 +177,7 @@ const Settings: React.FC = () => {
             return false;
         }
         const permission = await Notification.requestPermission();
-        if (permission === 'granted') {
-            toast.success('Push notifications enabled! 🔔');
+        if (permission === 'granted') {                            toast.success('Push notifications enabled!');
             return true;
         } else {
             toast.error('Push notification permission denied');
@@ -190,7 +202,7 @@ const Settings: React.FC = () => {
         setPushNotifs(value);
         localStorage.setItem('settings_pushNotifs', JSON.stringify(value));
         updateProfile({ pushNotifs: value }).catch(() => { });
-        toast.success(value ? 'Push notifications enabled 🔔' : 'Push notifications disabled', { duration: 1200 });
+        toast.success(value ? 'Push notifications enabled' : 'Push notifications disabled', { duration: 1200 });
     };
 
     // ─── Sound effect (play a sample beep) ───
@@ -212,7 +224,7 @@ const Settings: React.FC = () => {
                 setTimeout(() => ctx.close(), 300);
             } catch { /* silent fallback */ }
         }
-        toast.success(value ? 'Sound effects enabled 🔊' : 'Sound effects muted 🔇', { duration: 1200 });
+        toast.success(value ? 'Sound effects enabled' : 'Sound effects muted', { duration: 1200 });
     };
 
     useEffect(() => { if (user) { setName(user.name); setUsername(user.username || ""); } }, [user]);
@@ -222,7 +234,7 @@ const Settings: React.FC = () => {
         setIsSaving(true);
         try {
             await updateProfile({ name, username });
-            toast.success("Profile updated! ✨");
+            toast.success("Profile updated!");
         } catch {
             toast.error("Failed to save. Please try again.");
         } finally {
@@ -253,7 +265,7 @@ const Settings: React.FC = () => {
         a.download = `devmastery-export-${new Date().toISOString().split('T')[0]}.json`;
         a.click();
         URL.revokeObjectURL(url);
-        toast.success("Data exported! 📦");
+        toast.success("Data exported!");
     };
 
     const handleResetPreferences = () => {
@@ -271,7 +283,7 @@ const Settings: React.FC = () => {
         <div className="w-full flex justify-center">
             <div className="w-full max-w-4xl space-y-6 pb-12">
                 <div>
-                    <h1 className="text-3xl font-bold">Account Settings</h1>
+                    <h1 className="text-xl md:text-3xl font-bold">Account Settings</h1>
                     <p className="text-muted-foreground">Manage your profile, preferences, and privacy.</p>
                 </div>
 
@@ -320,25 +332,37 @@ const Settings: React.FC = () => {
 
                 {/* ─── Appearance (no Theme) ─── */}
                 <SettingsSection title="Appearance" icon={<Palette className="w-5 h-5" />}>
-                    <Toggle
-                        label="Frosted Glass Mode"
-                        description="Disables heavy backgrounds for a high-performance, frosted glass look"
-                        icon={<Monitor className="w-4 h-4" />}
-                        enabled={frostedMode}
-                        onChange={setFrostedMode}
+                    <Select
+                        label="Theme"
+                        icon={<Palette className="w-4 h-4" />}
+                        value={theme}
+                        onChange={(v) => setTheme(v as any)}
+                        options={[
+                            { value: 'dark-gamer', label: 'Dark Gamer' },
+                            { value: 'rich', label: 'Rich' },
+                        ]}
                     />
-                    {!frostedMode && (
+                    {isDark && (
+                        <Toggle
+                            label="Frosted Glass Mode"
+                            description="Disables heavy backgrounds for a high-performance, frosted glass look"
+                            icon={<Monitor className="w-4 h-4" />}
+                            enabled={frostedMode}
+                            onChange={setFrostedMode}
+                        />
+                    )}
+                    {isDark && !frostedMode && (
                         <Select
                             label="Accent Color"
                             icon={<Palette className="w-4 h-4" />}
                             value={accentColor}
                             onChange={setAccentColor}
                             options={[
-                                { value: 'purple', label: '💜 Purple' },
-                                { value: 'blue', label: '💙 Blue' },
-                                { value: 'green', label: '💚 Green' },
-                                { value: 'orange', label: '🧡 Orange' },
-                                { value: 'pink', label: '💗 Pink' },
+                                { value: 'blue', label: 'Blue' },
+                                { value: 'green', label: 'Green' },
+                                { value: 'orange', label: 'Orange' },
+                                { value: 'red', label: 'Red' },
+                                { value: 'teal', label: 'Teal' },
                             ]}
                         />
                     )}
@@ -407,9 +431,9 @@ const Settings: React.FC = () => {
                         value={profileVisibility}
                         onChange={updatePref('profileVisibility', setProfileVisibility)}
                         options={[
-                            { value: 'public', label: '🌍 Public' },
-                            { value: 'friends', label: '👥 Friends Only' },
-                            { value: 'private', label: '🔒 Private' },
+                            { value: 'public', label: 'Public' },
+                            { value: 'friends', label: 'Friends Only' },
+                            { value: 'private', label: 'Private' },
                         ]}
                     />
                     <Toggle
@@ -429,7 +453,7 @@ const Settings: React.FC = () => {
                 </SettingsSection>
 
                 {/* ─── Subscription ─── */}
-                <div className="bg-secondary/30 border border-white/5 rounded-xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4 relative overflow-hidden">
+                <div className={`p-6 flex flex-col sm:flex-row ${isRich ? "bg-white border border-black/[0.06] rounded-xl" : "bg-secondary/30 border border-white/5 rounded-xl"} items-center justify-between gap-4 relative overflow-hidden"`}>
                     <div className="flex items-center gap-4">
                         <div className={`w-12 h-12 rounded-full flex items-center justify-center ${user?.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED'
                             ? 'bg-amber-500/20 text-amber-400'
@@ -478,13 +502,13 @@ const Settings: React.FC = () => {
                         <div className="flex items-center gap-3">
                             <Download className="w-4 h-4 text-muted-foreground shrink-0" />
                             <div>
-                                <p className="text-sm font-medium text-white">Export My Data</p>
+                                <p className={`text-sm font-medium ${isRich ? "text-gray-900" : "text-white"}`}>Export My Data</p>
                                 <p className="text-xs text-muted-foreground mt-0.5">Download all settings & progress as JSON</p>
                             </div>
                         </div>
                         <button
                             onClick={handleExportData}
-                            className="w-full sm:w-auto px-4 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white hover:bg-white/10 transition-colors font-medium"
+                            className={`w-full sm:w-auto px-4 py-1.5 rounded-lg text-sm ${isRich ? 'bg-gray-100 border-black/[0.06] text-gray-900 hover:bg-gray-200' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'} transition-colors font-medium`}
                         >
                             Export
                         </button>
@@ -493,7 +517,7 @@ const Settings: React.FC = () => {
                         <div className="flex items-center gap-3">
                             <RefreshCw className="w-4 h-4 text-muted-foreground shrink-0" />
                             <div>
-                                <p className="text-sm font-medium text-white">Reset Preferences</p>
+                                <p className={`text-sm font-medium ${isRich ? "text-gray-900" : "text-white"}`}>Reset Preferences</p>
                                 <p className="text-xs text-muted-foreground mt-0.5">Restore all settings to their defaults</p>
                             </div>
                         </div>

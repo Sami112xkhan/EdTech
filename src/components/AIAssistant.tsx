@@ -9,6 +9,7 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import BlurText from "./BlurText";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 import GlassSurface from "./GlassSurface";
 
 interface Message {
@@ -31,6 +32,8 @@ interface AIAssistantProps {
 
 const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
     const { user } = useAuth();
+    const { theme } = useTheme();
+    const isRich = theme === 'rich';
     const [isOpen, setIsOpen] = useState(variant === 'full');
     const [input, setInput] = useState("");
     const [messages, setMessages] = useState<Message[]>([
@@ -390,15 +393,21 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
                     onClick={() => setIsOpen(true)}
                     className={`fixed bottom-4 md:bottom-6 right-4 md:right-6 z-50 ${isOpen ? 'hidden' : 'flex'} overflow-hidden rounded-full shadow-2xl`}
                 >
-                    <GlassSurface
-                        borderRadius={50} // High value for circular
-                        opacity={0.3}
-                        blur={20}
-                        backgroundOpacity={0.2}
-                        className="p-4"
-                    >
-                        <Bot className="w-6 h-6 text-primary" />
-                    </GlassSurface>
+                    {isRich ? (
+                        <div className="p-4 bg-white rounded-full shadow-lg border border-black/[0.06]">
+                            <Bot className="w-6 h-6 text-primary" />
+                        </div>
+                    ) : (
+                        <GlassSurface
+                            borderRadius={50}
+                            opacity={0.3}
+                            blur={20}
+                            backgroundOpacity={0.2}
+                            className="p-4"
+                        >
+                            <Bot className="w-6 h-6 text-primary" />
+                        </GlassSurface>
+                    )}
                 </motion.button>
             )}
 
@@ -410,12 +419,16 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
                         exit={isFloating ? { opacity: 0, scale: 0.9, y: 20 } : { opacity: 0 }}
                         className={
                             isFloating
-                                ? "fixed bottom-4 md:bottom-6 right-4 md:right-6 left-4 md:left-auto w-auto md:w-[400px] max-w-none md:max-w-sm h-[calc(100dvh-6rem)] md:h-[600px] bg-[#0d0d12]/95 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-col z-50 overflow-hidden"
-                                : "w-full h-full bg-[#0d0d12]/40 backdrop-blur-xl border border-white/10 rounded-3xl flex flex-col overflow-hidden shadow-2xl"
+                                ? isRich
+                                    ? "fixed bottom-4 md:bottom-6 right-4 md:right-6 left-4 md:left-auto w-auto md:w-[400px] max-w-none md:max-w-sm h-[calc(100dvh-6rem)] md:h-[600px] bg-white border border-black/[0.06] rounded-3xl shadow-lg flex flex-col z-50 overflow-hidden"
+                                    : "fixed bottom-4 md:bottom-6 right-4 md:right-6 left-4 md:left-auto w-auto md:w-[400px] max-w-none md:max-w-sm h-[calc(100dvh-6rem)] md:h-[600px] bg-[#0d0d12]/95 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-col z-50 overflow-hidden"
+                                : isRich
+                                    ? "w-full h-full bg-white border border-black/[0.06] rounded-3xl flex flex-col overflow-hidden shadow-2xl"
+                                    : "w-full h-full bg-[#0d0d12]/40 backdrop-blur-xl border border-white/10 rounded-3xl flex flex-col overflow-hidden shadow-2xl"
                         }
                     >
                         {/* Header */}
-                        <div className="p-4 border-b border-white/5 flex items-center justify-between bg-gradient-to-r from-primary/20 via-primary/10 to-transparent backdrop-blur-md">
+                        <div className={`p-4 border-b flex items-center justify-between backdrop-blur-md ${isRich ? 'border-black/[0.06] bg-gray-50' : 'border-white/5 bg-gradient-to-r from-primary/20 via-primary/10 to-transparent'}`}>
                             <div className="flex items-center gap-2">
                                 <Sparkles className="w-4 h-4 text-primary" />
                                 <div className="relative">
@@ -434,7 +447,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
                                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                                 exit={{ opacity: 0, y: 5, scale: 0.95 }}
                                                 transition={{ duration: 0.15 }}
-                                                className="absolute top-full left-0 mt-2 w-64 bg-black/80 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden ring-1 ring-white/5"
+                                                className={`absolute top-full left-0 mt-2 w-64 backdrop-blur-xl rounded-2xl shadow-2xl z-50 overflow-hidden ${isRich ? 'bg-white border border-black/[0.06]' : 'bg-black/80 border border-white/10 ring-1 ring-white/5'}`}
                                             >
                                                 <div className="p-2 space-y-1">
                                                     {MODELS.map(model => (
@@ -444,7 +457,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
                                                                 setSelectedModel(model.id);
                                                                 setShowModelDropdown(false);
                                                             }}
-                                                            className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-all duration-200 flex items-center justify-between group ${selectedModel === model.id ? 'bg-primary/10 text-primary border border-primary/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]' : 'hover:bg-white/5 text-white/70 hover:text-white border border-transparent'}`}
+                                                            className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-all duration-200 flex items-center justify-between group ${selectedModel === model.id ? 'bg-primary/10 text-primary border border-primary/20' : isRich ? 'hover:bg-gray-100 text-gray-500 hover:text-gray-900 border border-transparent' : 'hover:bg-white/5 text-white/70 hover:text-white border border-transparent'}`}
                                                         >
                                                             <div className="flex flex-col">
                                                                 <span className="font-medium">{model.name}</span>
@@ -475,7 +488,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
                                 {/* Reasoning Toggle */}
                                 <button
                                     onClick={() => setShowReasoning(!showReasoning)}
-                                    className={`p-1.5 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-medium ${showReasoning ? 'bg-purple-500/20 text-purple-300' : 'text-muted-foreground hover:bg-white/5'}`}
+                                    className={`p-1.5 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-medium ${showReasoning ? 'bg-[#2997ff]/20 text-[#2997ff]' : 'text-muted-foreground hover:bg-white/5'}`}
                                     title="Toggle Reasoning"
                                 >
                                     <Brain className="w-3.5 h-3.5" />
@@ -519,9 +532,9 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
                                             <motion.div
                                                 initial={{ opacity: 0, height: 0 }}
                                                 animate={{ opacity: 1, height: 'auto' }}
-                                                className="max-w-[85%] mb-2 bg-purple-500/5 border border-purple-500/10 rounded-2xl p-3 text-xs text-purple-300/80 italic shadow-inner"
+                                                className="max-w-[85%] mb-2 bg-[#2997ff]/5 border border-[#2997ff]/10 rounded-2xl p-3 text-xs text-white/40 italic shadow-inner"
                                             >
-                                                <div className="flex items-center gap-1.5 mb-1 not-italic font-semibold text-purple-400">
+                                                <div className="flex items-center gap-1.5 mb-1 not-italic font-semibold text-[#2997ff]">
                                                     <Brain className="w-3 h-3" />
                                                     Thinking Process
                                                 </div>
@@ -531,7 +544,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
 
                                         <div className={`max-w-[85%] p-3.5 rounded-2xl text-[13px] leading-relaxed ${msg.role === 'user'
                                             ? 'bg-gradient-to-br from-primary to-primary/80 text-white rounded-br-none shadow-lg shadow-primary/20'
-                                            : 'bg-white/5 text-white/90 rounded-bl-none border border-white/10 shadow-sm'
+                                            : isRich ? 'bg-gray-100 text-gray-800 rounded-bl-none border border-black/[0.06] shadow-sm' : 'bg-white/5 text-white/90 rounded-bl-none border border-white/10 shadow-sm'
                                             }`}>
                                             <ReactMarkdown
                                                 remarkPlugins={[remarkGfm]}
@@ -543,7 +556,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
                                                                 <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                                     <button
                                                                         onClick={() => navigator.clipboard.writeText(String(children))}
-                                                                        className="p-1 bg-white/10 hover:bg-white/20 rounded text-xs text-white/70 hover:text-white transition-colors"
+                                                                        className={`p-1 rounded text-xs transition-colors ${isRich ? 'bg-gray-200 hover:bg-gray-300 text-gray-500 hover:text-gray-900' : 'bg-white/10 hover:bg-white/20 text-white/70 hover:text-white'}`}
                                                                     >
                                                                         Copy
                                                                     </button>
@@ -559,7 +572,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
                                                                 </SyntaxHighlighter>
                                                             </div>
                                                         ) : (
-                                                            <code className={`${className} bg-black/20 px-1 py-0.5 rounded text-xs font-mono`} {...props}>
+                                                            <code className={`${className} px-1 py-0.5 rounded text-xs font-mono ${isRich ? 'bg-gray-100 text-gray-700' : 'bg-black/20'}`} {...props}>
                                                                 {children}
                                                             </code>
                                                         );
@@ -605,14 +618,14 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
                         </div>
 
                         {/* Input Area */}
-                        <div className="p-4 border-t border-white/5 flex gap-2 bg-black/20 backdrop-blur-xl">
+                        <div className={`p-4 border-t flex gap-2 ${isRich ? 'border-black/[0.06] bg-gray-50' : 'border-white/5 bg-black/20 backdrop-blur-xl'}`}>
                             <input
                                 type="text"
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                                 placeholder="Ask your mentor..."
-                                className="flex-1 bg-white/5 rounded-full px-5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 text-white placeholder:text-muted-foreground/50 border border-white/10 transition-all focus:bg-white/10"
+                                className={`flex-1 rounded-full px-5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all ${isRich ? 'bg-gray-100 text-gray-900 placeholder:text-gray-400 border border-black/[0.06] focus:bg-white' : 'bg-white/5 text-white placeholder:text-muted-foreground/50 border border-white/10 focus:bg-white/10'}`}
                             />
                             <button
                                 onClick={handleSend}

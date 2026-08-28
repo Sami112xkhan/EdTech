@@ -1,145 +1,131 @@
-
 import React from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, CheckCircle2, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { motion } from "motion/react";
 import { useOffer } from "../context/OfferContext";
-import GradientText from "./GradientText";
-import GlassSurface from "./GlassSurface";
-
 
 const Hero: React.FC = () => {
     const { isOfferActive } = useOffer();
 
     return (
-        <section className="relative min-h-screen flex items-center justify-center pt-36 md:pt-32 overflow-hidden">
-            {/* Background Elements */}
-
-
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-full pointer-events-none z-0 opacity-50">
-                <div className="absolute top-20 left-10 w-72 h-72 bg-primary/20 rounded-full blur-[120px]" />
-                <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/20 rounded-full blur-[120px]" />
-            </div>
-
-            <div className="container max-w-6xl mx-auto px-6 relative z-10 text-center">
+        <section className="relative min-h-screen flex items-center justify-center pt-16 pb-20 overflow-hidden">
+            <div className="max-w-[1080px] mx-auto px-6 relative z-10 text-center">
+                {/* Badge */}
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
                     transition={{ duration: 0.6 }}
-                    className="inline-block mb-8"
+                    className="mb-8"
                 >
-                    <GlassSurface
-                        borderRadius={40}
-                        borderWidth={0.2}
-                        width="auto"
-                        height="auto"
-                        className="px-5 py-2" // Padding handled by GlassSurface content usually, but let's check CSS. 
-                        // The CSS has .glass-surface__content { padding: 0.5rem; }
-                        // I'll add horizontal padding via className to parent or let GlassSurface handle it?
-                        // The user said "make it fixed" - I'll try to match the previous look but with the glass effect.
-                        opacity={0.5}
-                    >
-                        <div className="flex items-center gap-2">
-                            <Sparkles className="w-4 h-4 text-yellow-400" />
-                            <span className="text-sm font-medium text-gray-300">New AI-Powered Curriculum 2026</span>
-                        </div>
-                    </GlassSurface>
+                    <span className="inline-block text-[18px] font-light tracking-wide text-[#6e6e73]">
+                        New AI-Powered Curriculum 2026
+                    </span>
                 </motion.div>
 
+                {/* Hero headline */}
                 <motion.h1
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.1 }}
-                    className="text-5xl md:text-7xl font-bold tracking-tight mb-6 leading-tight"
+                    transition={{ duration: 0.8, delay: 0.1, ease: [0.23, 1, 0.32, 1] }}
+                    className="text-[clamp(42px,8vw,96px)] font-semibold leading-[1.04] tracking-[-0.03em] text-white mb-4"
                 >
-                    Become a <GradientText
-                        colors={["#5227FF", "#FF9FFC", "#B19EEF"]}
-                        animationSpeed={3}
-                        showBorder={false}
-                        className="inline-flex text-5xl md:text-7xl font-bold tracking-tight px-0"
-                    >
-                        Developer
-                    </GradientText>
-                    <br /> in our Specialized Tracks.
+                    Become a
                 </motion.h1>
-
-                <motion.p
-                    initial={{ opacity: 0, y: 20 }}
+                <motion.h1
+                    initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.2 }}
-                    className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto mb-10"
+                    transition={{ duration: 0.8, delay: 0.2, ease: [0.23, 1, 0.32, 1] }}
+                    className="text-[clamp(42px,8vw,96px)] font-semibold leading-[1.04] tracking-[-0.03em] text-white mb-4"
                 >
-                    Master Full Stack Web Development, Data Science, or Cybersecurity. Build real-world portfolios with Lifetime access and AI Mentorship.
+                    Developer
+                </motion.h1>
+                <motion.p
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.7, delay: 0.35, ease: [0.23, 1, 0.32, 1] }}
+                    className="text-[clamp(28px,5vw,52px)] font-light leading-[1.1] tracking-[-0.02em] text-[#86868b] mb-10"
+                >
+                    in our Specialized Tracks.
                 </motion.p>
 
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
+                {/* Lead */}
+                <motion.p
+                    initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.3 }}
-                    className="flex flex-col sm:flex-row items-center justify-center gap-4 relative z-20 flex-wrap"
+                    transition={{ duration: 0.7, delay: 0.5, ease: [0.23, 1, 0.32, 1] }}
+                    className="text-[clamp(18px,2.5vw,28px)] font-light leading-[1.4] text-[#86868b] max-w-[720px] mx-auto mb-14"
                 >
-                    <div className="relative group">
+                    Master Full Stack Web Development, Data Science, or Cybersecurity.
+                    Build real-world portfolios with Lifetime access and AI Mentorship.
+                </motion.p>
+
+                {/* CTAs */}
+                <motion.div
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: 0.65, ease: [0.23, 1, 0.32, 1] }}
+                    className="flex flex-col items-center gap-5 relative z-20"
+                >
+                    <div className="relative">
                         {isOfferActive && (
-                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20">
-                                <span className="px-3 py-0.5 bg-gradient-to-r from-amber-500 to-orange-500 text-black text-[10px] font-black uppercase tracking-widest rounded-full shadow-lg shadow-amber-500/30 whitespace-nowrap animate-pulse">
-                                    🔥 Limited 2-Day Offer
-                                </span>
-                            </div>
+                            <span className="absolute -top-7 left-1/2 -translate-x-1/2 text-sm text-[#ff6b35] font-medium whitespace-nowrap">
+                                Limited Offer -- Save Rs.5,000
+                            </span>
                         )}
                         <Link
                             to="/checkout?course=fullstack"
-                            className="w-full sm:w-auto px-6 py-4 rounded-full bg-primary hover:bg-primary/90 text-white font-semibold text-sm shadow-xl shadow-primary/25 transition-all hover:scale-105 flex items-center justify-center gap-2 relative z-10"
+                            className="inline-flex items-center gap-2.5 px-8 py-4 rounded-full bg-[#2997ff] text-white text-[19px] font-medium leading-none hover:bg-[#0071e3] active:scale-[0.98] transition-all"
                         >
-                            {isOfferActive ? 'Full Stack + AI Bundle — ₹10,000' : 'Full Stack Web Dev — ₹10,000'}
-                            <ArrowRight className="w-4 h-4" />
+                            Full Stack + AI Bundle -- Rs.10,000
+                            <ArrowRight className="w-5 h-5" />
                         </Link>
                     </div>
 
-                    <div className="relative group">
+                    <div className="flex items-center gap-3 flex-wrap justify-center">
                         <Link
                             to="/checkout?course=datascience"
-                            className="w-full sm:w-auto px-6 py-4 rounded-full bg-indigo-600 hover:bg-indigo-500 border border-white/10 text-white font-semibold text-sm shadow-xl transition-all hover:scale-105 flex items-center justify-center gap-2 relative z-10"
+                            className="px-6 py-3 rounded-full border border-[#2997ff]/40 text-[#2997ff] text-[17px] font-normal leading-none hover:bg-[#2997ff]/10 active:scale-[0.98] transition-all"
                         >
-                            Data Science — ₹8,000
-                            <ArrowRight className="w-4 h-4" />
+                            Data Science -- Rs.8,000
                         </Link>
-                    </div>
-
-                    <div className="relative group">
                         <Link
                             to="/checkout?course=cyber"
-                            className="w-full sm:w-auto px-6 py-4 rounded-full bg-teal-600 hover:bg-teal-500 border border-white/10 text-white font-semibold text-sm shadow-xl transition-all hover:scale-105 flex items-center justify-center gap-2 relative z-10"
+                            className="px-6 py-3 rounded-full border border-[#2997ff]/40 text-[#2997ff] text-[17px] font-normal leading-none hover:bg-[#2997ff]/10 active:scale-[0.98] transition-all"
                         >
-                            Cyber Security — ₹5,000
-                            <ArrowRight className="w-4 h-4" />
+                            Cyber Security -- Rs.5,000
                         </Link>
                     </div>
 
                     <a
                         href="#curriculum"
-                        className="w-full sm:w-auto px-6 py-4 rounded-full glass hover:bg-white/10 text-white font-medium text-sm transition-all flex items-center justify-center h-full sm:ml-2"
+                        className="text-[#2997ff] text-[17px] font-normal leading-none mt-2 hover:underline"
                     >
                         View Curriculum
                     </a>
                 </motion.div>
 
-                {/* Features Grid */}
+                {/* Features */}
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ duration: 1, delay: 0.5 }}
-                    className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-6 text-left"
+                    transition={{ duration: 0.8, delay: 1 }}
+                    className="mt-28 flex items-center justify-center gap-8 md:gap-14 flex-wrap"
                 >
                     {[
                         "Lifetime Access",
                         "AI-Powered Support",
-                        "Production-Grade Projects",
-                        "Certificate of Completion"
+                        "Real-World Projects",
+                        "Certificate"
                     ].map((feature, i) => (
-                        <div key={i} className="flex items-center gap-3 p-4 rounded-xl border border-white/5 bg-white/5 backdrop-blur-sm">
-                            <CheckCircle2 className="w-5 h-5 text-green-400 shrink-0" />
-                            <span className="font-medium text-sm">{feature}</span>
-                        </div>
+                        <motion.span
+                            key={i}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, delay: 1.1 + i * 0.1 }}
+                            className="text-[14px] font-normal text-[#6e6e73] tracking-[-0.01em]"
+                        >
+                            {feature}
+                        </motion.span>
                     ))}
                 </motion.div>
             </div>

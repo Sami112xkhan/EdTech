@@ -93,7 +93,7 @@ const VerifyEmail: React.FC = () => {
         <div className="min-h-[100dvh] flex items-center justify-center p-4 relative overflow-hidden bg-black">
             <div className="absolute inset-0 z-0">
                 <Aurora
-                    colorStops={["#3b82f6", "#8b5cf6", "#6366f1"]}
+                    colorStops={["#2997ff", "#0ea5e9", "#06b6d4"]}
                     blend={0.5}
                     amplitude={1.0}
                     speed={0.5}
@@ -114,7 +114,7 @@ const VerifyEmail: React.FC = () => {
                         <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-primary/20">
                             <Mail className="w-8 h-8 text-primary" />
                         </div>
-                        <h1 className="text-3xl font-bold mb-2">Check your inbox</h1>
+                        <h1 className="text-xl md:text-3xl font-bold mb-2">Check your inbox</h1>
                         <p className="text-muted-foreground">
                             We've sent a verification code to <br />
                             <span className="text-white font-medium">{email}</span>

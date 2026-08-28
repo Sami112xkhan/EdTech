@@ -20,6 +20,8 @@ import MagicBento from "../components/MagicBento";
 import { useTheme, ACCENT_COLORS, BACKGROUND_CALIBRATION, ACCENT_RGB } from "../context/ThemeContext";
 
 const Dashboard: React.FC = () => {
+    const { theme } = useTheme();
+    const isRich = theme === 'rich';
     const { accentColor } = useTheme();
     const { isOfferActive } = useOffer();
     // ... rest of component ...
@@ -233,20 +235,44 @@ const Dashboard: React.FC = () => {
     }
 
 
-    const accentRGB = ACCENT_RGB[accentColor] || ACCENT_RGB.purple;
+    const accentRGB = ACCENT_RGB[accentColor] || ACCENT_RGB.blue;
+
+    // Shared swipe-to-navigate config for course selector pills
+    const makeSwipeHandler = (next: string | null, prev: string | null) => (_: any, info: { offset: { x: number; y: number }; velocity: { x: number; y: number } }) => {
+        const dx = info.offset.x;
+        const vx = info.velocity.x;
+        const SWIPE_THRESHOLD = 30;
+        const VELOCITY_THRESHOLD = 0.3;
+        if (next && (dx > SWIPE_THRESHOLD || vx > VELOCITY_THRESHOLD)) {
+            setActiveCourse(next as any);
+        } else if (prev && (dx < -SWIPE_THRESHOLD || vx < -VELOCITY_THRESHOLD)) {
+            setActiveCourse(prev as any);
+        }
+    };
+
+    const swipeDragProps = {
+        drag: "x" as const,
+        dragDirectionLock: true,
+        dragSnapToOrigin: true,
+        dragTransition: { bounceStiffness: 300, bounceDamping: 30 },
+        whileDrag: { scale: 1.04, opacity: 0.95 },
+        transition: { type: "spring" as const, stiffness: 400, damping: 30 },
+    };
 
     return (
         <div className="relative min-h-screen">
-            <div className="fixed inset-0 z-0 pointer-events-none">
-                <DarkVeil
-                    accentColor={accentRGB}
-                    noiseIntensity={0}
-                    scanlineIntensity={0}
-                    speed={1.9}
-                    scanlineFrequency={0.5}
-                    warpAmount={2.2}
-                />
-            </div>
+            {!isRich && (
+                <div className="fixed inset-0 z-0 pointer-events-none">
+                    <DarkVeil
+                        accentColor={accentRGB}
+                        noiseIntensity={0}
+                        scanlineIntensity={0}
+                        speed={1.9}
+                        scanlineFrequency={0.5}
+                        warpAmount={2.2}
+                    />
+                </div>
+            )}
 
             <div className="relative z-10 space-y-8">
                 {/* Verification Reminder */}
@@ -268,43 +294,20 @@ const Dashboard: React.FC = () => {
                 )}
 
                 {/* Course Selector */}
-                <div className="flex z-10 w-full md:w-auto relative">
-                    <GlassSurface
-                        borderRadius={50}
-                        borderWidth={0.5}
-                        opacity={0.4}
-                        blur={10}
-                        className="p-1 w-full md:w-auto"
-                    >
-                        <div className="flex w-full md:w-auto">
+                <div className="flex z-10 w-full relative overflow-x-auto scrollbar-hide">
+                    {isRich ? (
+                        <div className="flex p-1 rounded-full bg-gray-100 border border-black/[0.06] w-full md:w-auto">
                             <button
                                 onClick={() => setActiveCourse('fullstack')}
-                                className={`relative flex-1 md:flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeCourse === 'fullstack' ? 'text-white' : 'text-white/40 hover:text-white'}`}
+                                className={`relative flex-1 md:flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeCourse === 'fullstack' ? isRich ? 'text-emerald-800' : 'text-white' : isRich ? 'text-gray-400 hover:text-gray-900' : 'text-white/40 hover:text-white'}`}
                             >
                                 {/* Floating Background Pill - High Fidelity Glass */}
                                 {activeCourse === 'fullstack' && (
                                     <motion.div
                                         layoutId="dashboard-active-pill"
-                                        drag="x"
-                                        dragConstraints={{ left: 0, right: 0 }}
-                                        dragElastic={1}
-                                        onDragEnd={(_, info) => {
-                                            const threshold = 40;
-                                            const velocityThreshold = 500;
-                                            if ((info.offset.x > threshold || info.velocity.x > velocityThreshold)) {
-                                                setActiveCourse('cyber');
-                                            }
-                                        }}
-                                        whileDrag={{
-                                            opacity: 0.9,
-                                            scale: 1.1,
-                                            backgroundColor: "rgba(255, 255, 255, 0.05)",
-                                            backdropFilter: "blur(0px)",
-                                            boxShadow: "0 20px 60px rgba(0,0,0,0.5)"
-                                        }}
-                                        whileTap={{ scale: 1.05 }}
-                                        className="absolute inset-0 bg-white/20 backdrop-blur-2xl rounded-full border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing z-0"
-                                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                                        {...swipeDragProps}
+                                        onDragEnd={makeSwipeHandler('cyber', null)}
+                                        className={`absolute inset-0 rounded-full cursor-grab active:cursor-grabbing z-0 ${isRich ? "bg-white border border-black/[0.06] shadow-sm" : "bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)]"}`}
                                     />
                                 )}
                                 <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
@@ -314,34 +317,15 @@ const Dashboard: React.FC = () => {
                             </button>
                             <button
                                 onClick={() => setActiveCourse('cyber')}
-                                className={`relative flex-1 md:flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeCourse === 'cyber' ? 'text-white' : 'text-white/40 hover:text-white'}`}
+                                className={`relative flex-1 md:flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeCourse === 'cyber' ? isRich ? 'text-emerald-800' : 'text-white' : isRich ? 'text-gray-400 hover:text-gray-900' : 'text-white/40 hover:text-white'}`}
                             >
                                 {/* Floating Background Pill - High Fidelity Glass */}
                                 {activeCourse === 'cyber' && (
                                     <motion.div
                                         layoutId="dashboard-active-pill"
-                                        drag="x"
-                                        dragConstraints={{ left: 0, right: 0 }}
-                                        dragElastic={1}
-                                        onDragEnd={(_, info) => {
-                                            const threshold = 40;
-                                            const velocityThreshold = 500;
-                                            if ((info.offset.x > threshold || info.velocity.x > velocityThreshold)) {
-                                                setActiveCourse('datascience');
-                                            } else if ((info.offset.x < -threshold || info.velocity.x < -velocityThreshold)) {
-                                                setActiveCourse('fullstack');
-                                            }
-                                        }}
-                                        whileDrag={{
-                                            opacity: 0.9,
-                                            scale: 1.1,
-                                            backgroundColor: "rgba(255, 255, 255, 0.05)",
-                                            backdropFilter: "blur(0px)",
-                                            boxShadow: "0 20px 60px rgba(0,0,0,0.5)"
-                                        }}
-                                        whileTap={{ scale: 1.05 }}
-                                        className="absolute inset-0 bg-white/20 backdrop-blur-2xl rounded-full border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing z-0"
-                                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                                        {...swipeDragProps}
+                                        onDragEnd={makeSwipeHandler('datascience', 'fullstack')}
+                                        className={`absolute inset-0 rounded-full cursor-grab active:cursor-grabbing z-0 ${isRich ? "bg-white border border-black/[0.06] shadow-sm" : "bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)]"}`}
                                     />
                                 )}
                                 <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
@@ -351,33 +335,14 @@ const Dashboard: React.FC = () => {
                             </button>
                             <button
                                 onClick={() => setActiveCourse('datascience')}
-                                className={`relative flex-1 md:flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeCourse === 'datascience' ? 'text-white' : 'text-white/40 hover:text-white'}`}
+                                className={`relative flex-1 md:flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeCourse === 'datascience' ? isRich ? 'text-emerald-800' : 'text-white' : isRich ? 'text-gray-400 hover:text-gray-900' : 'text-white/40 hover:text-white'}`}
                             >
                                 {activeCourse === 'datascience' && (
                                     <motion.div
                                         layoutId="dashboard-active-pill"
-                                        drag="x"
-                                        dragConstraints={{ left: 0, right: 0 }}
-                                        dragElastic={1}
-                                        onDragEnd={(_, info) => {
-                                            const threshold = 40;
-                                            const velocityThreshold = 500;
-                                            if ((info.offset.x < -threshold || info.velocity.x < -velocityThreshold)) {
-                                                setActiveCourse('cyber');
-                                            } else if ((info.offset.x > threshold || info.velocity.x > velocityThreshold)) {
-                                                setActiveCourse('ai');
-                                            }
-                                        }}
-                                        whileDrag={{
-                                            opacity: 0.9,
-                                            scale: 1.1,
-                                            backgroundColor: "rgba(255, 255, 255, 0.05)",
-                                            backdropFilter: "blur(0px)",
-                                            boxShadow: "0 20px 60px rgba(0,0,0,0.5)"
-                                        }}
-                                        whileTap={{ scale: 1.05 }}
-                                        className="absolute inset-0 bg-white/20 backdrop-blur-2xl rounded-full border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing z-0"
-                                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                                        {...swipeDragProps}
+                                        onDragEnd={makeSwipeHandler('ai', 'cyber')}
+                                        className={`absolute inset-0 rounded-full cursor-grab active:cursor-grabbing z-0 ${isRich ? "bg-white border border-black/[0.06] shadow-sm" : "bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)]"}`}
                                     />
                                 )}
                                 <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
@@ -387,31 +352,14 @@ const Dashboard: React.FC = () => {
                             </button>
                             <button
                                 onClick={() => setActiveCourse('ai')}
-                                className={`relative flex-1 md:flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeCourse === 'ai' ? 'text-white' : 'text-white/40 hover:text-white'}`}
+                                className={`relative flex-1 md:flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeCourse === 'ai' ? isRich ? 'text-emerald-800' : 'text-white' : isRich ? 'text-gray-400 hover:text-gray-900' : 'text-white/40 hover:text-white'}`}
                             >
                                 {activeCourse === 'ai' && (
                                     <motion.div
                                         layoutId="dashboard-active-pill"
-                                        drag="x"
-                                        dragConstraints={{ left: 0, right: 0 }}
-                                        dragElastic={1}
-                                        onDragEnd={(_, info) => {
-                                            const threshold = 40;
-                                            const velocityThreshold = 500;
-                                            if ((info.offset.x < -threshold || info.velocity.x < -velocityThreshold)) {
-                                                setActiveCourse('datascience');
-                                            }
-                                        }}
-                                        whileDrag={{
-                                            opacity: 0.9,
-                                            scale: 1.1,
-                                            backgroundColor: "rgba(255, 255, 255, 0.05)",
-                                            backdropFilter: "blur(0px)",
-                                            boxShadow: "0 20px 60px rgba(0,0,0,0.5)"
-                                        }}
-                                        whileTap={{ scale: 1.05 }}
-                                        className="absolute inset-0 bg-white/20 backdrop-blur-2xl rounded-full border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing z-0"
-                                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                                        {...swipeDragProps}
+                                        onDragEnd={makeSwipeHandler(null, 'datascience')}
+                                        className={`absolute inset-0 rounded-full cursor-grab active:cursor-grabbing z-0 ${isRich ? "bg-white border border-black/[0.06] shadow-sm" : "bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)]"}`}
                                     />
                                 )}
                                 <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
@@ -420,16 +368,89 @@ const Dashboard: React.FC = () => {
                                 </span>
                             </button>
                         </div>
-                    </GlassSurface>
+                    ) : (
+                        <div className="flex w-full md:w-auto p-1 rounded-full bg-white/10 border border-white/10 backdrop-blur-xl">
+                            <button
+                                onClick={() => setActiveCourse('fullstack')}
+                                className={`relative flex-1 md:flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeCourse === 'fullstack' ? 'text-white' : 'text-white/40 hover:text-white'}`}
+                            >
+                                {/* Floating Background Pill - High Fidelity Glass */}
+                                {activeCourse === 'fullstack' && (
+                                    <motion.div
+                                        layoutId="dashboard-active-pill"
+                                        {...swipeDragProps}
+                                        onDragEnd={makeSwipeHandler('cyber', null)}
+                                        className="absolute inset-0 rounded-full cursor-grab active:cursor-grabbing z-0 bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)]"
+                                    />
+                                )}
+                                <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
+                                    <BookOpen className="w-3.5 h-3.5" />
+                                    {isOfferActive ? 'Full Stack + AI' : 'Full Stack'}
+                                </span>
+                            </button>
+                            <button
+                                onClick={() => setActiveCourse('cyber')}
+                                className={`relative flex-1 md:flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeCourse === 'cyber' ? 'text-white' : 'text-white/40 hover:text-white'}`}
+                            >
+                                {/* Floating Background Pill - High Fidelity Glass */}
+                                {activeCourse === 'cyber' && (
+                                    <motion.div
+                                        layoutId="dashboard-active-pill"
+                                        {...swipeDragProps}
+                                        onDragEnd={makeSwipeHandler('datascience', 'fullstack')}
+                                        className="absolute inset-0 rounded-full cursor-grab active:cursor-grabbing z-0 bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)]"
+                                    />
+                                )}
+                                <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
+                                    <Shield className="w-3.5 h-3.5" />
+                                    Cyber Security
+                                </span>
+                            </button>
+                            <button
+                                onClick={() => setActiveCourse('datascience')}
+                                className={`relative flex-1 md:flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeCourse === 'datascience' ? 'text-white' : 'text-white/40 hover:text-white'}`}
+                            >
+                                {activeCourse === 'datascience' && (
+                                    <motion.div
+                                        layoutId="dashboard-active-pill"
+                                        {...swipeDragProps}
+                                        onDragEnd={makeSwipeHandler('ai', 'cyber')}
+                                        className="absolute inset-0 rounded-full cursor-grab active:cursor-grabbing z-0 bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)]"
+                                    />
+                                )}
+                                <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
+                                    <Award className="w-3.5 h-3.5" />
+                                    Data Science
+                                </span>
+                            </button>
+                            <button
+                                onClick={() => setActiveCourse('ai')}
+                                className={`relative flex-1 md:flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeCourse === 'ai' ? 'text-white' : 'text-white/40 hover:text-white'}`}
+                            >
+                                {activeCourse === 'ai' && (
+                                    <motion.div
+                                        layoutId="dashboard-active-pill"
+                                        {...swipeDragProps}
+                                        onDragEnd={makeSwipeHandler(null, 'datascience')}
+                                        className="absolute inset-0 rounded-full cursor-grab active:cursor-grabbing z-0 bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)]"
+                                    />
+                                )}
+                                <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
+                                    <Bot className="w-3.5 h-3.5" />
+                                    AI Course
+                                </span>
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Welcome Section */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-2">
                     <div className="space-y-1">
-                        <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white leading-tight">
+                        <h1 className={`text-2xl md:text-3xl font-black tracking-tight leading-tight ${isRich ? "text-gray-900" : "text-white"}`}>
                             Command: <span className="text-primary italic">Welcome</span>, {user?.name.split(" ")[0]}
                         </h1>
-                        <p className={`text-sm font-black leading-relaxed max-w-xl bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-400 to-primary animate-pulse`}>
+                        <p className={`text-sm font-black leading-relaxed max-w-xl ${isRich ? "text-gray-500" : "text-white/60"}`}>
                             {progress === 100
                                 ? "Level Max! You've mastered the entire architecture."
                                 : (user?.streak || 0) >= 3
@@ -448,19 +469,19 @@ const Dashboard: React.FC = () => {
                                     placeholder="ACCESS CODE"
                                     value={accessCode}
                                     onChange={(e) => setAccessCode(e.target.value)}
-                                    className="flex-1 sm:w-40 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-primary/50 focus:bg-white/10 transition-all placeholder:opacity-30"
+                                    className={`flex-1 sm:w-40 rounded-xl px-4 py-2.5 text-xs font-bold uppercase tracking-widest focus:outline-none transition-all ${isRich ? "bg-gray-100 border border-black/[0.06] text-gray-900 placeholder:text-gray-400" : "bg-white/5 border border-white/10 focus:border-primary/50 focus:bg-white/10 placeholder:opacity-30"}`}
                                 />
                                 <button
                                     disabled={isRedeeming}
-                                    className="bg-primary hover:bg-primary/80 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50 active:scale-95 shadow-lg shadow-primary/20"
+                                    className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50 active:scale-95 ${isRich ? "bg-emerald-900 hover:bg-emerald-800 text-white shadow-lg shadow-emerald-900/15" : "bg-primary hover:bg-primary/80 text-white shadow-lg shadow-primary/20"}`}
                                 >
                                     ACTIVATE
                                 </button>
                             </form>
                         )}
-                        <div className="p-1 px-4 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl flex items-center gap-4 shadow-xl">
+                        <div className={`p-1 px-4 rounded-2xl flex items-center gap-4 ${isRich ? "bg-gray-100 border border-black/[0.06]" : "bg-white/5 backdrop-blur-xl border border-white/10 shadow-xl"}`}>
                             <div className="flex flex-col">
-                                <span className="text-[10px] text-muted-foreground font-black uppercase tracking-tighter">System Progress</span>
+                                <span className={`text-[10px] font-black uppercase tracking-tighter ${isRich ? "text-gray-400" : "text-muted-foreground"}`}>System Progress</span>
                                 <span className="text-xl font-black text-primary leading-none">{progress}%</span>
                             </div>
                             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
@@ -472,21 +493,21 @@ const Dashboard: React.FC = () => {
 
                 {/* AI Upgrade Offer for existing fullstack users */}
                 {showAIUpgrade && (
-                    <div className="bg-gradient-to-r from-violet-500/10 via-fuchsia-500/10 to-cyan-500/10 border border-violet-500/30 p-4 md:p-6 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden animate-in slide-in-from-top duration-500">
-                        <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-violet-400/60 to-transparent" />
-                        <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 via-transparent to-cyan-500/5 pointer-events-none" />
+                    <div className="bg-gradient-to-r from-[#2997ff]/10 via-[#06b6d4]/10 to-[#2997ff]/10 border border-[#2997ff]/30 p-4 md:p-6 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden animate-in slide-in-from-top duration-500">
+                        <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[#2997ff]/60 to-transparent" />
+                        <div className="absolute inset-0 bg-gradient-to-br from-[#2997ff]/5 via-transparent to-[#06b6d4]/5 pointer-events-none" />
                         <div className="flex items-center gap-5 relative z-10">
-                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500/30 to-cyan-500/30 flex items-center justify-center border border-violet-400/30 shadow-lg shadow-violet-500/20">
-                                <Zap className="w-7 h-7 text-violet-300" />
+                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#2997ff]/30 to-[#06b6d4]/30 flex items-center justify-center border border-[#2997ff]/30 shadow-lg shadow-[#2997ff]/20">
+                                <Zap className="w-7 h-7 text-[#2997ff]" />
                             </div>
                             <div>
-                                <h3 className="text-xl font-black text-white uppercase tracking-tight flex items-center gap-2">
-                                    Unlock AI Course <span className="text-xs font-bold text-violet-400 bg-violet-500/20 px-2 py-0.5 rounded-full normal-case">Special Offer</span>
+                                <h3 className={`text-xl font-black uppercase tracking-tight flex items-center gap-2 ${isRich ? "text-gray-900" : "text-white"}`}>
+                                    Unlock AI Course <span className="text-xs font-bold text-[#2997ff] bg-[#2997ff]/20 px-2 py-0.5 rounded-full normal-case">Special Offer</span>
                                 </h3>
-                                <p className="text-xs text-muted-foreground font-medium mt-1">As an existing Full Stack student, upgrade to the AI Course for just <span className="text-white font-black">₹2,000</span>!</p>
+                                <p className="text-xs text-muted-foreground font-medium mt-1">As an existing Full Stack student, upgrade to the AI Course for just <span className={`font-black ${isRich ? "text-gray-900" : "text-white"}`}>₹2,000</span>!</p>
                             </div>
                         </div>
-                        <Link to="/checkout?course=ai_upgrade" className="w-full md:w-auto px-8 py-4 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white font-black uppercase tracking-widest text-xs rounded-2xl flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-violet-500/20">
+                        <Link to="/checkout?course=ai_upgrade" className="w-full md:w-auto px-8 py-4 bg-[#2997ff] hover:bg-[#0071e3] text-white font-black uppercase tracking-widest text-xs rounded-2xl flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-[#2997ff]/20">
                             Upgrade Now — ₹2,000 <ArrowRight className="w-4 h-4" />
                         </Link>
                     </div>
@@ -500,7 +521,7 @@ const Dashboard: React.FC = () => {
                                 <Clock className="w-7 h-7 text-red-400" />
                             </div>
                             <div>
-                                <h3 className="text-xl font-black text-white uppercase tracking-tight">Access Locked</h3>
+                                <h3 className={`text-xl font-black uppercase tracking-tight ${isRich ? "text-gray-900" : "text-white"}`}>Access Locked</h3>
                                 <p className="text-xs text-muted-foreground font-medium mt-1">{activeCourse === 'ai' ? (isOfferActive ? 'Get the Full Stack + AI Bundle to unlock this course.' : 'Get the Full Stack Web Dev course to unlock.') : 'Trial period expired. Restore access to continue your journey.'}</p>
                             </div>
                         </div>
@@ -512,12 +533,12 @@ const Dashboard: React.FC = () => {
                     <div className="space-y-6">
                         {/* Continue Learning */}
                         {nextLesson && (
-                            <div className="bg-secondary/30 backdrop-blur-xl border border-white/10 p-4 md:p-6 rounded-2xl relative overflow-hidden group">
+                            <div className={`p-4 md:p-6 rounded-2xl relative overflow-hidden group ${isRich ? "bg-white border border-black/[0.06]" : "bg-secondary/30 backdrop-blur-xl border border-white/10"}`}>
                                 <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                                 <div className="relative z-10 flex flex-col md:flex-row gap-6 items-center">
                                     <Link
                                         to={`/learn/${nextPhaseId}/${nextLesson.id}`}
-                                        className="w-full md:w-64 h-36 bg-black rounded-lg flex items-center justify-center border border-white/10 shrink-0 relative overflow-hidden group-hover:scale-[1.02] transition-transform duration-500"
+                                        className={`w-full md:w-64 h-36 rounded-lg flex items-center justify-center shrink-0 relative overflow-hidden group-hover:scale-[1.02] transition-transform duration-500 ${isRich ? "bg-gray-100 border border-black/[0.06]" : "bg-black border border-white/10"}`}
                                     >
                                         <img
                                             src={`https://img.youtube.com/vi/${nextLesson.youtubeId}/hqdefault.jpg`}
@@ -529,7 +550,7 @@ const Dashboard: React.FC = () => {
                                     </Link>
                                     <div className="flex-1 space-y-2">
                                         <div className="text-xs font-semibold text-primary uppercase tracking-wider">Continue Learning</div>
-                                        <h3 className="text-xl font-bold">
+                                        <h3 className={`text-xl font-bold ${isRich ? 'text-gray-900' : ''}`}>
                                             {phasesStatus.find(p => p.id === nextPhaseId)?.title.split(" — ")[0]}: {nextLesson.title}
                                         </h3>
                                         <p className="text-sm text-muted-foreground line-clamp-2">
@@ -550,80 +571,116 @@ const Dashboard: React.FC = () => {
 
                         <div>
                             <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-xl font-bold">Quick Stats</h2>
+                                <h2 className={`text-xl font-bold ${isRich ? 'text-gray-900' : ''}`}>Quick Stats</h2>
                             </div>
 
-                            <MagicBento
-                                items={[
-                                    {
-                                        content: (
-                                            <>
-                                                <div className="text-sm text-muted-foreground mb-1 relative z-10">Total Lessons</div>
-                                                <div className="text-2xl font-bold relative z-10">{totalLessons}</div>
-                                            </>
-                                        )
-                                    },
-                                    {
-                                        content: (
-                                            <>
-                                                <div className="text-sm text-muted-foreground mb-1 relative z-10">Completed</div>
-                                                <div className="text-2xl font-bold relative z-10">{courseCompletedLessons.length}</div>
-                                            </>
-                                        )
-                                    },
-                                    {
-                                        content: (
-                                            <>
-                                                <div className="text-sm text-muted-foreground mb-1 relative z-10">Current Streak</div>
-                                                <div className="flex items-center gap-2 relative z-10">
-                                                    <Flame className="w-5 h-5 text-orange-500 fill-orange-500" />
-                                                    <div className="text-2xl font-bold text-orange-500">{user?.streak || 0}</div>
+                            {isRich ? (
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-0">
+                                    <div className="px-5 py-4">
+                                        <div className="text-[11px] text-gray-400 uppercase tracking-widest font-bold mb-1">Lessons</div>
+                                        <div className="text-xl md:text-3xl font-black text-gray-900 tracking-tighter">{totalLessons}</div>
+                                    </div>
+                                    <div className="px-5 py-4">
+                                        <div className="text-[11px] text-gray-400 uppercase tracking-widest font-bold mb-1">Completed</div>
+                                        <div className="text-xl md:text-3xl font-black text-gray-900 tracking-tighter">{courseCompletedLessons.length}</div>
+                                    </div>
+                                    <div className="px-5 py-4">
+                                        <div className="text-[11px] text-gray-400 uppercase tracking-widest font-bold mb-1">Streak</div>
+                                        <div className="flex items-baseline gap-1">
+                                            <div className="text-xl md:text-3xl font-black text-gray-900 tracking-tighter">{user?.streak || 0}</div>
+                                            <Flame className="w-4 h-4 text-orange-400" />
+                                        </div>
+                                    </div>
+                                    <div className="px-5 py-4">
+                                        <div className="text-[11px] text-gray-400 uppercase tracking-widest font-bold mb-1">Certificate</div>
+                                        <div>
+                                            {user?.certificateStatus === 'approved' ? (
+                                                <button onClick={generateCertificate} className="text-xs font-bold text-primary hover:underline">
+                                                    Download
+                                                </button>
+                                            ) : user?.certificateStatus === 'pending' ? (
+                                                <div className="text-xs font-bold text-gray-400">
+                                                    Pending
                                                 </div>
-                                            </>
-                                        )
-                                    },
-                                    {
-                                        content: (
-                                            <>
-                                                <div className="text-sm text-muted-foreground mb-1 relative z-10">Certificate</div>
-                                                <div className="relative z-10">
-                                                    {user?.certificateStatus === 'approved' ? (
-                                                        <button
-                                                            onClick={generateCertificate}
-                                                            className="flex items-center gap-2 px-3 py-1.5 bg-primary/20 hover:bg-primary/30 text-primary rounded-lg text-xs font-bold transition-all border border-primary/20 pointer-events-auto"
-                                                        >
-                                                            <Download className="w-3 h-3" /> Download
-                                                        </button>
-                                                    ) : user?.certificateStatus === 'pending' ? (
-                                                        <div className="flex items-center gap-2 text-yellow-400 font-bold text-sm animate-pulse">
-                                                            <Clock className="w-4 h-4" /> Pending
-                                                        </div>
-                                                    ) : progress === 100 ? (
-                                                        <button
-                                                            onClick={requestCertificate}
-                                                            className="flex items-center gap-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold transition-all border border-white/10 pointer-events-auto"
-                                                        >
-                                                            <Award className="w-3 h-3" /> Request
-                                                        </button>
-                                                    ) : (
-                                                        <div className="flex items-center gap-2 text-muted-foreground/50 font-bold text-sm">
-                                                            <Lock className="w-4 h-4" /> Locked
-                                                        </div>
-                                                    )}
+                                            ) : progress === 100 ? (
+                                                <button onClick={requestCertificate} className="text-xs font-bold text-primary hover:underline">
+                                                    Request
+                                                </button>
+                                            ) : (
+                                                <div className="text-xs font-bold text-gray-300">
+                                                    Locked
                                                 </div>
-                                            </>
-                                        )
-                                    }
-                                ]}
-                                textAutoHide={false}
-                            />
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <MagicBento
+                                    items={[
+                                        {
+                                            content: (
+                                                <>
+                                                    <div className="text-sm text-muted-foreground mb-1 relative z-10">Total Lessons</div>
+                                                    <div className="text-2xl font-bold relative z-10">{totalLessons}</div>
+                                                </>
+                                            )
+                                        },
+                                        {
+                                            content: (
+                                                <>
+                                                    <div className="text-sm text-muted-foreground mb-1 relative z-10">Completed</div>
+                                                    <div className="text-2xl font-bold relative z-10">{courseCompletedLessons.length}</div>
+                                                </>
+                                            )
+                                        },
+                                        {
+                                            content: (
+                                                <>
+                                                    <div className="text-sm text-muted-foreground mb-1 relative z-10">Current Streak</div>
+                                                    <div className="flex items-center gap-2 relative z-10">
+                                                        <Flame className="w-5 h-5 text-orange-500 fill-orange-500" />
+                                                        <div className="text-2xl font-bold text-orange-500">{user?.streak || 0}</div>
+                                                    </div>
+                                                </>
+                                            )
+                                        },
+                                        {
+                                            content: (
+                                                <>
+                                                    <div className="text-sm text-muted-foreground mb-1 relative z-10">Certificate</div>
+                                                    <div className="relative z-10">
+                                                        {user?.certificateStatus === 'approved' ? (
+                                                            <button onClick={generateCertificate} className="flex items-center gap-2 px-3 py-1.5 bg-primary/20 hover:bg-primary/30 text-primary rounded-lg text-xs font-bold transition-all border border-primary/20 pointer-events-auto">
+                                                                <Download className="w-3 h-3" /> Download
+                                                            </button>
+                                                        ) : user?.certificateStatus === 'pending' ? (
+                                                            <div className="flex items-center gap-2 text-yellow-400 font-bold text-sm animate-pulse">
+                                                                <Clock className="w-4 h-4" /> Pending
+                                                            </div>
+                                                        ) : progress === 100 ? (
+                                                            <button onClick={requestCertificate} className="flex items-center gap-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold transition-all border border-white/10 pointer-events-auto">
+                                                                <Award className="w-3 h-3" /> Request
+                                                            </button>
+                                                        ) : (
+                                                            <div className="flex items-center gap-2 text-muted-foreground/50 font-bold text-sm">
+                                                                <Lock className="w-4 h-4" /> Locked
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </>
+                                            )
+                                        }
+                                    ]}
+                                    textAutoHide={false}
+                                />
+                            )}
                         </div>
 
                         {/* CTA to Full Curriculum */}
                         <div className="mt-8 flex justify-center">
                             <Link
                                 to="/curriculum"
-                                className="px-8 py-3 bg-white/5 backdrop-blur-md border border-white/10 rounded-full text-sm font-medium text-white/90 hover:bg-white/10 hover:scale-105 transition-all shadow-lg shadow-purple-500/5 group relative overflow-hidden"
+                                className={`px-8 py-3 rounded-full text-sm font-medium transition-all ${isRich ? "bg-gray-100 border border-black/[0.06] text-gray-700 hover:bg-gray-200" : "bg-white/5 backdrop-blur-md border border-white/10 text-white/90 hover:bg-white/10 shadow-lg shadow-[#2997ff]/5"} hover:scale-105 group relative overflow-hidden`}
                             >
                                 <span className="relative z-10 flex items-center gap-2">
                                     View Full Curriculum <span className="group-hover:translate-x-1 transition-transform">&rarr;</span>

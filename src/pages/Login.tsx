@@ -5,8 +5,6 @@ import { useAuth } from "../context/AuthContext";
 import Input from "../components/ui/Input";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { verifyGumroadLicense } from "../utils/gumroad";
-import Aurora from "../components/Aurora";
-import GlassSurface from "../components/GlassSurface";
 import { GoogleLogin } from '@react-oauth/google';
 
 const Login: React.FC = () => {
@@ -143,33 +141,37 @@ const Login: React.FC = () => {
         }
     };
 
-    return (
-        <div className="min-h-[100dvh] flex items-center justify-center p-4 relative overflow-hidden bg-black">
-            <div className="absolute inset-0 z-0">
-                <Aurora
-                    colorStops={["#3b82f6", "#8b5cf6", "#6366f1"]}
-                    blend={0.5}
-                    amplitude={1.0}
-                    speed={0.5}
-                />
-            </div>
+    return (        <div className="min-h-[100dvh] relative overflow-hidden bg-[#f8f9f6]" style={{ fontFamily: "'SF Pro Display', system-ui, -apple-system, sans-serif" }}>
 
-            <GlassSurface
-                className="w-full max-w-md p-6 md:p-8 relative z-10 animate-in fade-in zoom-in-95 duration-500 my-4"
-                borderRadius={24}
-                opacity={0.6}
-            >
-                <div className="w-full">
-                    <Link to="/" className="inline-flex items-center text-sm text-muted-foreground hover:text-white mb-6 transition-colors">
-                        <ArrowLeft className="w-4 h-4 mr-2" /> Back to Home
+            {/* Subtle emerald glow */}
+            <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[600px] h-[400px] opacity-[0.06] pointer-events-none" style={{
+                background: 'radial-gradient(ellipse, #10b981 0%, transparent 60%)'
+            }} />
+
+            {/* Nav bar */}
+            <nav className="fixed top-0 left-0 right-0 z-50" style={{ background: 'rgba(248, 249, 246, 0.92)', backdropFilter: 'blur(20px)' }}>
+                <div className="max-w-[1200px] mx-auto px-6 h-14 flex items-center justify-between border-b border-black/[0.06]">
+                    <Link to="/" className="flex items-center gap-2">
+                        <span className="text-[13px] font-bold tracking-[0.08em] uppercase text-emerald-800">DevMastery</span>
                     </Link>
+                    <div className="flex items-center gap-6">
+                        <Link to="/signup" className="text-[13px] text-gray-400 hover:text-gray-900 transition-colors">Sign up</Link>
+                    </div>
+                </div>
+                <div className="max-w-[1200px] mx-auto px-6 py-3">
+                    <Link to="/" className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-black/[0.06] bg-white text-[13px] text-gray-500 hover:text-gray-900 hover:border-black/[0.12] transition-all shadow-sm">
+                        <ArrowLeft className="w-3.5 h-3.5" /> Home
+                    </Link>
+                </div>
+            </nav>
 
-                    <div className="mb-6 text-center">
-                        <h1 className="text-2xl md:text-3xl font-bold mb-2">Welcome Back</h1>
-                        <p className="text-muted-foreground text-sm md:text-base">Continue your learning journey.</p>
+            <div className="pt-[6.5rem] md:pt-[5.5rem] px-6 md:px-8 pb-4 max-w-lg mx-auto animate-in fade-in zoom-in-95 duration-500">
+                <div className="mb-4">
+                        <h1 className="text-[36px] font-bold tracking-[-0.04em] text-gray-900 mb-2">Welcome back.</h1>
+                        <p className="text-[16px] text-gray-500">Continue your learning journey.</p>
                     </div>
 
-                    <div className="flex justify-center mb-6 w-full">
+                    <div className="flex justify-center mb-3 w-full">
                         <div className="w-full flex justify-center">
                             <GoogleLogin
                                 onSuccess={async (credentialResponse) => {
@@ -181,58 +183,65 @@ const Login: React.FC = () => {
                                 onError={() => {
                                     console.log('Login Failed');
                                 }}
-                                theme="filled_black"
+                                theme="outline"
                                 shape="pill"
                                 width="300"
                             />
                         </div>
                     </div>
 
-                    <div className="relative mb-6">
+                    <div className="relative mb-3">
                         <div className="absolute inset-0 flex items-center">
-                            <span className="w-full border-t border-white/10" />
+                            <span className="w-full border-t border-black/[0.06]" />
                         </div>
-                        <div className="relative flex justify-center text-xs uppercase">
-                            <span className="bg-black px-2 text-muted-foreground">Or continue with</span>
+                        <div className="relative flex justify-center text-[11px] uppercase tracking-[0.15em]">
+                            <span className="bg-[#f8f9f6] px-3 text-gray-300 font-medium">Or continue with</span>
                         </div>
                     </div>
 
-                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                        <Input
-                            label="Username or Email"
-                            type="text"
-                            placeholder="john@example.com or johnwick"
-                            {...register("identifier", { required: "Username or Email is required" })}
-                            error={errors.identifier?.message as string}
-                        />
+                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+                        <div>
+                            <label className="block text-[13px] font-medium text-gray-500 mb-1.5">Username or Email</label>
+                            <input
+                                type="text"
+                                placeholder="john@example.com or johnwick"
+                                {...register("identifier", { required: "Username or Email is required" })}
+                                className="w-full px-4 py-3 rounded-xl border border-black/[0.08] bg-white text-[15px] text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-300/40 focus:border-emerald-300 transition-all shadow-sm"
+                            />
+                            {errors.identifier && <p className="text-[12px] text-red-500 mt-1">{errors.identifier.message as string}</p>}
+                        </div>
 
-                        <Input
-                            label="Password"
-                            type="password"
-                            placeholder="••••••••"
-                            {...register("password", { required: "Password is required" })}
-                            error={errors.password?.message as string}
-                        />
+                        <div>
+                            <label className="block text-[13px] font-medium text-gray-500 mb-1.5">Password</label>
+                            <input
+                                type="password"
+                                placeholder="••••••••"
+                                {...register("password", { required: "Password is required" })}
+                                className="w-full px-4 py-3 rounded-xl border border-black/[0.08] bg-white text-[15px] text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-300/40 focus:border-emerald-300 transition-all shadow-sm"
+                            />
+                            {errors.password && <p className="text-[12px] text-red-500 mt-1">{errors.password.message as string}</p>}
+                        </div>
 
                         {showAccessCode && (
                             <div className="animate-in slide-in-from-top-2 fade-in duration-300">
-                                <Input
-                                    label="Access Code"
+                                <label className="block text-[13px] font-medium text-gray-500 mb-1.5">Access Code</label>
+                                <input
                                     type="text"
                                     placeholder="Enter your premium code"
                                     {...register("accessCode")}
+                                    className="w-full px-4 py-3 rounded-xl border border-black/[0.08] bg-white text-[15px] text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-300/40 focus:border-emerald-300 transition-all shadow-sm"
                                 />
-                                <p className="text-xs text-yellow-500/80 mt-1 ml-1">
+                                <p className="text-[12px] text-amber-600/70 mt-1 ml-1">
                                     * Valid code unlocks Lifetime Premium
                                 </p>
                             </div>
                         )}
 
-                        <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center justify-between text-[13px]">
                             <button
                                 type="button"
                                 onClick={() => setShowAccessCode(!showAccessCode)}
-                                className="text-primary hover:underline font-medium"
+                                className="text-emerald-700 hover:text-emerald-600 font-medium transition-colors"
                             >
                                 {showAccessCode ? "Hide Access Code" : "Have an Access Code?"}
                             </button>
@@ -241,18 +250,17 @@ const Login: React.FC = () => {
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full py-3 mt-4 rounded-lg bg-primary hover:bg-primary/90 text-white font-medium shadow-lg shadow-primary/25 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center"
+                            className="w-full py-2.5 mt-3 rounded-xl bg-emerald-900 hover:bg-emerald-800 text-white text-[14px] font-semibold shadow-lg shadow-emerald-900/10 transition-all hover:scale-[1.01] active:scale-[0.98] flex items-center justify-center"
                         >
                             {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Log In"}
                         </button>
                     </form>
 
-                    <div className="mt-6 text-center text-sm">
-                        <span className="text-muted-foreground">Don't have an account? </span>
-                        <Link to="/signup" className="text-primary hover:underline">Sign up</Link>
+                    <div className="mt-4 text-center text-[14px]">
+                        <span className="text-gray-400">Don't have an account? </span>
+                        <Link to="/signup" className="text-emerald-700 font-medium hover:text-emerald-600 transition-colors">Sign up</Link>
                     </div>
                 </div>
-            </GlassSurface>
         </div>
     );
 };

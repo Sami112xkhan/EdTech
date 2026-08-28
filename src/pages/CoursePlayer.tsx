@@ -13,11 +13,14 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { useTheme } from "../context/ThemeContext";
 
 const CoursePlayer: React.FC = () => {
     const { user, markLessonComplete, addXp } = useAuth();
     const navigate = useNavigate();
     const { moduleId, lessonId } = useParams<{ moduleId: string; lessonId: string }>();
+    const { theme } = useTheme();
+    const isRich = theme === 'rich';
     const [note, setNote] = useState("");
     const [activeTab, setActiveTab] = useState<"notes" | "material">("notes");
     const [isCompleting, setIsCompleting] = useState(false);
@@ -149,7 +152,7 @@ const CoursePlayer: React.FC = () => {
     return (
         <div className="min-h-0 flex flex-col lg:flex-row gap-6 lg:h-[calc(100vh-120px)]">
             {/* Main Content: Video or Markdown */}
-            <div className={`flex-1 flex flex-col min-h-0 bg-background/50 rounded-2xl overflow-hidden border border-white/5 shadow-2xl ${!currentLesson.youtubeId ? 'bg-secondary/10' : ''}`}>
+            <div className={`flex-1 flex flex-col min-h-0 rounded-2xl overflow-hidden ${isRich ? 'bg-white border border-gray-200' : 'bg-background/50 border border-white/5 shadow-2xl'} ${!currentLesson.youtubeId ? (isRich ? 'bg-gray-50' : 'bg-secondary/10') : ''}`}>
                 {currentLesson.youtubeId && (
                     <div className="w-full bg-black shadow-inner relative" style={{ aspectRatio: '16/9' }}>
                         {(!hasAccess || (user?.role !== 'admin' && (user?.trialExpiresAt === 'EXPIRED' || (user?.trialExpiresAt && new Date(user.trialExpiresAt) <= new Date())))) ? (
@@ -194,7 +197,7 @@ const CoursePlayer: React.FC = () => {
                                 </span>
                                 <span className="text-zinc-500 text-xs tracking-wide">Lesson {currentLessonIndex + 1}</span>
                             </div>
-                            <h1 className="text-xl md:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400 leading-tight">
+                            <h1 className={`text-xl md:text-2xl font-bold leading-tight ${isRich ? 'text-gray-900' : 'bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400'}`}>
                                 {currentLesson.title}
                             </h1>
                         </div>
@@ -215,10 +218,10 @@ const CoursePlayer: React.FC = () => {
                     </div>
 
                     {/* Navigation */}
-                    <div className="flex justify-between border-t border-white/5 pt-6 mt-auto gap-4">
+                    <div className={`flex justify-between pt-6 mt-auto gap-4 ${isRich ? 'border-t border-gray-100' : 'border-t border-white/5'}`}>
                         {prevLesson ? (
-                            <Link to={`/learn/${moduleId}/${prevLesson.id}`} className="flex items-center gap-2 text-xs md:text-sm font-medium text-muted-foreground hover:text-white transition-all group max-w-[45%]">
-                                <span className="p-2 rounded-lg bg-white/5 group-hover:bg-white/10 transition-colors shrink-0">
+                            <Link to={`/learn/${moduleId}/${prevLesson.id}`} className={`flex items-center gap-2 text-xs md:text-sm font-medium transition-all group max-w-[45%] ${isRich ? 'text-gray-500 hover:text-gray-900' : 'text-muted-foreground hover:text-white'}`}>
+                                <span className={`p-2 rounded-lg transition-colors shrink-0 ${isRich ? 'bg-gray-100 group-hover:bg-gray-200' : 'bg-white/5 group-hover:bg-white/10'}`}>
                                     <ChevronLeft className="w-4 h-4" />
                                 </span>
                                 <span className="truncate">{prevLesson.title}</span>
@@ -226,7 +229,7 @@ const CoursePlayer: React.FC = () => {
                         ) : <div />}
 
                         {nextLesson ? (
-                            <Link to={`/learn/${moduleId}/${nextLesson.id}`} className="flex items-center gap-2 text-xs md:text-sm font-medium text-muted-foreground hover:text-white transition-all group max-w-[45%] text-right justify-end">
+                            <Link to={`/learn/${moduleId}/${nextLesson.id}`} className={`flex items-center gap-2 text-xs md:text-sm font-medium transition-all group max-w-[45%] text-right justify-end ${isRich ? 'text-gray-500 hover:text-gray-900' : 'text-muted-foreground hover:text-white'}`}>
                                 <span className="truncate">{nextLesson.title}</span>
                                 <span className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 text-primary transition-colors shrink-0">
                                     <ChevronRight className="w-4 h-4" />
@@ -241,7 +244,7 @@ const CoursePlayer: React.FC = () => {
 
                     {/* Markdown Content Block */}
                     {!currentLesson.youtubeId && markdownContent && (
-                        <div className="text-white/90 leading-relaxed max-w-4xl mx-auto rounded-2xl mt-4">
+                        <div className={`${isRich ? 'text-gray-900' : 'text-white/90'} leading-relaxed max-w-4xl mx-auto rounded-2xl mt-4`}>
                             <ReactMarkdown
                                 remarkPlugins={[remarkGfm]}
                                 components={{
@@ -277,10 +280,10 @@ const CoursePlayer: React.FC = () => {
                                     ul: ({ children }: any) => <ul className="list-disc pl-6 mb-6 space-y-2 text-muted-foreground marker:text-primary">{children}</ul>,
                                     ol: ({ children }: any) => <ol className="list-decimal pl-6 mb-6 space-y-2 text-muted-foreground marker:text-primary">{children}</ol>,
                                     li: ({ children }: any) => <li className="pl-2">{children}</li>,
-                                    h1: ({ children }: any) => <h1 className="text-3xl md:text-4xl font-black mb-6 mt-12 first:mt-2 text-white tracking-tight">{children}</h1>,
-                                    h2: ({ children }: any) => <h2 className="text-2xl mt-12 mb-5 font-bold text-white tracking-tight">{children}</h2>,
-                                    h3: ({ children }: any) => <h3 className="text-xl mt-8 mb-4 font-bold text-white">{children}</h3>,
-                                    h4: ({ children }: any) => <h4 className="text-lg mt-6 mb-3 font-semibold text-white/90">{children}</h4>,
+                                    h1: ({ children }: any) => <h1 className={`text-3xl md:text-4xl font-black mb-6 mt-12 first:mt-2 tracking-tight ${isRich ? 'text-gray-900' : 'text-white'}`}>{children}</h1>,
+                                    h2: ({ children }: any) => <h2 className={`text-2xl mt-12 mb-5 font-bold tracking-tight ${isRich ? 'text-gray-900' : 'text-white'}`}>{children}</h2>,
+                                    h3: ({ children }: any) => <h3 className={`text-xl mt-8 mb-4 font-bold ${isRich ? 'text-gray-900' : 'text-white'}`}>{children}</h3>,
+                                    h4: ({ children }: any) => <h4 className={`text-lg mt-6 mb-3 font-semibold ${isRich ? 'text-gray-700' : 'text-white/90'}`}>{children}</h4>,
                                     blockquote: ({ children }: any) => (
                                         <blockquote className="border-l-4 border-primary/50 pl-6 py-2 my-8 bg-primary/5 rounded-r-2xl italic text-muted-foreground">
                                             {children}
@@ -291,8 +294,8 @@ const CoursePlayer: React.FC = () => {
                                             {children}
                                         </a>
                                     ),
-                                    strong: ({ children }: any) => <strong className="font-bold text-white">{children}</strong>,
-                                    hr: () => <hr className="my-10 border-white/10" />,
+                                    strong: ({ children }: any) => <strong className={`font-bold ${isRich ? 'text-gray-900' : 'text-white'}`}>{children}</strong>,
+                                    hr: () => <hr className={`my-10 ${isRich ? 'border-gray-200' : 'border-white/10'}`} />,
                                     img: (props: any) => (
                                         <div className="my-8 rounded-2xl overflow-hidden border border-white/10 shadow-2xl relative">
                                             <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
@@ -311,19 +314,19 @@ const CoursePlayer: React.FC = () => {
 
             {/* Sidebar: Notes & Course Material */}
             <div className="w-full lg:w-80 flex flex-col shrink-0 min-h-[400px] lg:h-full">
-                <div className="flex-1 bg-secondary/20 border border-white/5 rounded-2xl flex flex-col overflow-hidden backdrop-blur-sm shadow-xl">
+                <div className={`flex-1 rounded-2xl flex flex-col overflow-hidden ${isRich ? 'bg-white border border-gray-200' : 'bg-secondary/20 border border-white/5 backdrop-blur-sm shadow-xl'}`}>
                     {/* Tabs Header */}
-                    <div className="flex border-b border-white/5 bg-white/5">
+                    <div className={`flex ${isRich ? 'border-b border-gray-100 bg-gray-50' : 'border-b border-white/5 bg-white/5'}`}>
                         <button
                             onClick={() => setActiveTab("notes")}
-                            className={`flex-1 flex items-center justify-center gap-2 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'notes' ? 'text-primary border-b-2 border-primary bg-primary/5' : 'text-muted-foreground hover:text-white hover:bg-white/5'}`}
+                            className={`flex-1 flex items-center justify-center gap-2 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'notes' ? 'text-primary border-b-2 border-primary bg-primary/5' : isRich ? 'text-gray-400 hover:text-gray-900 hover:bg-gray-100' : 'text-muted-foreground hover:text-white hover:bg-white/5'}`}
                         >
                             <FileText className="w-4 h-4" />
                             Your Notes
                         </button>
                         <button
                             onClick={() => setActiveTab("material")}
-                            className={`flex-1 flex items-center justify-center gap-2 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'material' ? 'text-primary border-b-2 border-primary bg-primary/5' : 'text-muted-foreground hover:text-white hover:bg-white/5'}`}
+                            className={`flex-1 flex items-center justify-center gap-2 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'material' ? 'text-primary border-b-2 border-primary bg-primary/5' : isRich ? 'text-gray-400 hover:text-gray-900 hover:bg-gray-100' : 'text-muted-foreground hover:text-white hover:bg-white/5'}`}
                         >
                             <Save className="w-4 h-4" />
                             Material
@@ -335,7 +338,7 @@ const CoursePlayer: React.FC = () => {
                         {activeTab === "notes" ? (
                             <div className="h-full flex flex-col min-h-[300px]">
                                 <textarea
-                                    className="flex-1 bg-transparent resize-none focus:outline-none text-sm leading-relaxed placeholder:text-muted-foreground/30 text-white/90 font-medium"
+                                    className={`flex-1 bg-transparent resize-none focus:outline-none text-sm leading-relaxed placeholder:text-muted-foreground/30 font-medium ${isRich ? 'text-gray-900' : 'text-white/90'}`}
                                     placeholder="Study notes you write here are private and saved automatically..."
                                     value={note}
                                     onChange={(e) => setNote(e.target.value)}
@@ -356,14 +359,14 @@ const CoursePlayer: React.FC = () => {
                                             <FileText className="w-12 h-12 text-primary relative z-10" />
                                         </div>
                                         <div className="space-y-2 px-4">
-                                            <h3 className="text-xl font-black text-white">Concept Notes</h3>
-                                            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest leading-relaxed">
+                                            <h3 className={`text-xl font-black ${isRich ? 'text-gray-900' : 'text-white'}`}>Concept Notes</h3>
+                                            <p className={`text-[10px] font-bold uppercase tracking-widest leading-relaxed ${isRich ? 'text-gray-500' : 'text-muted-foreground'}`}>
                                                 Official PDF material for "{currentLesson.title}".
                                             </p>
                                         </div>
                                         <div className="flex flex-col gap-3 px-4">
                                             {!hasAccess || isPhaseLocked ? (
-                                                <div className="w-full py-6 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center justify-center gap-2 group relative overflow-hidden">
+                                                <div className={`w-full py-6 rounded-2xl flex flex-col items-center justify-center gap-2 group relative overflow-hidden ${isRich ? 'bg-gray-50 border border-gray-200' : 'bg-white/5 border border-white/10'}`}>
                                                     <div className="absolute inset-0 bg-black/40 z-10" />
                                                     <Lock className="w-6 h-6 text-white/50 relative z-20 mb-1" />
                                                     <span className="text-xs font-black uppercase tracking-widest text-white/70 relative z-20">Downloads Locked</span>
@@ -385,7 +388,7 @@ const CoursePlayer: React.FC = () => {
                                                     <a
                                                         href={currentLesson.notesPath}
                                                         download
-                                                        className="w-full py-4 bg-white/5 text-white rounded-2xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 border border-white/10 hover:bg-white/10 transition-all active:scale-[0.98]"
+                                                        className={`w-full py-4 rounded-2xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-[0.98] ${isRich ? 'bg-gray-100 text-gray-900 border border-gray-200 hover:bg-gray-200' : 'bg-white/5 text-white border border-white/10 hover:bg-white/10'}`}
                                                     >
                                                         Download PDF
                                                     </a>

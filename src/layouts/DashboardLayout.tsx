@@ -15,6 +15,7 @@ import {
     Code
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 import AIAssistant from "../components/AIAssistant";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -69,6 +70,8 @@ interface SidebarLinkProps {
 }
 
 const SidebarLink = ({ to, icon: Icon, children, isCollapsed, isAiAssistant = false, isActiveHover, onHover, isDraggingSelector }: SidebarLinkProps) => {
+    const { theme } = useTheme();
+    const isRich = theme === 'rich';
     return (
         <NavLink
             to={to}
@@ -85,19 +88,17 @@ const SidebarLink = ({ to, icon: Icon, children, isCollapsed, isAiAssistant = fa
                     {isActiveHover && (
                         <motion.div
                             layoutId="activeSidebarItem"
-                            className={`absolute inset-0 rounded-xl transition-all duration-200 pointer-events-none ${isDraggingSelector ? "bg-transparent backdrop-blur-none border border-white/5" : "bg-white/20 backdrop-blur-xl border border-white/30 shadow-[inset_0_0_12px_rgba(255,255,255,0.2),0_4_24_rgba(0,0,0,0.5)] group-active:bg-transparent group-active:backdrop-blur-none group-active:shadow-none"}`}
+                            className={`absolute inset-0 rounded-xl transition-all duration-200 pointer-events-none ${isDraggingSelector ? "bg-transparent backdrop-blur-none border border-white/5" : isRich ? "bg-emerald-50" : "bg-white/20 backdrop-blur-xl border border-white/30 shadow-[inset_0_0_12px_rgba(255,255,255,0.2),0_4_24_rgba(0,0,0,0.5)] group-active:bg-transparent group-active:backdrop-blur-none group-active:shadow-none"}`}
                             transition={{ type: "spring", stiffness: 350, damping: 25 }}
                         />
                     )}
 
                     <div className="relative z-10 flex items-center gap-3">
-                        <Icon className={`w-5 h-5 shrink-0 transition-all duration-300 ${isActive ? "text-white" : "text-muted-foreground group-hover:text-white group-hover:scale-105"
-                            }`} />
-
+                        <Icon className={`w-5 h-5 shrink-0 transition-all duration-300 ${isActive ? (isRich ? "text-emerald-700" : "text-white") : (isRich ? "text-gray-400 group-hover:text-gray-900" : "text-muted-foreground group-hover:text-white group-hover:scale-105")}`} />
                         <motion.div
                             className={`overflow-hidden transition-all duration-300 ${isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"}`}
                         >
-                            <span className={`font-medium whitespace-nowrap transition-colors ${isActive ? "text-white font-semibold" : "text-muted-foreground group-hover:text-white"}`}>
+                            <span className={`whitespace-nowrap transition-colors ${isActive ? (isRich ? "text-emerald-800 font-semibold" : "text-white font-semibold") : (isRich ? "text-gray-500 group-hover:text-gray-900" : "text-muted-foreground group-hover:text-white")}`}>
                                 {children}
                             </span>
                         </motion.div>
@@ -105,7 +106,7 @@ const SidebarLink = ({ to, icon: Icon, children, isCollapsed, isAiAssistant = fa
 
                     {/* Tooltip for collapsed state */}
                     {isCollapsed && (
-                        <div className="absolute left-full ml-4 px-3 py-1.5 bg-zinc-900 border border-white/10 rounded-lg text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50 whitespace-nowrap pointer-events-none shadow-xl translate-x-2 group-hover:translate-x-0">
+                        <div className={`absolute left-full ml-4 px-3 py-1.5 rounded-lg text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50 whitespace-nowrap pointer-events-none shadow-xl translate-x-2 group-hover:translate-x-0 ${isRich ? "bg-[#FFFBF5] border border-[#E8E0D4] text-gray-900" : "bg-zinc-900 border border-white/10 text-white"}`}>
                             {children}
                         </div>
                     )}
@@ -125,7 +126,10 @@ interface MobileSidebarLinkProps {
     isDraggingSelector: boolean;
 }
 
-const MobileSidebarLink = ({ to, icon: Icon, children, onClick, isActiveHover, onHover, isDraggingSelector }: MobileSidebarLinkProps) => (
+const MobileSidebarLink = ({ to, icon: Icon, children, onClick, isActiveHover, onHover, isDraggingSelector }: MobileSidebarLinkProps) => {
+    const { theme } = useTheme();
+    const isRich = theme === 'rich';
+    return (
     <NavLink
         to={to}
         end={to === "/dashboard"}
@@ -145,24 +149,26 @@ const MobileSidebarLink = ({ to, icon: Icon, children, onClick, isActiveHover, o
                 {isActiveHover && (
                     <motion.div
                         layoutId="mobileActiveSidebarItem"
-                        className={`absolute inset-0 rounded-xl transition-all duration-200 pointer-events-none ${isDraggingSelector ? "bg-transparent backdrop-blur-none border border-white/5" : "bg-white/20 backdrop-blur-xl border border-white/30 shadow-[inset_0_0_12px_rgba(255,255,255,0.2),0_4_24_rgba(0,0,0,0.5)] group-active:bg-transparent group-active:backdrop-blur-none group-active:shadow-none"}`}
+                        className={`absolute inset-0 rounded-xl transition-all duration-200 pointer-events-none ${isDraggingSelector ? "bg-transparent backdrop-blur-none border border-white/5" : isRich ? "bg-emerald-50" : "bg-white/20 backdrop-blur-xl border border-white/30 shadow-[inset_0_0_12px_rgba(255,255,255,0.2),0_4_24_rgba(0,0,0,0.5)] group-active:bg-transparent group-active:backdrop-blur-none group-active:shadow-none"}`}
                         transition={{ type: "spring", stiffness: 350, damping: 25 }}
                     />
                 )}
                 <div className="relative z-10 flex items-center gap-4">
-                    <Icon className={`w-6 h-6 shrink-0 transition-all duration-300 ${isActive ? "text-white" : "text-muted-foreground group-hover:text-white group-hover:scale-105"}`} />
-                    <span className={`transition-colors ${isActive ? "text-white font-bold" : "text-muted-foreground group-hover:text-white"}`}>{children}</span>
+                    <Icon className={`w-6 h-6 shrink-0 transition-all duration-300 ${isActive ? (isRich ? "text-emerald-700" : "text-white") : (isRich ? "text-gray-400 group-hover:text-gray-900" : "text-muted-foreground group-hover:text-white")}`} />
+                    <span className={`transition-colors ${isActive ? (isRich ? "text-emerald-800 font-bold" : "text-white font-bold") : (isRich ? "text-gray-500 group-hover:text-gray-900" : "text-muted-foreground group-hover:text-white")}`}>{children}</span>
                 </div>
             </>
         )}
     </NavLink>
 );
+};
 
 const DashboardLayout: React.FC = () => {
     const { logout, user } = useAuth();
-    const navigate = useNavigate();
+    const { theme } = useTheme();
+    const isRich = theme === 'rich';
     const location = useLocation();
-    const [isCollapsed, setIsCollapsed] = useState(false);
+    const navigate = useNavigate();    const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [hoveredItem, setHoveredItem] = useState<string | null>(null);
     const [isDraggingSelector, setIsDraggingSelector] = useState(false);
@@ -223,19 +229,19 @@ const DashboardLayout: React.FC = () => {
     };
 
     return (
-        <div className="flex h-[100dvh] bg-background overflow-hidden md:p-6 md:gap-6">
+        <div className={`flex h-[100dvh] bg-background overflow-hidden ${isRich ? 'md:p-0 md:gap-0' : 'md:p-6 md:gap-6'}`}>
             {/* Sidebar - Desktop */}
             <motion.aside
                 initial={false}
-                animate={{ width: isCollapsed ? 84 : 260 }}
+                animate={{ width: isRich ? 220 : (isCollapsed ? 84 : 260) }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
-                className="hidden md:flex flex-col rounded-3xl border border-white/10 bg-black/20 backdrop-blur-3xl shadow-2xl relative z-50 h-[calc(100vh-2rem)] shrink-0"
+                className={`hidden md:flex flex-col relative z-50 shrink-0 ${isRich ? 'border-r border-[#E8E0D4] bg-[#FFFBF5] h-full rounded-none w-[220px]' : 'rounded-3xl border border-white/10 bg-black/20 backdrop-blur-3xl shadow-2xl h-[calc(100vh-2rem)]'}`}
             >
                 {/* Header with Toggle */}
-                <div className="flex items-center justify-between px-4 py-6 mb-2">
+                <div className={`flex items-center justify-between mb-2 ${isRich ? 'px-5 py-5' : 'px-4 py-6'}`}>
                     <div className="flex items-center gap-3 overflow-hidden">
-                        <div className="w-8 h-8 rounded-lg bg-[#FF7B00] shrink-0 shadow-lg shadow-orange-500/20 flex items-center justify-center">
-                            <span className="font-bold text-white text-base font-serif">m</span>
+                        <div className={`${isRich ? 'w-8 h-8 rounded-full bg-emerald-600' : 'w-8 h-8 rounded-lg bg-[#FF7B00] shadow-lg shadow-orange-500/20'} shrink-0 flex items-center justify-center`}>
+                            <span className={`${isRich ? 'text-white text-sm' : 'text-white text-base'} font-bold font-serif`}>m</span>
                         </div>
 
                         <motion.div
@@ -243,7 +249,7 @@ const DashboardLayout: React.FC = () => {
                             transition={{ duration: 0.2 }}
                             className="whitespace-nowrap overflow-hidden"
                         >
-                            <span className="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
+                            <span className={`text-xl font-bold tracking-tight ${isRich ? "text-gray-900" : "bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60"}`}>
                                 DevMastery
                             </span>
                         </motion.div>
@@ -253,7 +259,7 @@ const DashboardLayout: React.FC = () => {
                 {/* Always Visible Toggle Button */}
                 <button
                     onClick={() => setIsCollapsed(!isCollapsed)}
-                    className="absolute top-6 right-[-12px] z-50 p-1.5 rounded-full bg-zinc-900 border border-white/10 text-muted-foreground hover:text-white hover:bg-zinc-800 transition-all shadow-md group"
+                    className={`absolute top-6 right-[-12px] z-50 p-1.5 rounded-full border transition-all shadow-md group ${isRich ? "bg-gray-100 border-black/[0.06] text-gray-400 hover:text-gray-900 hover:bg-gray-200" : "bg-zinc-900 border-white/10 text-muted-foreground hover:text-white hover:bg-zinc-800"}`}
                     title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
                 >
                     <PanelLeft className={`w-4 h-4 transition-transform duration-300 ${isCollapsed ? "rotate-180" : ""}`} />
@@ -291,22 +297,21 @@ const DashboardLayout: React.FC = () => {
                                         if (!isDraggingSelector) setHoveredItem(item.to);
                                     }}
                                     isDraggingSelector={isDraggingSelector}
-                                >
-                                    {item.isAdmin ? <span className="text-purple-400 font-bold">{item.label}</span> : item.label}
+                                >                                        {item.isAdmin ? <span className={`${isRich ? 'text-primary font-bold' : 'text-primary font-bold'}`}>{item.label}</span> : item.label}
                                 </SidebarLink>
                             </motion.li>
                         ))}
                     </ul>
                 </nav>
 
-                <div className="p-3 mt-auto mb-4 mx-3 rounded-2xl bg-[#202022] overflow-hidden group/user flex items-center justify-between">
+                <div className={`${isRich ? 'mx-3 mb-4 px-3 py-3 border-t border-[#E8E0D4]' : 'p-3 mx-3 mb-4 rounded-2xl bg-[#202022]'} overflow-hidden group/user flex items-center justify-between`}>
                     <div className={`flex items-center gap-3 transition-all duration-300 ${isCollapsed ? "justify-center w-full" : ""}`}>
-                        <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-sm font-bold text-white shrink-0">
+                        <div className={`${isRich ? 'w-10 h-10 rounded-full bg-[#E8DFD0] text-emerald-700' : 'w-10 h-10 rounded-full bg-white/10 text-white'} flex items-center justify-center text-sm font-bold shrink-0`}>
                             {user?.name?.charAt(0) || 'U'}
                         </div>
 
                         <div className={`flex flex-col overflow-hidden transition-all duration-300 ${isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"}`}>
-                            <span className="text-[13px] font-medium text-white truncate">{user?.name}</span>
+                            <span className={`text-[13px] font-medium truncate ${isRich ? "text-gray-900" : "text-white"}`}>{user?.name}</span>
                             <span className="text-[11px] text-muted-foreground truncate">{user?.role === 'admin' ? 'admin' : user?.username}</span>
                         </div>
                     </div>
@@ -314,7 +319,7 @@ const DashboardLayout: React.FC = () => {
                     {!isCollapsed && (
                         <button
                             onClick={handleLogout}
-                            className="p-2 text-muted-foreground hover:text-white transition-colors"
+                            className={`p-2 transition-colors ${isRich ? "text-gray-400 hover:text-gray-900" : "text-muted-foreground hover:text-white"}`}
                             title="Logout"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" /><polyline points="10 17 15 12 10 7" /><line x1="15" x2="3" y1="12" y2="12" /></svg>
@@ -326,17 +331,17 @@ const DashboardLayout: React.FC = () => {
             {/* Main Content */}
             <main data-lenis-prevent className={`flex-1 relative flex flex-col h-full w-full ${isPlayground ? "overflow-hidden" : "overflow-y-auto"}`}>
                 {/* Mobile Header */}
-                <header className="md:hidden flex items-center justify-between p-4 border-b border-white/5 bg-background/80 backdrop-blur-md sticky top-0 z-40">
+                <header className={`md:hidden flex items-center justify-between p-4 border-b sticky top-0 z-40 ${isRich ? "border-[#E8E0D4] bg-[#F5EFE6]/90 backdrop-blur-xl" : "border-white/5 bg-background/80 backdrop-blur-md"}`}>
                     <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center">
-                            <span className="font-bold text-white text-sm">D</span>
+                        <div className={`${isRich ? 'w-8 h-8 rounded-full bg-emerald-600' : 'w-8 h-8 rounded-lg bg-[#FF7B00]'} flex items-center justify-center`}>
+                            <span className="font-bold text-white text-base font-serif">m</span>
                         </div>
                         <span className="font-bold tracking-tight">DevMastery</span>
                     </div>
 
                     <button
                         onClick={() => setIsMobileMenuOpen(true)}
-                        className="p-2 -mr-2 text-muted-foreground hover:text-white"
+                        className={`p-2 -mr-2 ${isRich ? "text-gray-400 hover:text-gray-900" : "text-muted-foreground hover:text-white"}`}
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="20" y1="12" y2="12" /><line x1="4" x2="20" y1="6" y2="6" /><line x1="4" x2="20" y1="18" y2="18" /></svg>
                     </button>
@@ -356,24 +361,24 @@ const DashboardLayout: React.FC = () => {
                 {/* Trial Expired Overlay */}
                 {
                     (user?.trialExpiresAt === 'EXPIRED' || (user?.trialExpiresAt && new Date(user.trialExpiresAt) <= new Date())) && (
-                        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-xl flex items-center justify-center p-6">
+                        <div className={`fixed inset-0 z-[100] flex items-center justify-center p-6 ${isRich ? "bg-black/40 backdrop-blur-sm" : "bg-black/80 backdrop-blur-xl"}`}>
                             <motion.div
                                 initial={{ scale: 0.9, opacity: 0 }}
                                 animate={{ scale: 1, opacity: 1 }}
-                                className="max-w-md w-full bg-zinc-900 border border-white/10 p-8 rounded-[2.5rem] text-center shadow-2xl relative overflow-hidden"
+                                className={`max-w-md w-full p-8 rounded-[2.5rem] text-center shadow-2xl relative overflow-hidden ${isRich ? "bg-[#FFFBF5] border border-[#E8E0D4]" : "bg-zinc-900 border border-white/10"}`}
                             >
                                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 via-primary to-red-500 animate-pulse" />
                                 <div className="w-20 h-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
                                     <Clock className="w-10 h-10 text-red-400" />
                                 </div>
-                                <h2 className="text-3xl font-black mb-4">Trial Ended</h2>
+                                <h2 className={`text-3xl font-black mb-4 ${isRich ? "text-gray-900" : ""}`}>Trial Ended</h2>
                                 <p className="text-muted-foreground mb-8 text-sm leading-relaxed">
                                     Your trial period has expired. We hope you enjoyed the content! To continue your mastery journey, please upgrade to a full account.
                                 </p>
                                 <div className="space-y-4">
                                     <button
                                         onClick={() => navigate('/curriculum')}
-                                        className="w-full py-4 bg-white text-black font-black rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-white/10"
+                                        className={`w-full py-4 font-black rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all ${isRich ? "bg-emerald-900 text-white shadow-lg shadow-emerald-900/15" : "bg-white text-black shadow-xl shadow-white/10"}`}
                                     >
                                         Get Full Access
                                     </button>
@@ -388,7 +393,7 @@ const DashboardLayout: React.FC = () => {
                         </div>
                     )
                 }
-            </main >
+            </main>
 
             {/* Mobile Menu Overlay */}
             <AnimatePresence>
@@ -400,13 +405,13 @@ const DashboardLayout: React.FC = () => {
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: "100%" }}
                             transition={{ duration: 0.3, ease: "easeInOut" }}
-                            className="fixed inset-0 z-50 bg-background md:hidden flex flex-col"
+                            className={`fixed inset-0 z-50 md:hidden flex flex-col ${isRich ? "bg-[#F5EFE6]" : "bg-background"}`}
                         >
-                            <div className="p-4 border-b border-white/5 flex items-center justify-between">
+                            <div className={`p-4 border-b flex items-center justify-between ${isRich ? "border-[#E8E0D4]" : "border-white/5"}`}>
                                 <span className="font-bold text-lg">Menu</span>
                                 <button
                                     onClick={() => setIsMobileMenuOpen(false)}
-                                    className="p-2 -mr-2 text-muted-foreground hover:text-white"
+                                    className={`p-2 -mr-2 ${isRich ? "text-gray-400 hover:text-gray-900" : "text-muted-foreground hover:text-white"}`}
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 18 18" /></svg>
                                 </button>
@@ -416,7 +421,7 @@ const DashboardLayout: React.FC = () => {
                                 className="flex-1 overflow-y-auto p-4 flex flex-col gap-2 select-none touch-none"
                                 onPointerDown={(e) => {
                                     handlePointerDown(e);
-                                    // Make sure hoveredItem is initialized so we don't jump to null initially
+                                    // Make sure hoveredItem is initialized so we do not jump to null initially
                                     const el = document.elementFromPoint(e.clientX, e.clientY);
                                     const link = el?.closest('a[data-sidebar-link="true"]');
                                     if (link) {
@@ -448,14 +453,14 @@ const DashboardLayout: React.FC = () => {
                                         isDraggingSelector={isDraggingSelector}
                                         onClick={() => setIsMobileMenuOpen(false)}
                                     >
-                                        {item.isAdmin ? <span className="text-purple-400 font-bold">{item.label}</span> : item.label}
+                                        {item.isAdmin ? <span className="text-primary font-bold">{item.label}</span> : item.label}
                                     </MobileSidebarLink>
                                 ))}
 
-                                <div className="mt-auto pt-8 border-t border-white/5">
+                                <div className={`mt-auto pt-8 border-t ${isRich ? "border-[#E8E0D4]" : "border-white/5"}`}>
                                     <button
                                         onClick={handleLogout}
-                                        className="flex w-full items-center gap-4 px-6 py-4 text-lg font-medium text-red-400 hover:bg-red-500/10 rounded-xl transition"
+                                        className={`flex w-full items-center gap-4 px-6 py-4 text-lg font-medium rounded-xl transition ${isRich ? "text-red-600 hover:bg-red-50" : "text-red-400 hover:bg-red-500/10"}`}
                                     >
                                         <LogOut className="w-6 h-6" />
                                         Logout
@@ -465,10 +470,10 @@ const DashboardLayout: React.FC = () => {
                         </motion.div>
                     )
                 }
-            </AnimatePresence >
+            </AnimatePresence>
 
             {location.pathname !== '/ai-assistant' && <AIAssistant />}
-        </div >
+        </div>
     );
 };
 

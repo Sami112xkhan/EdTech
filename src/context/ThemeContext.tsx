@@ -1,7 +1,11 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
+type Theme = 'dark-gamer' | 'rich';
+
 type ThemeContextType = {
+    theme: Theme;
+    setTheme: (theme: Theme) => void;
     fontSize: string;
     setFontSize: (size: string) => void;
     accentColor: string;
@@ -23,33 +27,32 @@ export const useTheme = () => {
 };
 
 export const ACCENT_COLORS: Record<string, string> = {
-    purple: '262, 80%, 52%',
     blue: '217, 91%, 60%',
     green: '142, 71%, 45%',
-    orange: '25, 95%, 53%',
-    pink: '330, 81%, 60%',
+    orange: '25, 95%',
+    red: '0, 84%, 60%',
+    teal: '173, 80%, 40%',
 };
 
 // Calibration for background animations to match visual accent colors
 // Veil base hue is ~30deg, Prism base hue is ~202deg
 export const BACKGROUND_CALIBRATION: Record<string, { veil: number; prism: number }> = {
-    purple: { veil: 232, prism: 1.05 },
     blue: { veil: 187, prism: 0.26 },
     green: { veil: 112, prism: -1.05 },
     orange: { veil: -5, prism: -3.09 },
-    pink: { veil: -60, prism: 2.23 },
+    red: { veil: 0, prism: -2.0 },
+    teal: { veil: 160, prism: -0.5 },
 };
 
 export const ACCENT_RGB: Record<string, [number, number, number]> = {
-    purple: [0.635, 0.455, 0.957], // 162/255, 116/255, 244/255 approx
-    blue: [0.239, 0.529, 0.961],   // 61/255, 135/255, 245/255
-    green: [0.133, 0.773, 0.369],  // 34/255, 197/255, 94/255
-    orange: [0.976, 0.463, 0.051], // 249/255, 118/255, 13/255
-    pink: [0.925, 0.29, 0.631],    // 236/255, 74/255, 161/255
+    blue: [0.239, 0.529, 0.961],
+    green: [0.133, 0.773, 0.369],
+    orange: [0.976, 0.463, 0.051],
+    red: [0.863, 0.22, 0.22],
+    teal: [0.0, 0.667, 0.624],
 };
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    // ... loadPref ...
     const loadPref = <T,>(key: string, fallback: T): T => {
         try {
             const val = localStorage.getItem(`settings_${key}`);
@@ -58,11 +61,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     const [fontSize, setFontSizeState] = useState(() => loadPref('fontSize', 'medium'));
-    const [accentColor, setAccentColorState] = useState(() => loadPref('accentColor', 'purple'));
+    const [accentColor, setAccentColorState] = useState(() => loadPref('accentColor', 'blue'));
     const [codeFont, setCodeFontState] = useState(() => loadPref('codeFont', 'fira'));
     const [frostedMode, setFrostedModeState] = useState(() => loadPref('frostedMode', false));
+    const [theme, setThemeState] = useState<Theme>(() => loadPref('theme', 'dark-gamer'));
 
-    // ... wrappers ...
     const setFontSize = (value: string) => {
         setFontSizeState(value);
         localStorage.setItem('settings_fontSize', JSON.stringify(value));
@@ -83,7 +86,17 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         localStorage.setItem('settings_frostedMode', JSON.stringify(value));
     };
 
+    const setTheme = (value: Theme) => {
+        setThemeState(value);
+        localStorage.setItem('settings_theme', JSON.stringify(value));
+    };
+
     // ─── Effects to Apply Styles ───
+
+    // Apply theme data attribute
+    useEffect(() => {
+        document.documentElement.setAttribute('data-theme', theme);
+    }, [theme]);
 
     // Apply Font Size
     useEffect(() => {
@@ -91,16 +104,17 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         document.documentElement.style.fontSize = sizeMap[fontSize] || '16px';
     }, [fontSize]);
 
-    // Apply Accent Color
+    // Apply Accent Color — in rich theme, always use green to match the landing page aesthetic
     useEffect(() => {
-        const color = ACCENT_COLORS[accentColor] || ACCENT_COLORS.purple;
+        const effectiveAccent = theme === 'rich' ? 'green' : accentColor;
+        const color = ACCENT_COLORS[effectiveAccent] || ACCENT_COLORS.blue;
         document.documentElement.style.setProperty('--accent-h', color.split(',')[0].trim());
 
         const parts = color.split(',');
         if (parts.length === 3) {
             document.documentElement.style.setProperty('--color-primary', `hsl(${parts[0].trim()}, ${parts[1].trim()}, ${parts[2].trim()})`);
         }
-    }, [accentColor]);
+    }, [accentColor, theme]);
 
     // Apply Code Font
     useEffect(() => {
@@ -115,6 +129,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     return (
         <ThemeContext.Provider value={{
+            theme, setTheme,
             fontSize, setFontSize,
             accentColor, setAccentColor,
             codeFont, setCodeFont,
