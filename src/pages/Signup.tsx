@@ -48,7 +48,7 @@ const Signup: React.FC = () => {
   };
 
   return (
-    <div className="min-h-[100dvh] relative overflow-hidden bg-[#f8f9f6]" style={{ fontFamily: "'SF Pro Display', system-ui, -apple-system, sans-serif" }}>
+    <div className="min-h-[100dvh] relative bg-background" style={{ fontFamily: "'SF Pro Display', system-ui, -apple-system, sans-serif" }}>
 
       {/* Subtle emerald glow */}
       <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[600px] h-[400px] opacity-[0.06] pointer-events-none" style={{
@@ -56,7 +56,7 @@ const Signup: React.FC = () => {
       }} />
 
       {/* Nav bar */}
-      <nav className="fixed top-0 left-0 right-0 z-50" style={{ background: 'rgba(248, 249, 246, 0.92)', backdropFilter: 'blur(20px)' }}>
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-xl">
         <div className="max-w-[1200px] mx-auto px-6 h-14 flex items-center justify-between border-b border-black/[0.06]">
           <Link to="/" className="flex items-center gap-2">
             <span className="text-[13px] font-bold tracking-[0.08em] uppercase text-emerald-800">DevMastery</span>
@@ -72,7 +72,7 @@ const Signup: React.FC = () => {
         </div>
       </nav>
 
-      <div className="pt-[6.5rem] md:pt-[5.5rem] px-6 md:px-8 pb-4 max-w-lg mx-auto animate-in fade-in zoom-in-95 duration-500">
+      <div className="pt-[9rem] md:pt-[7rem] px-6 md:px-8 pb-4 max-w-lg mx-auto animate-in fade-in duration-500">
           <div className="mb-3 md:mb-5">
             <h1 className="text-[32px] md:text-[36px] font-bold tracking-[-0.04em] text-gray-900 mb-2">Create Account</h1>
             <p className="text-[15px] md:text-[16px] text-gray-500">Start your journey to Full Stack mastery.</p>
@@ -100,7 +100,7 @@ const Signup: React.FC = () => {
               <span className="w-full border-t border-black/[0.06]" />
             </div>
             <div className="relative flex justify-center text-[11px] uppercase tracking-[0.1em]">
-              <span className="bg-[#f8f9f6] px-3 text-gray-400">Or continue with</span>
+              <span className="bg-background px-3 text-gray-400">Or continue with</span>
             </div>
           </div>
 
