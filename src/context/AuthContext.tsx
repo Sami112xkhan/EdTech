@@ -28,6 +28,7 @@ interface AuthContextType {
     redeemCode: (code: string, courseId?: string) => Promise<{ success: boolean; message: string }>;
     getAllAccessCodes: () => Promise<any[]>;
     revokeAccessCode: (code: string) => Promise<void>;
+    deleteAccessCode: (code: string) => Promise<void>;
     addXp: (amount: number) => void;
     updateProfile: (updates: Partial<User>) => Promise<void>;
     // Certificate System
@@ -183,6 +184,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             await fetch(`/api/admin/codes/${code}/revoke`, { method: 'POST' });
         } catch (error) {
             console.error('Failed to revoke code:', error);
+        }
+    };
+
+    const deleteAccessCode = async (code: string): Promise<void> => {
+        try {
+            await fetch(`/api/admin/codes/${code}`, { method: 'DELETE' });
+        } catch (error) {
+            console.error('Failed to delete code:', error);
         }
     };
 
@@ -754,6 +763,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             redeemCode,
             getAllAccessCodes,
             revokeAccessCode,
+            deleteAccessCode,
             loginWithGoogle,
             addXp,
             updateProfile,

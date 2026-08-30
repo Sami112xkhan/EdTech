@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useFeedback } from '../context/FeedbackContext';
 import { useOffer } from '../context/OfferContext';
+import { useTheme } from '../context/ThemeContext';
 import { motion, AnimatePresence } from 'motion/react';
 import {
     Trash2, Search, CheckCircle, XCircle, Reply, Award, MessageSquare,
@@ -36,20 +37,20 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
 // STAT CARD
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function StatCard({ label, value, sub, icon: Icon, color }: {
+function StatCard({ label, value, sub, icon: Icon, color, isRich = true }: {
     label: string; value: number | string; sub?: string;
-    icon: React.ElementType; color: string;
+    icon: React.ElementType; color: string; isRich?: boolean;
 }) {
     return (
-        <div className="bg-white rounded-2xl border border-black/[0.06] p-5 hover:shadow-lg hover:shadow-black/[0.03] transition-all">
+        <div className={`rounded-2xl border p-5 transition-all ${isRich ? 'bg-white border-black/[0.06] hover:shadow-lg hover:shadow-black/[0.03]' : 'bg-secondary/20 border-white/5 hover:bg-secondary/40'}`}>
             <div className="flex items-start justify-between mb-3">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color}`}>
                     <Icon className="w-5 h-5" />
                 </div>
-                {sub && <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{sub}</span>}
+                {sub && <span className={`text-[10px] font-bold uppercase tracking-wider ${isRich ? 'text-gray-400' : 'text-muted-foreground'}`}>{sub}</span>}
             </div>
-            <div className="text-2xl font-black text-gray-900 tracking-tight">{value}</div>
-            <div className="text-xs font-medium text-gray-400 mt-0.5">{label}</div>
+            <div className={`text-2xl font-black tracking-tight ${isRich ? 'text-gray-900' : 'text-white'}`}>{value}</div>
+            <div className={`text-xs font-medium mt-0.5 ${isRich ? 'text-gray-400' : 'text-muted-foreground'}`}>{label}</div>
         </div>
     );
 }
@@ -58,7 +59,7 @@ function StatCard({ label, value, sub, icon: Icon, color }: {
 // OVERVIEW TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function OverviewTab({ users, feedback, codes, sqlStats }: any) {
+function OverviewTab({ users, feedback, codes, sqlStats, isRich }: any) {
     const { isOfferActive, toggleOffer } = useOffer();
     const totalUsers = sqlStats?.totalUsers ?? users.length;
     const proUsers = sqlStats?.proMembers ?? users.filter((u: any) => u.purchasedCourses?.length > 0).length;
@@ -66,52 +67,49 @@ function OverviewTab({ users, feedback, codes, sqlStats }: any) {
     const pendingFeedback = feedback.filter((f: any) => f.status === 'pending').length;
     const pendingCerts = users.filter((u: any) => u.certificateStatus === 'pending').length;
 
+    const cardCls = isRich ? 'bg-white border-black/[0.06]' : 'bg-secondary/20 border-white/5';
+    const textPrimary = isRich ? 'text-gray-900' : 'text-white';
+    const textSecondary = isRich ? 'text-gray-400' : 'text-muted-foreground';
+    const bgMuted = isRich ? 'bg-gray-50' : 'bg-white/5';
+
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard label="Total Users" value={totalUsers} icon={Users} color="bg-blue-50 text-blue-600" />
-                <StatCard label="Paid Members" value={proUsers} sub="Lifetime" icon={Award} color="bg-emerald-50 text-emerald-600" />
-                <StatCard label="Active Trials" value={activeTrials} icon={Clock} color="bg-amber-50 text-amber-600" />
-                <StatCard label="Pending Items" value={pendingFeedback + pendingCerts} sub={`${pendingFeedback} feedback · ${pendingCerts} certs`} icon={AlertTriangle} color="bg-rose-50 text-rose-600" />
+                <StatCard label="Total Users" value={totalUsers} icon={Users} color="bg-blue-50 text-blue-600" isRich={isRich} />
+                <StatCard label="Paid Members" value={proUsers} sub="Lifetime" icon={Award} color="bg-emerald-50 text-emerald-600" isRich={isRich} />
+                <StatCard label="Active Trials" value={activeTrials} icon={Clock} color="bg-amber-50 text-amber-600" isRich={isRich} />
+                <StatCard label="Pending Items" value={pendingFeedback + pendingCerts} sub={`${pendingFeedback} feedback · ${pendingCerts} certs`} icon={AlertTriangle} color="bg-rose-50 text-rose-600" isRich={isRich} />
             </div>
 
-            {/* Quick Actions */}
-            <div className="bg-white rounded-2xl border border-black/[0.06] p-6">
-                <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-4">Quick Actions</h3>
+            <div className={`rounded-2xl border p-6 ${cardCls}`}>
+                <h3 className={`text-sm font-black uppercase tracking-widest mb-4 ${textPrimary}`}>Quick Actions</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <Link to="/dashboard" className="flex items-center gap-3 p-4 rounded-xl bg-gray-50 hover:bg-gray-100 border border-black/[0.04] transition-all group">
-                        <Eye className="w-5 h-5 text-gray-400 group-hover:text-emerald-600 transition-colors" />
+                    <Link to="/dashboard" className={`flex items-center gap-3 p-4 rounded-xl border transition-all group ${isRich ? 'bg-gray-50 hover:bg-gray-100 border-black/[0.04]' : 'bg-white/5 hover:bg-white/10 border-white/5'}`}>
+                        <Eye className={`w-5 h-5 ${isRich ? 'text-gray-400 group-hover:text-emerald-600' : 'text-muted-foreground group-hover:text-primary'} transition-colors`} />
                         <div>
-                            <div className="text-sm font-bold text-gray-900">Preview Site</div>
-                            <div className="text-[11px] text-gray-400">View as user</div>
+                            <div className={`text-sm font-bold ${textPrimary}`}>Preview Site</div>
+                            <div className={`text-[11px] ${textSecondary}`}>View as user</div>
                         </div>
                     </Link>
-                    <button onClick={() => toggleOffer(!isOfferActive)} className={`flex items-center gap-3 p-4 rounded-xl border transition-all text-left ${isOfferActive ? 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100' : 'bg-gray-50 border-black/[0.04] hover:bg-gray-100'}`}>
-                        <Zap className={`w-5 h-5 ${isOfferActive ? 'text-emerald-600' : 'text-gray-400'}`} />
+                    <button onClick={() => toggleOffer(!isOfferActive)} className={`flex items-center gap-3 p-4 rounded-xl border transition-all text-left ${isOfferActive ? (isRich ? 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100' : 'bg-primary/10 border-primary/20 hover:bg-primary/20') : (isRich ? 'bg-gray-50 border-black/[0.04] hover:bg-gray-100' : 'bg-white/5 border-white/5 hover:bg-white/10')}`}>
+                        <Zap className={`w-5 h-5 ${isOfferActive ? (isRich ? 'text-emerald-600' : 'text-primary') : (isRich ? 'text-gray-400' : 'text-muted-foreground')}`} />
                         <div>
-                            <div className="text-sm font-bold text-gray-900">Flash Offer</div>
-                            <div className={`text-[11px] font-medium ${isOfferActive ? 'text-emerald-600' : 'text-gray-400'}`}>{isOfferActive ? 'Active' : 'Inactive'}</div>
+                            <div className={`text-sm font-bold ${textPrimary}`}>Flash Offer</div>
+                            <div className={`text-[11px] font-medium ${isOfferActive ? (isRich ? 'text-emerald-600' : 'text-primary') : textSecondary}`}>{isOfferActive ? 'Active' : 'Inactive'}</div>
                         </div>
                     </button>
                 </div>
             </div>
 
-            {/* Recent Activity */}
-            <div className="bg-white rounded-2xl border border-black/[0.06] p-6">
-                <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-4">Platform Snapshot</h3>
+            <div className={`rounded-2xl border p-6 ${cardCls}`}>
+                <h3 className={`text-sm font-black uppercase tracking-widest mb-4 ${textPrimary}`}>Platform Snapshot</h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    <div className="p-4 rounded-xl bg-gray-50">
-                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total Users</div>
-                        <div className="text-lg font-black text-gray-900">{totalUsers}</div>
-                    </div>
-                    <div className="p-4 rounded-xl bg-gray-50">
-                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Conversion</div>
-                        <div className="text-lg font-black text-gray-900">{totalUsers > 0 ? Math.round((proUsers / totalUsers) * 100) : 0}%</div>
-                    </div>
-                    <div className="p-4 rounded-xl bg-gray-50">
-                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Access Codes</div>
-                        <div className="text-lg font-black text-gray-900">{codes.length}</div>
-                    </div>
+                    {[{ label: 'Total Users', value: totalUsers }, { label: 'Conversion', value: `${totalUsers > 0 ? Math.round((proUsers / totalUsers) * 100) : 0}%` }, { label: 'Access Codes', value: codes.length }].map((s, i) => (
+                        <div key={i} className={`p-4 rounded-xl ${bgMuted}`}>
+                            <div className={`text-xs font-bold uppercase tracking-wider mb-1 ${textSecondary}`}>{s.label}</div>
+                            <div className={`text-lg font-black ${textPrimary}`}>{s.value}</div>
+                        </div>
+                    ))}
                 </div>
             </div>
         </div>
@@ -374,7 +372,7 @@ function FeedbackTab({ feedback, updateFeedbackStatus, deleteFeedback, replyToFe
 // CODES TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function CodesTab({ codes, codeType, setCodeType, generatedCode, handleGenerateCode, revokeAccessCode }: any) {
+function CodesTab({ codes, codeType, setCodeType, generatedCode, handleGenerateCode, revokeAccessCode, deleteAccessCode, isRich }: any) {
     return (
         <div className="space-y-6">
             {/* Generator */}
@@ -419,10 +417,14 @@ function CodesTab({ codes, codeType, setCodeType, generatedCode, handleGenerateC
                                 {code.isRevoked ? 'Revoked' : code.isUsed ? `Used by ${code.usedBy || '?'}` : 'Available'}
                             </span>
                             <div className="flex-1" />
-                            {!code.isUsed && !code.isRevoked && (
-                                <button onClick={() => { revokeAccessCode(code.code); toast.success('Code revoked'); }}
-                                    className="text-xs font-bold text-red-500 hover:text-red-700 transition-colors">Revoke</button>
-                            )}
+                            <div className="flex gap-2">
+                                {!code.isUsed && !code.isRevoked && (
+                                    <button onClick={() => { revokeAccessCode(code.code); toast.success('Code revoked'); }}
+                                        className="px-3 py-1 text-xs font-bold text-amber-600 bg-amber-50 rounded-lg hover:bg-amber-100 transition-all">Revoke</button>
+                                )}
+                                <button onClick={() => { if (confirm('Permanently delete this code?')) { deleteAccessCode(code.code); toast.success('Code deleted'); } }}
+                                    className="px-3 py-1 text-xs font-bold text-red-500 bg-red-50 rounded-lg hover:bg-red-100 transition-all">Delete</button>
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -568,8 +570,10 @@ function ActivityTab({ activityLogs, viewingUserActivity, setViewingUserActivity
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const AdminDashboard: React.FC = () => {
-    const { user: currentUser, getAllUsers, updateUserStatus, deleteUser, logout, generateAccessCode, getAllAccessCodes, revokeAccessCode, approveCertificate, rejectCertificate } = useAuth();
+    const { user: currentUser, getAllUsers, updateUserStatus, deleteUser, logout, generateAccessCode, getAllAccessCodes, revokeAccessCode, deleteAccessCode, approveCertificate, rejectCertificate } = useAuth();
     const { feedback, updateFeedbackStatus, deleteFeedback, replyToFeedback } = useFeedback();
+    const { theme } = useTheme();
+    const isRich = theme === 'rich';
     const { curricula } = useAllCurricula();
     const defaultCurriculum = curricula.length > 0 ? curricula[0].modules.map(m => ({
         id: m.slug, title: m.title, description: m.description || '',
@@ -640,15 +644,15 @@ const AdminDashboard: React.FC = () => {
     const unreadFeedback = feedback.filter((f: any) => f.status === 'pending').length;
 
     return (
-        <div className="min-h-screen bg-gray-50 flex">
+        <div className={`min-h-screen flex ${isRich ? 'bg-gray-50' : 'bg-background'}`}>
             {/* Sidebar */}
-            <aside className="w-64 bg-white border-r border-black/[0.06] flex flex-col shrink-0 fixed h-full">
-                <div className="p-5 border-b border-black/[0.06]">
+            <aside className={`w-64 flex flex-col shrink-0 fixed h-full border-r ${isRich ? 'bg-white border-black/[0.06]' : 'bg-secondary/20 border-white/5 backdrop-blur-xl'}`}>
+                <div className={`p-5 border-b ${isRich ? 'border-black/[0.06]' : 'border-white/5'}`}>
                     <div className="flex items-center gap-2 mb-1">
-                        <ShieldCheck className="w-5 h-5 text-emerald-600" />
-                        <span className="text-sm font-black text-gray-900">Admin Panel</span>
+                        <ShieldCheck className={`w-5 h-5 ${isRich ? 'text-emerald-600' : 'text-primary'}`} />
+                        <span className={`text-sm font-black ${isRich ? 'text-gray-900' : 'text-white'}`}>Admin Panel</span>
                     </div>
-                    <p className="text-[11px] text-gray-400">DevMastery Control Center</p>
+                    <p className={`text-[11px] ${isRich ? 'text-gray-400' : 'text-muted-foreground'}`}>DevMastery Control Center</p>
                 </div>
 
                 <nav className="flex-1 p-3 space-y-1">
@@ -658,7 +662,11 @@ const AdminDashboard: React.FC = () => {
                         const badge = tab.id === 'feedback' ? unreadFeedback : 0;
                         return (
                             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${isActive ? 'bg-emerald-50 text-emerald-700 font-bold' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}>
+                                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                                    isActive
+                                        ? isRich ? 'bg-emerald-50 text-emerald-700 font-bold' : 'bg-primary/10 text-primary font-bold'
+                                        : isRich ? 'text-gray-500 hover:text-gray-900 hover:bg-gray-50' : 'text-muted-foreground hover:text-white hover:bg-white/5'
+                                }`}>
                                 <Icon className="w-4 h-4" />
                                 <span className="flex-1 text-left">{tab.label}</span>
                                 {badge > 0 && <span className="px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full">{badge}</span>}
@@ -667,12 +675,12 @@ const AdminDashboard: React.FC = () => {
                     })}
                 </nav>
 
-                <div className="p-3 border-t border-black/[0.06] space-y-2">
-                    <Link to="/dashboard" className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-all">
+                <div className={`p-3 border-t space-y-2 ${isRich ? 'border-black/[0.06]' : 'border-white/5'}`}>
+                    <Link to="/dashboard" className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${isRich ? 'text-gray-500 hover:text-gray-900 hover:bg-gray-50' : 'text-muted-foreground hover:text-white hover:bg-white/5'}`}>
                         <Eye className="w-4 h-4" /> View Site
                     </Link>
                     <button onClick={() => { logout(); navigate('/'); }}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:text-red-700 hover:bg-red-50 transition-all">
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${isRich ? 'text-red-500 hover:text-red-700 hover:bg-red-50' : 'text-red-400 hover:text-red-300 hover:bg-red-500/10'}`}>
                         <LogOut className="w-4 h-4" /> Sign Out
                     </button>
                 </div>
@@ -682,18 +690,18 @@ const AdminDashboard: React.FC = () => {
             <main className="flex-1 ml-64 p-6">
                 <div className="max-w-6xl">
                     <div className="mb-6">
-                        <h1 className="text-2xl font-black text-gray-900 tracking-tight">
+                        <h1 className={`text-2xl font-black tracking-tight ${isRich ? 'text-gray-900' : 'text-white'}`}>
                             {TABS.find(t => t.id === activeTab)?.label}
                         </h1>
                     </div>
 
                     <AnimatePresence mode="wait">
                         <motion.div key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
-                            {activeTab === 'overview' && <OverviewTab users={users} feedback={feedback} codes={codes} sqlStats={sqlStats} />}
+                            {activeTab === 'overview' && <OverviewTab users={users} feedback={feedback} codes={codes} sqlStats={sqlStats} isRich={isRich} />}
                             {activeTab === 'members' && <MembersTab users={users} searchTerm={searchTerm} setSearchTerm={setSearchTerm} filterRole={filterRole} setFilterRole={setFilterRole} expandedUser={expandedUser} setExpandedUser={setExpandedUser} handleStatusUpdate={handleStatusUpdate} handleDelete={handleDelete} fetchUserActivity={fetchUserActivity} setActiveTab={setActiveTab} />}
                             {activeTab === 'courses' && <CourseManager />}
                             {activeTab === 'feedback' && <FeedbackTab feedback={feedback} updateFeedbackStatus={updateFeedbackStatus} deleteFeedback={deleteFeedback} replyToFeedback={replyToFeedback} users={users} getAllUsers={getAllUsers} approveCertificate={approveCertificate} rejectCertificate={rejectCertificate} />}
-                            {activeTab === 'codes' && <CodesTab codes={codes} codeType={codeType} setCodeType={setCodeType} generatedCode={generatedCode} handleGenerateCode={handleGenerateCode} revokeAccessCode={revokeAccessCode} />}
+                            {activeTab === 'codes' && <CodesTab codes={codes} codeType={codeType} setCodeType={setCodeType} generatedCode={generatedCode} handleGenerateCode={handleGenerateCode} revokeAccessCode={revokeAccessCode} deleteAccessCode={deleteAccessCode} isRich={isRich} />}
                             {activeTab === 'progress' && <ProgressTab users={users} defaultCurriculum={defaultCurriculum} />}
                             {activeTab === 'activity' && <ActivityTab activityLogs={activityLogs} viewingUserActivity={viewingUserActivity} setViewingUserActivity={setViewingUserActivity} />}
                         </motion.div>

@@ -1000,6 +1000,23 @@ app.post("/api/admin/codes/:code/revoke", async (req, res) => {
     }
 });
 
+// Delete access code
+app.delete("/api/admin/codes/:code", async (req, res) => {
+    const { code } = req.params;
+
+    try {
+        const [deleted] = await db.delete(accessCodes)
+            .where(eq(accessCodes.code, code))
+            .returning();
+
+        if (!deleted) return res.status(404).json({ error: "Code not found" });
+        res.json({ success: true });
+    } catch (error) {
+        console.error("Code delete error:", error);
+        res.status(500).json({ error: "Failed to delete code" });
+    }
+});
+
 // Redeem a code (user-facing)
 app.post("/api/codes/redeem", async (req, res) => {
     const { code, email, courseId = 'fullstack' } = req.body;
