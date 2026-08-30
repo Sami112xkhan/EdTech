@@ -225,9 +225,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     const data = await response.json();
                     setSessionId(data.sessionId);
                     localStorage.setItem('sessionId', data.sessionId);
-                    // Server maps DB user to frontend User type
-                    setUser(data.user);
-                    localStorage.setItem("user", JSON.stringify(data.user));
+                    // Merge server user but always preserve admin privileges
+                    setUser(prev => {
+                        const serverUser = data.user;
+                        // Always enforce admin role and courses for hardcoded admin
+                        const mergedUser = {
+                            ...serverUser,
+                            role: 'admin',
+                            purchasedCourses: (serverUser.purchasedCourses && serverUser.purchasedCourses.length > 0)
+                                ? serverUser.purchasedCourses
+                                : ['fullstack', 'cyber', 'datascience'],
+                        };
+                        localStorage.setItem("user", JSON.stringify(mergedUser));
+                        return mergedUser;
+                    });
                 }
             } catch (e) {
                 console.warn("Admin session API failed, using local-only admin:", e);
@@ -749,8 +760,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     const data = await response.json();
                     if (data.user) {
                         // Update local user state with fresh backend data
-                        setUser(data.user);
-                        localStorage.setItem('user', JSON.stringify(data.user));
+                        // But always preserve admin privileges for hardcoded admin
+                        const incomingUser = data.user;
+                        if (incomingUser.email === 'admin@devmastery.com') {
+                            incomingUser.role = 'admin';
+                            if (!incomingUser.purchasedCourses || incomingUser.purchasedCourses.length === 0) {
+                                incomingUser.purchasedCourses = ['fullstack', 'cyber', 'datascience'];
+                            }
+                        }
+                        setUser(incomingUser);
+                        localStorage.setItem('user', JSON.stringify(incomingUser));
                     }
                 } else if (response.status === 401 || response.status === 403) {
                     console.warn("Session invalidated or account suspended. Logging out.");

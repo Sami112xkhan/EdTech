@@ -136,7 +136,17 @@ app.get("/api/auth/me", async (req, res) => {
         // Update last heartbeat
         await db.update(sessions).set({ lastHeartbeat: new Date() }).where(eq(sessions.id, sessionId));
 
-        res.json({ user, sessionId: session.id });
+        // Map admin user to match frontend expectations
+        const mappedUser = user.email === 'admin@devmastery.com' ? {
+            ...user,
+            role: 'admin',
+            purchasedCourses: (user.purchasedCourses && user.purchasedCourses.length > 0)
+                ? user.purchasedCourses
+                : ['fullstack', 'cyber', 'datascience'],
+            completedLessons: user.completedLessons || [],
+        } : user;
+
+        res.json({ user: mappedUser, sessionId: session.id });
     } catch (error) {
         console.error("Auth me error:", error);
         res.status(500).json({ error: "Auth check failed" });
@@ -260,7 +270,19 @@ app.post("/api/auth/admin-session", authLimiter, async (req, res) => {
                 isVerified: true,
                 status: 'active',
                 googleId: 'hardcoded-admin',
+                purchasedCourses: ['fullstack', 'cyber', 'datascience'],
             }).returning();
+        } else {
+            // Ensure existing admin user has correct role and courses
+            const needsUpdate = adminUser.role !== 'admin' || !adminUser.purchasedCourses || adminUser.purchasedCourses.length === 0;
+            if (needsUpdate) {
+                [adminUser] = await db.update(users).set({
+                    role: 'admin',
+                    purchasedCourses: (adminUser.purchasedCourses && adminUser.purchasedCourses.length > 0)
+                        ? adminUser.purchasedCourses
+                        : ['fullstack', 'cyber', 'datascience'],
+                }).where(eq(users.id, adminUser.id)).returning();
+            }
         }
 
         // Create session
@@ -273,11 +295,14 @@ app.post("/api/auth/admin-session", authLimiter, async (req, res) => {
             isActive: true,
         }).returning();
 
-        // Map DB user to match frontend User type
+        // Map DB user to match frontend User type (admin always gets all courses)
         const mappedUser = {
             ...adminUser,
             username: adminUser.username || 'admin',
-            purchasedCourses: adminUser.purchasedCourses || ['fullstack', 'cyber', 'datascience'],
+            role: 'admin',
+            purchasedCourses: (adminUser.purchasedCourses && adminUser.purchasedCourses.length > 0)
+                ? adminUser.purchasedCourses
+                : ['fullstack', 'cyber', 'datascience'],
             completedLessons: adminUser.completedLessons || [],
             lastLogin: adminUser.lastLoginAt?.toISOString?.() || new Date().toISOString(),
             photoURL: adminUser.picture || undefined,
@@ -498,7 +523,17 @@ app.post("/api/auth/heartbeat", async (req, res) => {
             .set({ lastHeartbeat: new Date() })
             .where(eq(sessions.id, sessionId));
 
-        res.json({ success: true, user });
+        // Map admin user to match frontend expectations
+        const mappedUser = user.email === 'admin@devmastery.com' ? {
+            ...user,
+            role: 'admin',
+            purchasedCourses: (user.purchasedCourses && user.purchasedCourses.length > 0)
+                ? user.purchasedCourses
+                : ['fullstack', 'cyber', 'datascience'],
+            completedLessons: user.completedLessons || [],
+        } : user;
+
+        res.json({ success: true, user: mappedUser });
     } catch (error) {
         console.error("Heartbeat error:", error);
         res.status(500).json({ error: "Heartbeat failed" });
