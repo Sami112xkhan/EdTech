@@ -117,7 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             const response = await fetch('/api/admin/codes/generate', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('sessionId') || '') },
                 body: JSON.stringify({ type }),
             });
             if (response.ok) {
@@ -170,7 +170,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const getAllAccessCodes = async (): Promise<any[]> => {
         try {
-            const response = await fetch('/api/admin/codes');
+            const response = await fetch('/api/admin/codes', { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('sessionId') || '') } });
             if (response.ok) return await response.json();
             return [];
         } catch (error) {
@@ -181,7 +181,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const revokeAccessCode = async (code: string): Promise<void> => {
         try {
-            await fetch(`/api/admin/codes/${code}/revoke`, { method: 'POST' });
+            await fetch(`/api/admin/codes/${code}/revoke`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('sessionId') || '') } });
         } catch (error) {
             console.error('Failed to revoke code:', error);
         }
@@ -189,7 +189,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const deleteAccessCode = async (code: string): Promise<void> => {
         try {
-            await fetch(`/api/admin/codes/${code}`, { method: 'DELETE' });
+            await fetch(`/api/admin/codes/${code}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('sessionId') || '') } });
         } catch (error) {
             console.error('Failed to delete code:', error);
         }
@@ -659,6 +659,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             await fetch(`/api/admin/certificate/${encodeURIComponent(email)}/approve`, {
                 method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('sessionId') || '') },
             });
         } catch (error) {
             console.warn('Failed to sync certificate approval to API', error);
@@ -676,6 +677,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             await fetch(`/api/admin/certificate/${encodeURIComponent(email)}/reject`, {
                 method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('sessionId') || '') },
             });
         } catch (error) {
             console.error('Failed to sync certificate rejection to API', error);

@@ -360,7 +360,7 @@ function FeedbackTab({ feedback, updateFeedbackStatus, deleteFeedback, replyToFe
                                 <p className={`text-sm italic mb-4 ${isRich ? 'text-gray-600' : 'text-muted-foreground'}`}>"{item.content}"</p>
                                 <div className="flex gap-2">
                                     <button onClick={async () => {
-                                        await fetch(`/api/admin/users/${encodeURIComponent(item.userId)}/status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'active' }) });
+                                        await fetch(`/api/admin/users/${encodeURIComponent(item.userId)}/status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('sessionId') || '') }, body: JSON.stringify({ status: 'active' }) });
                                         await updateFeedbackStatus(item.id, 'implemented');
                                         toast.success('User unblocked');
                                     }} className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all ${c.btnGreen}`}>Unblock</button>
@@ -672,14 +672,14 @@ const AdminDashboard: React.FC = () => {
     }, [currentUser, navigate]);
 
     useEffect(() => {
-        const fetchStats = async () => { try { const r = await fetch('/api/admin/stats'); setSqlStats(await r.json()); } catch {} };
+        const fetchStats = async () => { try { const r = await fetch('/api/admin/stats', { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('sessionId') || '') } }); setSqlStats(await r.json()); } catch {} };
         fetchStats();
         const i = setInterval(fetchStats, 5000);
         return () => clearInterval(i);
     }, []);
 
     useEffect(() => {
-        const fetchLogs = async () => { try { const r = await fetch('/api/admin/activity'); setActivityLogs(await r.json()); } catch {} };
+        const fetchLogs = async () => { try { const r = await fetch('/api/admin/activity', { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('sessionId') || '') } }); setActivityLogs(await r.json()); } catch {} };
         fetchLogs();
         const i = setInterval(fetchLogs, 3000);
         return () => clearInterval(i);
@@ -708,7 +708,7 @@ const AdminDashboard: React.FC = () => {
     };
 
     const fetchUserActivity = async (userId: string) => {
-        try { const r = await fetch(`/api/admin/users/${userId}/activity`); setViewingUserActivity(await r.json()); } catch {}
+        try { const r = await fetch(`/api/admin/users/${userId}/activity`, { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('sessionId') || '') } }); setViewingUserActivity(await r.json()); } catch {}
     };
 
     const unreadFeedback = feedback.filter((f: any) => f.status === 'pending').length;

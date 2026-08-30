@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Bot, X, Send, Sparkles, Loader2, Brain, ChevronDown, Download, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import OpenAI from "openai";
 import { CreateMLCEngine, MLCEngine } from "@mlc-ai/web-llm";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -54,7 +53,6 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
     const [downloadProgress, setDownloadProgress] = useState("");
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const clientRef = useRef<OpenAI | null>(null);
     const engineRef = useRef<MLCEngine | null>(null);
 
     // Ensure it stays open if full mode
@@ -62,19 +60,8 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
         if (variant === 'full') setIsOpen(true);
     }, [variant]);
 
-    useEffect(() => {
-        // Initialize OpenAI Client
-        const apiKey = import.meta.env.VITE_NVIDIA_API_KEY;
-        const baseURL = import.meta.env.VITE_NVIDIA_BASE_URL;
-
-        if (apiKey && baseURL) {
-            clientRef.current = new OpenAI({
-                apiKey: apiKey,
-                baseURL: baseURL,
-                dangerouslyAllowBrowser: true
-            });
-        }
-    }, []);
+    // AI API calls now go through server proxy (/api/ai/chat)
+    // No client-side API key needed - key is stored server-side only
 
     // Load Chat History from SQL
     useEffect(() => {
@@ -249,10 +236,9 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
                     });
                     return chunks;
                 } else {
-                    if (!clientRef.current) throw new Error("API Client not initialized");
-
+                    // Use server-side proxy to keep API key secure
                     const extraParams = modelId.includes("deepseek") ? {
-                        extra_body: { "chat_template_kwargs": { "thinking": showReasoning } },
+                        "chat_template_kwargs": { "thinking": showReasoning },
                         top_p: 0.95,
                         max_tokens: 8192
                     } : {
@@ -261,12 +247,55 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
                         max_tokens: 1024
                     };
 
-                    return await clientRef.current.chat.completions.create({
-                        model: modelId,
-                        messages: apiMessages as any,
-                        stream: true,
-                        ...extraParams
-                    }, { signal: signal });
+                    const proxyResponse = await fetch("/api/ai/chat", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            model: modelId,
+                            messages: apiMessages,
+                            stream: true,
+                            ...extraParams,
+                        }),
+                        signal,
+                    });
+
+                    if (!proxyResponse.ok || !proxyResponse.body) {
+                        throw new Error("AI proxy request failed");
+                    }
+
+                    // Convert SSE stream to async iterator compatible with processStream
+                    const reader = proxyResponse.body.getReader();
+                    const decoder = new TextDecoder();
+                    let buffer = "";
+
+                    return {
+                        [Symbol.asyncIterator]() {
+                            return {
+                                async next() {
+                                    while (true) {
+                                        const { done, value } = await reader.read();
+                                        if (done) return { done: true, value: undefined };
+                                        buffer += decoder.decode(value, { stream: true });
+                                        const lines = buffer.split("\n");
+                                        buffer = lines.pop() || "";
+                                        for (const line of lines) {
+                                            if (line.startsWith("data: ")) {
+                                                const data = line.slice(6).trim();
+                                                if (data === "[DONE]") return { done: true, value: undefined };
+                                                try {
+                                                    const parsed = JSON.parse(data);
+                                                    const delta = parsed.choices?.[0]?.delta;
+                                                    if (delta?.content) {
+                                                        return { done: false, value: { choices: [{ delta: { content: delta.content } }] } };
+                                                    }
+                                                } catch {}
+                                            }
+                                        }
+                                    }
+                                }
+                            };
+                        }
+                    } as any;
                 }
             };
 

@@ -6,6 +6,8 @@ import { db } from "../server/db/index.js";
 import { users, sessions, feedback as feedbackTable, accessCodes, userNotes, playgroundProjects, aiChats, systemSettings, activityLogs, courses, modules, lessons } from "../server/db/schema.js";
 import { eq, and, gte, sql, desc, ne, asc } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -35,11 +37,33 @@ initStaticCodes();
 
 const googleClient = new OAuth2Client(process.env.VITE_GOOGLE_CLIENT_ID);
 
-app.use(cors());
-app.use(express.json());
+app.use(cors({
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:5173', 'https://devmastery.space'],
+    credentials: true,
+}));
+app.use(express.json({ limit: '1mb' }));
+app.use(helmet());
+
+// Rate limiting for auth endpoints
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10,
+    message: { error: 'Too many attempts, please try again later' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// General API rate limiter
+const apiLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 100,
+    message: { error: 'Too many requests' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
 
 // Auth Sync Hook
-app.post("/api/auth/google", async (req, res) => {
+app.post("/api/auth/google", authLimiter, async (req, res) => {
     const { credential } = req.body;
 
     try {
@@ -152,7 +176,7 @@ app.get("/api/settings", async (req, res) => {
 });
 
 // Email Signup Hook
-app.post("/api/auth/signup", async (req, res) => {
+app.post("/api/auth/signup", authLimiter, async (req, res) => {
     const { email, password, name } = req.body;
     if (!email || !password || !name) return res.status(400).json({ error: "Missing required fields" });
 
@@ -173,8 +197,8 @@ app.post("/api/auth/signup", async (req, res) => {
             googleId: null, // Explicitly null for email users
         }).returning();
 
-        // Used by frontend to send email
-        res.json({ user: newUser, verificationCode });
+        // Don't return verification code to client - it should only be sent via email
+        res.json({ user: newUser });
     } catch (error) {
         console.error("Signup error:", error);
         res.status(500).json({ error: "Signup failed" });
@@ -182,7 +206,7 @@ app.post("/api/auth/signup", async (req, res) => {
 });
 
 // Email Login Hook
-app.post("/api/auth/login", async (req, res) => {
+app.post("/api/auth/login", authLimiter, async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: "Missing credentials" });
 
@@ -219,7 +243,7 @@ app.post("/api/auth/login", async (req, res) => {
 });
 
 // Email Verify Hook
-app.post("/api/auth/verify", async (req, res) => {
+app.post("/api/auth/verify", authLimiter, async (req, res) => {
     const { email, code } = req.body;
     if (!email || !code) return res.status(400).json({ error: "Missing parameters" });
 
@@ -257,7 +281,7 @@ app.post("/api/auth/verify", async (req, res) => {
 
 
 // Resend Verification Code Hook
-app.post("/api/auth/resend", async (req, res) => {
+app.post("/api/auth/resend", authLimiter, async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: "Email required" });
 
@@ -324,19 +348,6 @@ app.post("/api/progress/lesson", async (req, res) => {
         // Fetch current lessons
         let [user] = await db.select().from(users).where(eq(users.email, email));
 
-        // Auto-create Admin if missing
-        if (!user && email === 'admin@devmastery.com') {
-            const hashedPassword = await bcrypt.hash("admin@12345", 10);
-            [user] = await db.insert(users).values({
-                email,
-                password: hashedPassword,
-                name: "Administrator",
-                role: "admin",
-                isVerified: true,
-                purchasedCourses: ['fullstack', 'cyber', 'datascience']
-            }).returning();
-        }
-
         if (!user) return res.status(404).json({ error: "User not found" });
 
         const completedLessons = user.completedLessons || [];
@@ -373,9 +384,17 @@ app.post("/api/auth/logout", async (req, res) => {
 // Purchase Sync Hook
 app.post("/api/auth/purchase", async (req, res) => {
     const { email, courseId } = req.body;
-    if (!email) return res.status(400).json({ error: "Email required" });
+    if (!email || !courseId) return res.status(400).json({ error: "Email and courseId required" });
 
     try {
+        // Verify session belongs to this user
+        const sessionId = req.headers.authorization?.replace('Bearer ', '');
+        if (!sessionId) return res.status(401).json({ error: "Authentication required" });
+        const [session] = await db.select().from(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.isActive, true)));
+        if (!session) return res.status(401).json({ error: "Invalid session" });
+        const [sessionUser] = await db.select().from(users).where(eq(users.id, session.userId));
+        if (!sessionUser || sessionUser.email !== email) return res.status(403).json({ error: "Cannot purchase for another user" });
+
         const [existingUser] = await db.select().from(users).where(eq(users.email, email));
         if (!existingUser) return res.status(404).json({ error: "User not found" });
 
@@ -500,7 +519,7 @@ app.get("/api/settings/offer", async (req, res) => {
 });
 
 // Admin Update Settings
-app.post("/api/admin/settings/offer", async (req, res) => {
+app.post("/api/admin/settings/offer", requireAdmin, async (req, res) => {
     const { isActive } = req.body;
     console.log(`[API] Toggling offer to: ${isActive}`);
     try {
@@ -524,7 +543,7 @@ app.post("/api/admin/settings/offer", async (req, res) => {
 });
 
 // Admin Stats
-app.get("/api/admin/stats", async (req, res) => {
+app.get("/api/admin/stats", requireAdmin, async (req, res) => {
     try {
         const totalUsers = await db.select({ count: sql<number>`count(*)` }).from(users);
         const proMembers = await db.select({ count: sql<number>`count(*)` }).from(users).where(sql`array_length(${users.purchasedCourses}, 1) > 0`);
@@ -594,7 +613,7 @@ app.post("/api/track", async (req, res) => {
 });
 
 // Admin activity stream
-app.get("/api/admin/activity", async (req, res) => {
+app.get("/api/admin/activity", requireAdmin, async (req, res) => {
     try {
         const logs = await db.select({
             id: activityLogs.id,
@@ -618,7 +637,7 @@ app.get("/api/admin/activity", async (req, res) => {
 });
 
 // Specific user activity history
-app.get("/api/admin/users/:userId/activity", async (req, res) => {
+app.get("/api/admin/users/:userId/activity", requireAdmin, async (req, res) => {
     const { userId } = req.params;
     try {
         const logs = await db.select()
@@ -636,7 +655,7 @@ app.get("/api/admin/users/:userId/activity", async (req, res) => {
 // ── Admin User Management ──────────────────────────────────────────────
 
 // List all users with online status
-app.get("/api/admin/users", async (req, res) => {
+app.get("/api/admin/users", requireAdmin, async (req, res) => {
     try {
         const allUsers = await db.select().from(users).orderBy(desc(users.createdAt));
 
@@ -678,7 +697,7 @@ app.get("/api/admin/users", async (req, res) => {
 });
 
 // Toggle user active/inactive
-app.patch("/api/admin/users/:email/status", async (req, res) => {
+app.patch("/api/admin/users/:email/status", requireAdmin, async (req, res) => {
     const { email } = req.params;
     const { status } = req.body; // 'active' or 'inactive'
 
@@ -707,7 +726,7 @@ app.patch("/api/admin/users/:email/status", async (req, res) => {
 });
 
 // Delete user
-app.delete("/api/admin/users/:email", async (req, res) => {
+app.delete("/api/admin/users/:email", requireAdmin, async (req, res) => {
     const { email } = req.params;
 
     try {
@@ -748,7 +767,7 @@ app.post("/api/certificate/request", async (req, res) => {
 });
 
 // Admin approves certificate
-app.post("/api/admin/certificate/:email/approve", async (req, res) => {
+app.post("/api/admin/certificate/:email/approve", requireAdmin, async (req, res) => {
     const { email } = req.params;
 
     try {
@@ -769,7 +788,7 @@ app.post("/api/admin/certificate/:email/approve", async (req, res) => {
 });
 
 // Admin rejects certificate
-app.post("/api/admin/certificate/:email/reject", async (req, res) => {
+app.post("/api/admin/certificate/:email/reject", requireAdmin, async (req, res) => {
     const { email } = req.params;
 
     try {
@@ -855,20 +874,6 @@ app.post("/api/playground/save", async (req, res) => {
     try {
         let [user] = await db.select().from(users).where(eq(users.email, email));
 
-        // Auto-create Admin if missing (Syncs with frontend bypass)
-        if (!user && email === 'admin@devmastery.com') {
-            console.log("Auto-creating admin user for playground save...");
-            const hashedPassword = await bcrypt.hash("admin@12345", 10);
-            [user] = await db.insert(users).values({
-                email,
-                password: hashedPassword,
-                name: "Administrator",
-                role: "admin",
-                isVerified: true,
-                purchasedCourses: ['fullstack', 'cyber', 'datascience']
-            }).returning();
-        }
-
         if (!user) return res.status(404).json({ error: "User not found" });
 
         if (projectId) {
@@ -947,7 +952,7 @@ app.delete("/api/ai/chat/clear", async (req, res) => {
 // ── Access Codes (Trials) ──────────────────────────────────────────────
 
 // Generate a new access code
-app.post("/api/admin/codes/generate", async (req, res) => {
+app.post("/api/admin/codes/generate", requireAdmin, async (req, res) => {
     const { type } = req.body; // '3days', '5mins', or 'lifetime'
     if (!type || !['3days', '5mins', 'lifetime'].includes(type)) {
         return res.status(400).json({ error: "Invalid type. Must be '3days', '5mins', or 'lifetime'" });
@@ -972,7 +977,7 @@ app.post("/api/admin/codes/generate", async (req, res) => {
 });
 
 // List all access codes
-app.get("/api/admin/codes", async (req, res) => {
+app.get("/api/admin/codes", requireAdmin, async (req, res) => {
     try {
         const codes = await db.select().from(accessCodes).orderBy(desc(accessCodes.createdAt));
         res.json(codes);
@@ -983,7 +988,7 @@ app.get("/api/admin/codes", async (req, res) => {
 });
 
 // Revoke a code
-app.post("/api/admin/codes/:code/revoke", async (req, res) => {
+app.post("/api/admin/codes/:code/revoke", requireAdmin, async (req, res) => {
     const { code } = req.params;
 
     try {
@@ -1001,7 +1006,7 @@ app.post("/api/admin/codes/:code/revoke", async (req, res) => {
 });
 
 // Delete access code
-app.delete("/api/admin/codes/:code", async (req, res) => {
+app.delete("/api/admin/codes/:code", requireAdmin, async (req, res) => {
     const { code } = req.params;
 
     try {
@@ -1568,5 +1573,67 @@ async function seedCoursesFromStaticData() {
     }
 }
 seedCoursesFromStaticData();
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AI PROXY — keeps API key server-side
+// ═══════════════════════════════════════════════════════════════════════════════
+app.post("/api/ai/chat", apiLimiter, async (req, res) => {
+    const { messages, model, stream, ...extraParams } = req.body;
+    if (!messages || !Array.isArray(messages)) {
+        return res.status(400).json({ error: "Messages array required" });
+    }
+
+    const apiKey = process.env.NVIDIA_API_KEY;
+    const baseURL = process.env.NVIDIA_BASE_URL;
+    if (!apiKey || !baseURL) {
+        return res.status(500).json({ error: "AI service not configured" });
+    }
+
+    try {
+        const response = await fetch(baseURL + '/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + apiKey,
+            },
+            body: JSON.stringify({
+                model: model || 'meta/llama-3.1-8b-instruct',
+                messages,
+                stream: !!stream,
+                ...extraParams,
+            }),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error("AI proxy error:", response.status, errorText);
+            return res.status(502).json({ error: "AI service error" });
+        }
+
+        // Stream SSE response to client
+        if (stream && response.body) {
+            res.setHeader('Content-Type', 'text/event-stream');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.setHeader('Connection', 'keep-alive');
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            try {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    res.write(decoder.decode(value, { stream: true }));
+                }
+            } catch (e) { /* stream ended */ }
+            res.end();
+        } else {
+            const data = await response.json();
+            res.json(data);
+        }
+    } catch (error) {
+        console.error("AI proxy failed:", error);
+        res.status(500).json({ error: "AI service unavailable" });
+    }
+});
 
 export default app;
