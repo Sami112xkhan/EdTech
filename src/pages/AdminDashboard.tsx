@@ -1,1256 +1,706 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useFeedback } from '../context/FeedbackContext';
-import { User } from '../types';
 import { useOffer } from '../context/OfferContext';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-    Trash2,
-    UserCheck,
-    Search,
-    CheckCircle,
-    XCircle,
-    Reply,
-    Award,
-    MessageSquare,
-    LogOut,
-    PanelLeft,
-    Clock,
-    Users,
-    Zap,
-    TrendingUp,
-    ShieldCheck,
-    ShieldAlert,
-    ChevronRight,
-    ChevronDown,
-    AlertTriangle,
-    Eye,
-    Mail,
-    User as UserIcon
+    Trash2, Search, CheckCircle, XCircle, Reply, Award, MessageSquare,
+    LogOut, Clock, Users, Zap, TrendingUp, ShieldCheck, ShieldAlert,
+    ChevronRight, ChevronDown, AlertTriangle, Eye, User as UserIcon,
+    BookOpen, BarChart3, Settings, CreditCard, Activity, Send
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate, Link } from 'react-router-dom';
-import { curriculum } from "../data/curriculum";
 import { getPhasesStatus } from "../utils/progress";
+import CourseManager from "../components/admin/CourseManager";
+import { useAllCurricula } from "../hooks/useCourses";
 
-// Helper to check online status (within last 5 mins)
 const isOnline = (lastSeen?: string) => {
     if (!lastSeen) return false;
-    const diff = new Date().getTime() - new Date(lastSeen).getTime();
-    return diff < 5 * 60 * 1000; // 5 minutes
+    return new Date().getTime() - new Date(lastSeen).getTime() < 5 * 60 * 1000;
 };
 
-const AdminDashboard: React.FC = () => {
-    const {
-        user: currentUser,
-        getAllUsers,
-        updateUserStatus,
-        deleteUser,
-        logout,
-        generateAccessCode,
-        getAllAccessCodes,
-        revokeAccessCode,
-        approveCertificate,
-        rejectCertificate
-    } = useAuth();
+type Tab = 'overview' | 'members' | 'courses' | 'feedback' | 'codes' | 'progress' | 'activity';
 
-    const {
-        feedback,
-        updateFeedbackStatus,
-        deleteFeedback,
-        replyToFeedback
-    } = useFeedback();
+const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
+    { id: 'overview', label: 'Overview', icon: BarChart3 },
+    { id: 'members', label: 'Members', icon: Users },
+    { id: 'courses', label: 'Courses', icon: BookOpen },
+    { id: 'feedback', label: 'Feedback', icon: MessageSquare },
+    { id: 'codes', label: 'Access Codes', icon: CreditCard },
+    { id: 'progress', label: 'Progress', icon: Award },
+    { id: 'activity', label: 'Activity', icon: Activity },
+];
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// STAT CARD
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function StatCard({ label, value, sub, icon: Icon, color }: {
+    label: string; value: number | string; sub?: string;
+    icon: React.ElementType; color: string;
+}) {
+    return (
+        <div className="bg-white rounded-2xl border border-black/[0.06] p-5 hover:shadow-lg hover:shadow-black/[0.03] transition-all">
+            <div className="flex items-start justify-between mb-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color}`}>
+                    <Icon className="w-5 h-5" />
+                </div>
+                {sub && <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{sub}</span>}
+            </div>
+            <div className="text-2xl font-black text-gray-900 tracking-tight">{value}</div>
+            <div className="text-xs font-medium text-gray-400 mt-0.5">{label}</div>
+        </div>
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// OVERVIEW TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function OverviewTab({ users, feedback, codes, sqlStats }: any) {
     const { isOfferActive, toggleOffer } = useOffer();
+    const totalUsers = sqlStats?.totalUsers ?? users.length;
+    const proUsers = sqlStats?.proMembers ?? users.filter((u: any) => u.purchasedCourses?.length > 0).length;
+    const activeTrials = users.filter((u: any) => u.trialExpiresAt && u.trialExpiresAt !== 'EXPIRED').length;
+    const pendingFeedback = feedback.filter((f: any) => f.status === 'pending').length;
+    const pendingCerts = users.filter((u: any) => u.certificateStatus === 'pending').length;
+
+    return (
+        <div className="space-y-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatCard label="Total Users" value={totalUsers} icon={Users} color="bg-blue-50 text-blue-600" />
+                <StatCard label="Paid Members" value={proUsers} sub="Lifetime" icon={Award} color="bg-emerald-50 text-emerald-600" />
+                <StatCard label="Active Trials" value={activeTrials} icon={Clock} color="bg-amber-50 text-amber-600" />
+                <StatCard label="Pending Items" value={pendingFeedback + pendingCerts} sub={`${pendingFeedback} feedback · ${pendingCerts} certs`} icon={AlertTriangle} color="bg-rose-50 text-rose-600" />
+            </div>
+
+            {/* Quick Actions */}
+            <div className="bg-white rounded-2xl border border-black/[0.06] p-6">
+                <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-4">Quick Actions</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <Link to="/dashboard" className="flex items-center gap-3 p-4 rounded-xl bg-gray-50 hover:bg-gray-100 border border-black/[0.04] transition-all group">
+                        <Eye className="w-5 h-5 text-gray-400 group-hover:text-emerald-600 transition-colors" />
+                        <div>
+                            <div className="text-sm font-bold text-gray-900">Preview Site</div>
+                            <div className="text-[11px] text-gray-400">View as user</div>
+                        </div>
+                    </Link>
+                    <button onClick={() => toggleOffer(!isOfferActive)} className={`flex items-center gap-3 p-4 rounded-xl border transition-all text-left ${isOfferActive ? 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100' : 'bg-gray-50 border-black/[0.04] hover:bg-gray-100'}`}>
+                        <Zap className={`w-5 h-5 ${isOfferActive ? 'text-emerald-600' : 'text-gray-400'}`} />
+                        <div>
+                            <div className="text-sm font-bold text-gray-900">Flash Offer</div>
+                            <div className={`text-[11px] font-medium ${isOfferActive ? 'text-emerald-600' : 'text-gray-400'}`}>{isOfferActive ? 'Active' : 'Inactive'}</div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            {/* Recent Activity */}
+            <div className="bg-white rounded-2xl border border-black/[0.06] p-6">
+                <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-4">Platform Snapshot</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div className="p-4 rounded-xl bg-gray-50">
+                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total Users</div>
+                        <div className="text-lg font-black text-gray-900">{totalUsers}</div>
+                    </div>
+                    <div className="p-4 rounded-xl bg-gray-50">
+                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Conversion</div>
+                        <div className="text-lg font-black text-gray-900">{totalUsers > 0 ? Math.round((proUsers / totalUsers) * 100) : 0}%</div>
+                    </div>
+                    <div className="p-4 rounded-xl bg-gray-50">
+                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Access Codes</div>
+                        <div className="text-lg font-black text-gray-900">{codes.length}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MEMBERS TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function MembersTab({ users, searchTerm, setSearchTerm, filterRole, setFilterRole, expandedUser, setExpandedUser, handleStatusUpdate, handleDelete, fetchUserActivity, setActiveTab }: any) {
+    const filteredUsers = useMemo(() => {
+        let result = users;
+        if (filterRole === 'pro') result = result.filter((u: any) => u.purchasedCourses?.length > 0);
+        else if (filterRole === 'online') result = result.filter((u: any) => u.isOnline || isOnline(u.lastSeen));
+        if (searchTerm) result = result.filter((u: any) => u.name?.toLowerCase().includes(searchTerm.toLowerCase()) || u.email?.toLowerCase().includes(searchTerm.toLowerCase()));
+        return result;
+    }, [users, searchTerm, filterRole]);
+
+    return (
+        <div className="space-y-4">
+            {/* Search & Filters */}
+            <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex-1 relative">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                        placeholder="Search by name or email..."
+                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-black/[0.06] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300/40 focus:border-emerald-300 transition-all"
+                    />
+                </div>
+                <div className="flex gap-1.5 p-1 bg-gray-100 rounded-xl">
+                    {(['all', 'pro', 'online'] as const).map(f => (
+                        <button key={f} onClick={() => setFilterRole(f)}
+                            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${filterRole === f ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
+                            {f === 'all' ? 'All' : f === 'pro' ? 'Paid' : 'Online'}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* User List */}
+            <div className="bg-white rounded-2xl border border-black/[0.06] overflow-hidden">
+                <div className="divide-y divide-black/[0.04]">
+                    {filteredUsers.slice(0, 50).map((u: any) => (
+                        <div key={u.email}>
+                            <div className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => setExpandedUser(expandedUser === u.email ? null : u.email)}>
+                                <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center font-black text-emerald-700 text-sm shrink-0">
+                                    {u.name?.charAt(0).toUpperCase()}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-bold text-sm text-gray-900 truncate">{u.name}</span>
+                                        <span className={`w-1.5 h-1.5 rounded-full ${(u.isOnline || isOnline(u.lastSeen)) ? 'bg-green-500' : 'bg-gray-300'}`} />
+                                    </div>
+                                    <span className="text-xs text-gray-400 truncate block">{u.email}</span>
+                                </div>
+                                <div className="flex items-center gap-3 shrink-0">
+                                    {u.purchasedCourses?.length > 0 && (
+                                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-full uppercase">Paid</span>
+                                    )}
+                                    {u.trialExpiresAt && u.trialExpiresAt !== 'EXPIRED' && (
+                                        <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded-full uppercase">Trial</span>
+                                    )}
+                                    <button onClick={e => { e.stopPropagation(); handleStatusUpdate(u.email, u.status); }}
+                                        className="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all" title={u.status === 'active' ? 'Suspend' : 'Activate'}>
+                                        {u.status === 'active' ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
+                                    </button>
+                                    <button onClick={e => { e.stopPropagation(); handleDelete(u.email); }}
+                                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                    <ChevronDown className={`w-4 h-4 text-gray-300 transition-transform ${expandedUser === u.email ? 'rotate-180' : ''}`} />
+                                </div>
+                            </div>
+
+                            <AnimatePresence>
+                                {expandedUser === u.email && (
+                                    <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
+                                        <div className="px-5 pb-4 bg-gray-50/50 border-t border-black/[0.04]">
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-4">
+                                                <div>
+                                                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Role</div>
+                                                    <div className="text-sm font-bold text-gray-900 capitalize">{u.role || 'student'}</div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Courses</div>
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {u.purchasedCourses?.length > 0 ? u.purchasedCourses.map((c: string) => (
+                                                            <span key={c} className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded">{c}</span>
+                                                        )) : <span className="text-xs text-gray-400">None</span>}
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">XP / Level</div>
+                                                    <div className="text-sm font-bold text-gray-900">{u.xp || 0} XP · LVL {u.level || 1}</div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Certificate</div>
+                                                    <div className="text-sm font-bold text-gray-900 capitalize">{u.certificateStatus || 'locked'}</div>
+                                                </div>
+                                            </div>
+                                            <button onClick={() => { fetchUserActivity(u.id); setActiveTab('activity'); }}
+                                                className="text-xs font-bold text-emerald-600 hover:text-emerald-800 transition-colors">
+                                                View Activity History →
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    ))}
+                </div>
+                {filteredUsers.length === 0 && (
+                    <div className="py-16 text-center">
+                        <Users className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                        <p className="text-sm text-gray-400">No users found</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FEEDBACK TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function FeedbackTab({ feedback, updateFeedbackStatus, deleteFeedback, replyToFeedback, users, getAllUsers, approveCertificate, rejectCertificate }: any) {
+    const [replyingTo, setReplyingTo] = useState<string | null>(null);
+    const [replyText, setReplyText] = useState('');
+
+    const feedbackItems = feedback.filter((f: any) => f.type === 'feedback');
+    const requestItems = feedback.filter((f: any) => f.type === 'access_request');
+    const pendingCerts = users.filter((u: any) => u.certificateStatus === 'pending');
+
+    const handleReply = async (id: string) => {
+        if (!replyText.trim()) return;
+        await replyToFeedback(id, replyText);
+        setReplyText('');
+        setReplyingTo(null);
+        toast.success('Reply sent');
+    };
+
+    return (
+        <div className="space-y-6">
+            {/* Certificate Requests */}
+            {pendingCerts.length > 0 && (
+                <div>
+                    <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-3">Certificate Requests ({pendingCerts.length})</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {pendingCerts.map((u: any) => (
+                            <div key={u.email} className="bg-white rounded-2xl border border-black/[0.06] p-5 flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center font-black text-amber-700 text-sm">{u.name?.charAt(0)}</div>
+                                    <div>
+                                        <div className="font-bold text-sm text-gray-900">{u.name}</div>
+                                        <div className="text-xs text-gray-400">{u.email}</div>
+                                    </div>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button onClick={async () => { await approveCertificate(u.email); toast.success('Certificate approved'); }}
+                                        className="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 transition-all">Approve</button>
+                                    <button onClick={async () => { await rejectCertificate(u.email); toast.success('Certificate rejected'); }}
+                                        className="px-4 py-2 bg-gray-100 text-gray-600 text-xs font-bold rounded-lg hover:bg-gray-200 transition-all">Reject</button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Appeal Requests */}
+            {requestItems.length > 0 && (
+                <div>
+                    <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-3">Account Appeals ({requestItems.length})</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {requestItems.map((item: any) => (
+                            <div key={item.id} className="bg-white rounded-2xl border border-black/[0.06] p-5">
+                                <div className="flex items-center gap-3 mb-3">
+                                    <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center font-black text-red-600 text-sm">{item.userName?.charAt(0)}</div>
+                                    <div className="flex-1">
+                                        <div className="font-bold text-sm text-gray-900">{item.userName}</div>
+                                        <div className="text-xs text-gray-400">{item.userId}</div>
+                                    </div>
+                                    <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded-full">Appeal</span>
+                                </div>
+                                <p className="text-sm text-gray-600 mb-4 italic">"{item.content}"</p>
+                                <div className="flex gap-2">
+                                    <button onClick={async () => {
+                                        await fetch(`/api/admin/users/${encodeURIComponent(item.userId)}/status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'active' }) });
+                                        await updateFeedbackStatus(item.id, 'implemented');
+                                        toast.success('User unblocked');
+                                    }} className="flex-1 py-2.5 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 transition-all">Unblock</button>
+                                    <button onClick={async () => { await updateFeedbackStatus(item.id, 'ignored'); toast.success('Appeal dismissed'); }}
+                                        className="flex-1 py-2.5 bg-gray-100 text-gray-600 text-xs font-bold rounded-lg hover:bg-gray-200 transition-all">Dismiss</button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Feedback Items */}
+            <div>
+                <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-3">User Feedback</h3>
+                {feedbackItems.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {feedbackItems.map((item: any) => (
+                            <div key={item.id} className="bg-white rounded-2xl border border-black/[0.06] p-5">
+                                <div className="flex items-center gap-3 mb-3">
+                                    <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center font-black text-blue-600 text-sm">{item.userName?.charAt(0)}</div>
+                                    <div className="flex-1">
+                                        <div className="font-bold text-sm text-gray-900">{item.userName}</div>
+                                        <div className="text-xs text-gray-400">{new Date(item.createdAt).toLocaleDateString()}</div>
+                                    </div>
+                                    <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${item.status === 'implemented' ? 'bg-emerald-50 text-emerald-700' : item.status === 'ignored' ? 'bg-gray-100 text-gray-500' : 'bg-amber-50 text-amber-700'}`}>
+                                        {item.status}
+                                    </span>
+                                </div>
+                                <p className="text-sm text-gray-600 mb-3">"{item.content}"</p>
+
+                                {item.reply && (
+                                    <div className="p-3 bg-emerald-50 rounded-xl mb-3">
+                                        <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-1">Reply</div>
+                                        <p className="text-xs text-emerald-800">{item.reply}</p>
+                                    </div>
+                                )}
+
+                                {replyingTo === item.id ? (
+                                    <div className="flex gap-2">
+                                        <input value={replyText} onChange={e => setReplyText(e.target.value)} placeholder="Type your reply..."
+                                            className="flex-1 px-3 py-2 bg-gray-50 border border-black/[0.06] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300/40"
+                                            onKeyDown={e => e.key === 'Enter' && handleReply(item.id)} />
+                                        <button onClick={() => handleReply(item.id)} className="p-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"><Send className="w-4 h-4" /></button>
+                                    </div>
+                                ) : (
+                                    <div className="flex gap-2">
+                                        <button onClick={() => updateFeedbackStatus(item.id, 'implemented')} className="flex-1 py-2 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-lg hover:bg-emerald-100 transition-all">Implement</button>
+                                        <button onClick={() => { setReplyingTo(item.id); setReplyText(''); }} className="flex-1 py-2 bg-gray-50 text-gray-600 text-xs font-bold rounded-lg hover:bg-gray-100 transition-all">Reply</button>
+                                        <button onClick={() => deleteFeedback(item.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 className="w-4 h-4" /></button>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="bg-white rounded-2xl border border-black/[0.06] py-16 text-center">
+                        <MessageSquare className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                        <p className="text-sm text-gray-400">No feedback yet</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CODES TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function CodesTab({ codes, codeType, setCodeType, generatedCode, handleGenerateCode, revokeAccessCode }: any) {
+    return (
+        <div className="space-y-6">
+            {/* Generator */}
+            <div className="bg-white rounded-2xl border border-black/[0.06] p-6">
+                <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-4">Generate Access Code</h3>
+                <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="flex gap-1.5 p-1 bg-gray-100 rounded-xl">
+                        {(['3days', '5mins'] as const).map(t => (
+                            <button key={t} onClick={() => setCodeType(t)}
+                                className={`px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${codeType === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
+                                {t === '3days' ? '3 Day Trial' : '5 Min Preview'}
+                            </button>
+                        ))}
+                    </div>
+                    <button onClick={handleGenerateCode}
+                        className="px-6 py-2.5 bg-emerald-900 text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-emerald-800 transition-all">
+                        Generate
+                    </button>
+                </div>
+                {generatedCode && (
+                    <div className="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3">
+                        <span className="font-mono text-lg font-black text-emerald-800">{generatedCode}</span>
+                        <button onClick={() => { navigator.clipboard.writeText(generatedCode); toast.success('Copied!'); }}
+                            className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 transition-all">Copy</button>
+                    </div>
+                )}
+            </div>
+
+            {/* Codes List */}
+            <div className="bg-white rounded-2xl border border-black/[0.06] overflow-hidden">
+                <div className="px-5 py-4 border-b border-black/[0.04]">
+                    <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">All Codes ({codes.length})</h3>
+                </div>
+                <div className="divide-y divide-black/[0.04]">
+                    {codes.slice(0, 30).map((code: any) => (
+                        <div key={code.id} className="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors">
+                            <span className="font-mono text-sm font-bold text-gray-900 w-40 truncate">{code.code}</span>
+                            <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full uppercase ${code.type === 'lifetime' ? 'bg-emerald-50 text-emerald-700' : code.type === '3days' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>
+                                {code.type}
+                            </span>
+                            <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${code.isUsed ? 'bg-gray-100 text-gray-500' : code.isRevoked ? 'bg-red-50 text-red-500' : 'bg-emerald-50 text-emerald-600'}`}>
+                                {code.isRevoked ? 'Revoked' : code.isUsed ? `Used by ${code.usedBy || '?'}` : 'Available'}
+                            </span>
+                            <div className="flex-1" />
+                            {!code.isUsed && !code.isRevoked && (
+                                <button onClick={() => { revokeAccessCode(code.code); toast.success('Code revoked'); }}
+                                    className="text-xs font-bold text-red-500 hover:text-red-700 transition-colors">Revoke</button>
+                            )}
+                        </div>
+                    ))}
+                </div>
+                {codes.length === 0 && (
+                    <div className="py-16 text-center">
+                        <CreditCard className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                        <p className="text-sm text-gray-400">No codes generated yet</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PROGRESS TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function ProgressTab({ users, defaultCurriculum }: any) {
+    const [expandedProgressUser, setExpandedProgressUser] = useState<string | null>(null);
+    const paidUsers = users.filter((u: any) => u.purchasedCourses?.length > 0);
+
+    return (
+        <div className="space-y-4">
+            <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">Student Progress ({paidUsers.length})</h3>
+            <div className="bg-white rounded-2xl border border-black/[0.06] overflow-hidden">
+                <div className="divide-y divide-black/[0.04]">
+                    {paidUsers.map((u: any) => {
+                        const totalLessons = defaultCurriculum.reduce((acc: number, m: any) => acc + m.lessons.length, 0);
+                        const completed = u.completedLessons?.length || 0;
+                        const pct = totalLessons > 0 ? Math.round((completed / totalLessons) * 100) : 0;
+
+                        return (
+                            <div key={u.email}>
+                                <div className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => setExpandedProgressUser(expandedProgressUser === u.email ? null : u.email)}>
+                                    <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center font-black text-emerald-700 text-sm">{u.name?.charAt(0)}</div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="font-bold text-sm text-gray-900">{u.name}</div>
+                                        <div className="text-xs text-gray-400">{u.purchasedCourses?.join(', ')}</div>
+                                    </div>
+                                    <div className="w-32">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <span className="text-xs font-bold text-gray-500">{completed}/{totalLessons}</span>
+                                            <span className="text-xs font-bold text-gray-900">{pct}%</span>
+                                        </div>
+                                        <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                                            <div className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-emerald-500' : 'bg-emerald-400'}`} style={{ width: `${pct}%` }} />
+                                        </div>
+                                    </div>
+                                    <ChevronDown className={`w-4 h-4 text-gray-300 transition-transform ${expandedProgressUser === u.email ? 'rotate-180' : ''}`} />
+                                </div>
+
+                                <AnimatePresence>
+                                    {expandedProgressUser === u.email && (
+                                        <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
+                                            <div className="px-5 pb-4 bg-gray-50/50 border-t border-black/[0.04]">
+                                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 py-4">
+                                                    {defaultCurriculum.map((m: any) => {
+                                                        const mDone = m.lessons.filter((l: any) => u.completedLessons?.includes(l.id)).length;
+                                                        const mTotal = m.lessons.length;
+                                                        const mPct = mTotal > 0 ? Math.round((mDone / mTotal) * 100) : 0;
+                                                        return (
+                                                            <div key={m.id} className="p-3 bg-white rounded-xl border border-black/[0.04]">
+                                                                <div className="flex items-center justify-between mb-2">
+                                                                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider truncate">{m.title.split('—')[0]}</span>
+                                                                    <span className="text-[10px] font-bold text-gray-900">{mDone}/{mTotal}</span>
+                                                                </div>
+                                                                <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                                                    <div className={`h-full rounded-full ${mPct === 100 ? 'bg-emerald-500' : 'bg-emerald-400'}`} style={{ width: `${mPct}%` }} />
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+                        );
+                    })}
+                </div>
+                {paidUsers.length === 0 && (
+                    <div className="py-16 text-center">
+                        <BarChart3 className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                        <p className="text-sm text-gray-400">No paid students yet</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ACTIVITY TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function ActivityTab({ activityLogs, viewingUserActivity, setViewingUserActivity }: any) {
+    const logs = viewingUserActivity ? (activityLogs || []) : activityLogs;
+    const groupedLogs: Record<string, any[]> = {};
+    logs.forEach((log: any) => {
+        const key = log.email || 'anonymous';
+        if (!groupedLogs[key]) groupedLogs[key] = [];
+        groupedLogs[key].push(log);
+    });
+
+    return (
+        <div className="space-y-4">
+            {viewingUserActivity && (
+                <button onClick={() => setViewingUserActivity(null)} className="text-xs font-bold text-emerald-600 hover:text-emerald-800 transition-colors">← Back to all activity</button>
+            )}
+            <div className="bg-white rounded-2xl border border-black/[0.06] overflow-hidden">
+                <div className="divide-y divide-black/[0.04]">
+                    {Object.entries(groupedLogs).slice(0, 30).map(([email, items]) => (
+                        <div key={email} className="px-5 py-4">
+                            <div className="font-bold text-sm text-gray-900 mb-2">{email}</div>
+                            <div className="space-y-1">
+                                {items.slice(0, 5).map((log: any, i: number) => (
+                                    <div key={i} className="flex items-center gap-3 text-xs text-gray-500">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-gray-300 shrink-0" />
+                                        <span className="font-medium">{log.type}</span>
+                                        <span className="truncate">{log.description || log.path}</span>
+                                        <span className="ml-auto text-gray-400 shrink-0">{log.createdAt ? new Date(log.createdAt).toLocaleTimeString() : ''}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                {Object.keys(groupedLogs).length === 0 && (
+                    <div className="py-16 text-center">
+                        <Activity className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                        <p className="text-sm text-gray-400">No activity yet</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MAIN ADMIN DASHBOARD
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const AdminDashboard: React.FC = () => {
+    const { user: currentUser, getAllUsers, updateUserStatus, deleteUser, logout, generateAccessCode, getAllAccessCodes, revokeAccessCode, approveCertificate, rejectCertificate } = useAuth();
+    const { feedback, updateFeedbackStatus, deleteFeedback, replyToFeedback } = useFeedback();
+    const { curricula } = useAllCurricula();
+    const defaultCurriculum = curricula.length > 0 ? curricula[0].modules.map(m => ({
+        id: m.slug, title: m.title, description: m.description || '',
+        lessons: m.lessons.map(l => ({ id: l.slug, title: l.title, duration: l.duration || '', youtubeId: l.youtubeId || '', free: l.free })),
+    })) : [];
 
     const navigate = useNavigate();
+    const [activeTab, setActiveTab] = useState<Tab>('overview');
     const [users, setUsers] = useState<any[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
-    const [activeTab, setActiveTab] = useState<'users' | 'feedback' | 'codes' | 'requests' | 'content' | 'activity'>('users');
-    const [codeType, setCodeType] = useState<'3days' | '5mins'>('3days');
-    const [generatedCode, setGeneratedCode] = useState("");
-    const [codes, setCodes] = useState<any[]>([]);
+    const [filterRole, setFilterRole] = useState<'all' | 'pro' | 'online'>('all');
     const [expandedUser, setExpandedUser] = useState<string | null>(null);
-    const [expandedProgressUser, setExpandedProgressUser] = useState<string | null>(null);
-    const [sqlStats, setSqlStats] = useState<{
-        totalUsers: number;
-        proMembers: number;
-        activeUsers: number;
-        newToday: number;
-        recentLogins: any[];
-    } | null>(null);
+    const [codeType, setCodeType] = useState<'3days' | '5mins'>('3days');
+    const [generatedCode, setGeneratedCode] = useState('');
+    const [codes, setCodes] = useState<any[]>([]);
+    const [sqlStats, setSqlStats] = useState<any>(null);
     const [activityLogs, setActivityLogs] = useState<any[]>([]);
-    const [selectedUserActivity, setSelectedUserActivity] = useState<any[] | null>(null);
     const [viewingUserActivity, setViewingUserActivity] = useState<string | null>(null);
-    const [expandedEmails, setExpandedEmails] = useState<Set<string>>(new Set());
-
-    const groupedLogs = useMemo(() => {
-        const logs = viewingUserActivity ? (selectedUserActivity || []) : activityLogs;
-        const groups: Record<string, any[]> = {};
-        logs.forEach((log: any) => {
-            const key = log.email || 'anonymous';
-            if (!groups[key]) groups[key] = [];
-            groups[key].push(log);
-        });
-        return groups;
-    }, [activityLogs, viewingUserActivity, selectedUserActivity]);
-
-    const toggleUserExpand = (email: string) => {
-        const next = new Set(expandedEmails);
-        if (next.has(email)) next.delete(email);
-        else next.add(email);
-        setExpandedEmails(next);
-    };
 
     useEffect(() => {
-        const fetchSqlStats = async () => {
-            try {
-                const response = await fetch('/api/admin/stats');
-                const data = await response.json();
-                setSqlStats(data);
-            } catch (e) {
-                console.error("Failed to fetch SQL stats", e);
-            }
-        };
-
-        fetchSqlStats();
-        const interval = setInterval(fetchSqlStats, 5000); // Pulse every 5s for live feel
-        return () => clearInterval(interval);
-    }, []);
-
-    useEffect(() => {
-        const fetchActivity = async () => {
-            try {
-                const response = await fetch('/api/admin/activity');
-                const data = await response.json();
-                setActivityLogs(data);
-            } catch (e) {
-                console.error("Failed to fetch activity logs", e);
-            }
-        };
-
-        fetchActivity();
-        const interval = setInterval(fetchActivity, 3000); // Faster pulse for activity stream
-        return () => clearInterval(interval);
-    }, []);
-
-    const fetchUserActivity = async (userId: string) => {
-        try {
-            const response = await fetch(`/api/admin/users/${userId}/activity`);
-            const data = await response.json();
-            setSelectedUserActivity(data);
-            setViewingUserActivity(userId);
-        } catch (e) {
-            console.error("Failed to fetch user activity", e);
-        }
-    };
-
-    useEffect(() => {
-        // Security check
-        if (!currentUser || currentUser.role !== 'admin') {
-            navigate('/dashboard');
-            return;
-        }
-        // Fetch users from DB
-        const fetchUsers = async () => {
-            const dbUsers = await getAllUsers();
-            setUsers(dbUsers);
-        };
+        if (!currentUser || currentUser.role !== 'admin') { navigate('/dashboard'); return; }
+        const fetchUsers = async () => { const dbUsers = await getAllUsers(); setUsers(dbUsers); };
         fetchUsers();
-        // Auto-refresh users every 5s for live online status
-        const usersInterval = setInterval(fetchUsers, 5000);
-        return () => clearInterval(usersInterval);
+        const interval = setInterval(fetchUsers, 5000);
+        return () => clearInterval(interval);
     }, [currentUser, navigate]);
 
-    const handleStatusUpdate = async (email: string, currentStatus: 'active' | 'inactive') => {
-        const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-        await updateUserStatus(email, newStatus);
-        // Re-fetch users from DB
-        const dbUsers = await getAllUsers();
-        setUsers(dbUsers);
+    useEffect(() => {
+        const fetchStats = async () => { try { const r = await fetch('/api/admin/stats'); setSqlStats(await r.json()); } catch {} };
+        fetchStats();
+        const i = setInterval(fetchStats, 5000);
+        return () => clearInterval(i);
+    }, []);
+
+    useEffect(() => {
+        const fetchLogs = async () => { try { const r = await fetch('/api/admin/activity'); setActivityLogs(await r.json()); } catch {} };
+        fetchLogs();
+        const i = setInterval(fetchLogs, 3000);
+        return () => clearInterval(i);
+    }, []);
+
+    useEffect(() => {
+        const fetchCodes = async () => { const dbCodes = await getAllAccessCodes(); setCodes(dbCodes); };
+        fetchCodes();
+        const i = setInterval(fetchCodes, 5000);
+        return () => clearInterval(i);
+    }, []);
+
+    const handleStatusUpdate = async (email: string, currentStatus: string) => {
+        await updateUserStatus(email, currentStatus === 'active' ? 'inactive' : 'active');
+        setUsers(await getAllUsers());
     };
 
     const handleDelete = async (email: string) => {
-        if (confirm('Are you sure you want to delete this user?')) {
-            await deleteUser(email);
-            // Re-fetch users from DB
-            const dbUsers = await getAllUsers();
-            setUsers(dbUsers);
-        }
+        if (confirm('Delete this user?')) { await deleteUser(email); setUsers(await getAllUsers()); }
     };
 
     const handleGenerateCode = async () => {
         const code = await generateAccessCode(codeType);
         setGeneratedCode(code);
-        const updatedCodes = await getAllAccessCodes();
-        setCodes(updatedCodes);
+        setCodes(await getAllAccessCodes());
     };
 
-    // Fetch access codes from DB
-    useEffect(() => {
-        const fetchCodes = async () => {
-            const dbCodes = await getAllAccessCodes();
-            setCodes(dbCodes);
-        };
-        fetchCodes();
-        const codesInterval = setInterval(fetchCodes, 5000);
-        return () => clearInterval(codesInterval);
-    }, []);
+    const fetchUserActivity = async (userId: string) => {
+        try { const r = await fetch(`/api/admin/users/${userId}/activity`); setViewingUserActivity(await r.json()); } catch {}
+    };
 
-    const [filterRole, setFilterRole] = useState<'all' | 'pro' | 'online'>('all');
-
-    const filteredUsers = useMemo(() => {
-        let result = users;
-
-        // 1. Apply category filter
-        if (filterRole === 'pro') {
-            result = result.filter(u => u.purchasedCourses && u.purchasedCourses.length > 0);
-        } else if (filterRole === 'online') {
-            result = result.filter(u => u.isOnline || isOnline(u.lastSeen));
-        }
-
-        // 2. Apply search text filter
-        if (searchTerm) {
-            result = result.filter(u =>
-                u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                u.email?.toLowerCase().includes(searchTerm.toLowerCase())
-            );
-        }
-
-        return result;
-    }, [users, searchTerm, filterRole]);
-
-    // Statistics
-    const stats = useMemo(() => {
-        const totalUsers = users.length;
-        const proUsers = users.filter(u => u.purchasedCourses && u.purchasedCourses.length > 0).length;
-        const activeTrials = users.filter(u => u.trialExpiresAt && u.trialExpiresAt !== 'EXPIRED').length;
-        const pendingFeedback = feedback.filter(f => f.status === 'pending').length;
-
-        return [
-            { id: 'all', label: 'Total Members', value: sqlStats?.totalUsers ?? totalUsers, icon: Users, color: 'blue', trend: 'Global' },
-            { id: 'pro', label: 'PRO Members', value: sqlStats?.proMembers ?? proUsers, icon: Award, color: 'primary', trend: 'Lifetime' },
-            { id: 'online', label: 'Active Trials', value: activeTrials, icon: Clock, color: 'amber', trend: 'Trials' },
-            { id: 'today', label: 'New Today', value: sqlStats?.newToday ?? 0, icon: TrendingUp, color: 'rose', trend: 'Today' }
-        ];
-    }, [users, feedback, sqlStats]);
+    const unreadFeedback = feedback.filter((f: any) => f.status === 'pending').length;
 
     return (
-        <div className="min-h-screen bg-background pb-20">
-            {/* Header */}
-            <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-black/[0.06] px-6 py-4 mb-8">
-                <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <div className="flex items-center gap-2 mb-1">
-                            <ShieldCheck className="w-5 h-5 text-primary" />
-                            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">System Command</span>
-                        </div>
-                        <h1 className="text-2xl font-black text-gray-900">Admin Control Center</h1>
+        <div className="min-h-screen bg-gray-50 flex">
+            {/* Sidebar */}
+            <aside className="w-64 bg-white border-r border-black/[0.06] flex flex-col shrink-0 fixed h-full">
+                <div className="p-5 border-b border-black/[0.06]">
+                    <div className="flex items-center gap-2 mb-1">
+                        <ShieldCheck className="w-5 h-5 text-emerald-600" />
+                        <span className="text-sm font-black text-gray-900">Admin Panel</span>
                     </div>
-
-                    <div className="flex items-center gap-3">
-                        <Link
-                            to="/dashboard"
-                            className="flex items-center gap-2 px-5 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-all border border-black/[0.06] active:scale-95"
-                        >
-                            <PanelLeft className="w-4 h-4" /> Learner View
-                        </Link>
-                        <button
-                            onClick={() => { logout(); navigate('/'); }}
-                            className="flex items-center gap-2 px-5 py-2.5 bg-red-500/10 text-red-400 font-bold rounded-xl hover:bg-red-500/20 transition-all border border-red-500/20 active:scale-95"
-                        >
-                            <LogOut className="w-4 h-4" /> Exit
-                        </button>
-                    </div>
-                </div>
-            </header>
-
-            <div className="max-w-7xl mx-auto px-6 space-y-10">
-                {/* Stats Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {stats.map((stat, i) => (
-                        <motion.div
-                            key={stat.label}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: i * 0.1 }}
-                            onClick={() => {
-                                setActiveTab('users');
-                                setFilterRole(stat.id as 'all' | 'pro' | 'online');
-                            }}
-                            className="p-6 rounded-[2.5rem] bg-white border border-black/[0.06] relative overflow-hidden group hover:border-primary/30 transition-all cursor-pointer"
-                        >
-                            <div className={`absolute top-0 right-0 w-32 h-32 bg-${stat.color}-500/5 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-${stat.color}-500/10 transition-colors`} />
-
-                            <div className="relative z-10">
-                                <div className="flex items-start justify-between mb-4">
-                                    <div className={`p-3 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200`}>
-                                        <stat.icon className="w-6 h-6" />
-                                    </div>
-                                    <span className="text-[10px] font-black px-2 py-1 rounded bg-white/5 text-muted-foreground uppercase tracking-widest">{stat.trend}</span>
-                                </div>
-                                <h3 className="text-xl md:text-3xl font-black text-gray-900 mb-1">{stat.value}</h3>
-                                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{stat.label}</p>
-                            </div>
-                        </motion.div>
-                    ))}
+                    <p className="text-[11px] text-gray-400">DevMastery Control Center</p>
                 </div>
 
-                {/* Tab Navigation */}
-                <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 border-b border-black/[0.06] pb-8">
-                    <div className="flex p-1.5 bg-gray-100 rounded-2xl border border-black/[0.06] w-full xl:w-fit overflow-x-auto no-scrollbar">
-                        {[
-                            { id: 'users', icon: Users, label: 'Members' },
-                            { id: 'feedback', icon: MessageSquare, label: 'Feedback' },
-                            { id: 'requests', icon: ShieldAlert, label: 'Appeals' },
-                            { id: 'codes', icon: Zap, label: 'Trials' },
-                            { id: 'content', icon: Award, label: 'Progress' },
-                            { id: 'activity', icon: TrendingUp, label: 'Activity' }
-                        ].map((tab) => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id as any)}
-                                className={`flex-1 xl:flex-none flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-[10px] whitespace-nowrap font-black uppercase tracking-widest transition-all ${activeTab === tab.id ? 'bg-primary text-white shadow-xl shadow-primary/20' : 'text-muted-foreground hover:text-gray-900 hover:bg-gray-200'}`}
-                            >
-                                <tab.icon className="w-4 h-4" />
-                                {tab.label}
-                                {tab.id === 'requests' && feedback.filter(f => f.type === 'access_request' && f.status === 'pending').length > 0 && (
-                                    <span className="ml-2 px-1.5 py-0.5 bg-red-500 text-white text-[9px] rounded-full">{feedback.filter(f => f.type === 'access_request' && f.status === 'pending').length}</span>
-                                )}
+                <nav className="flex-1 p-3 space-y-1">
+                    {TABS.map(tab => {
+                        const Icon = tab.icon;
+                        const isActive = activeTab === tab.id;
+                        const badge = tab.id === 'feedback' ? unreadFeedback : 0;
+                        return (
+                            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${isActive ? 'bg-emerald-50 text-emerald-700 font-bold' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}>
+                                <Icon className="w-4 h-4" />
+                                <span className="flex-1 text-left">{tab.label}</span>
+                                {badge > 0 && <span className="px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full">{badge}</span>}
                             </button>
-                        ))}
+                        );
+                    })}
+                </nav>
+
+                <div className="p-3 border-t border-black/[0.06] space-y-2">
+                    <Link to="/dashboard" className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-all">
+                        <Eye className="w-4 h-4" /> View Site
+                    </Link>
+                    <button onClick={() => { logout(); navigate('/'); }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:text-red-700 hover:bg-red-50 transition-all">
+                        <LogOut className="w-4 h-4" /> Sign Out
+                    </button>
+                </div>
+            </aside>
+
+            {/* Main Content */}
+            <main className="flex-1 ml-64 p-6">
+                <div className="max-w-6xl">
+                    <div className="mb-6">
+                        <h1 className="text-2xl font-black text-gray-900 tracking-tight">
+                            {TABS.find(t => t.id === activeTab)?.label}
+                        </h1>
                     </div>
 
-                    {activeTab === 'users' && (
-                        <div className="flex items-center gap-4 bg-white/5 px-6 py-4 rounded-2xl border border-white/10 group focus-within:border-primary/40 transition-all w-full xl:max-w-md shadow-inner">
-                            <Search className="w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                            <input
-                                type="text"
-                                placeholder="ACCESS IDENTIFIER SEARCH..."
-                                className="bg-transparent border-none outline-none text-[10px] font-black tracking-widest uppercase w-full placeholder:text-muted-foreground/30"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                        </div>
-                    )}
+                    <AnimatePresence mode="wait">
+                        <motion.div key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+                            {activeTab === 'overview' && <OverviewTab users={users} feedback={feedback} codes={codes} sqlStats={sqlStats} />}
+                            {activeTab === 'members' && <MembersTab users={users} searchTerm={searchTerm} setSearchTerm={setSearchTerm} filterRole={filterRole} setFilterRole={setFilterRole} expandedUser={expandedUser} setExpandedUser={setExpandedUser} handleStatusUpdate={handleStatusUpdate} handleDelete={handleDelete} fetchUserActivity={fetchUserActivity} setActiveTab={setActiveTab} />}
+                            {activeTab === 'courses' && <CourseManager />}
+                            {activeTab === 'feedback' && <FeedbackTab feedback={feedback} updateFeedbackStatus={updateFeedbackStatus} deleteFeedback={deleteFeedback} replyToFeedback={replyToFeedback} users={users} getAllUsers={getAllUsers} approveCertificate={approveCertificate} rejectCertificate={rejectCertificate} />}
+                            {activeTab === 'codes' && <CodesTab codes={codes} codeType={codeType} setCodeType={setCodeType} generatedCode={generatedCode} handleGenerateCode={handleGenerateCode} revokeAccessCode={revokeAccessCode} />}
+                            {activeTab === 'progress' && <ProgressTab users={users} defaultCurriculum={defaultCurriculum} />}
+                            {activeTab === 'activity' && <ActivityTab activityLogs={activityLogs} viewingUserActivity={viewingUserActivity} setViewingUserActivity={setViewingUserActivity} />}
+                        </motion.div>
+                    </AnimatePresence>
                 </div>
-
-                <AnimatePresence mode="wait">
-                    {activeTab === 'users' && (
-                        <motion.div
-                            key="users"
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: 20 }}
-                            className="bg-secondary/10 rounded-[2.5rem] border border-white/5 overflow-hidden shadow-2xl"
-                        >
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left min-w-[900px]">
-                                    <thead className="bg-white/5 border-b border-white/5">
-                                        <tr>
-                                            <th className="px-6 md:px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Entity Details</th>
-                                            <th className="px-6 md:px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Activity</th>
-                                            <th className="px-6 md:px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Current Phase</th>
-                                            <th className="px-6 md:px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Progress</th>
-                                            <th className="px-6 md:px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground text-right">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-black/[0.06]">
-                                        {filteredUsers.map((u) => (
-                                            <React.Fragment key={u.email}>
-                                                <tr
-                                                    className="group hover:bg-gray-50 transition-colors relative cursor-pointer"
-                                                    onClick={() => setExpandedUser(expandedUser === u.email ? null : u.email)}
-                                                >
-                                                    <td className="px-8 py-6">
-                                                        <div className="flex items-center gap-4">
-                                                            <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center font-black text-emerald-700 border border-emerald-200 transition-all scale-100 group-hover:scale-110">
-                                                                {u.name?.charAt(0).toUpperCase()}
-                                                            </div>
-                                                            <div>
-                                                                <div className="font-black text-gray-900 text-base group-hover:text-primary transition-colors flex items-center gap-2">
-                                                                    {u.name}
-                                                                    <ChevronRight className={`w-3 h-3 transition-transform ${expandedUser === u.email ? 'rotate-90' : ''}`} />
-                                                                </div>
-                                                                <div className="text-xs font-bold text-muted-foreground">{u.email}</div>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-8 py-6">
-                                                        <div className="flex flex-col gap-1">
-                                                            <div className={`inline-flex items-center gap-2 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest w-fit ${(u.isOnline || isOnline(u.lastSeen)) ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-white/5 text-muted-foreground border border-white/5'}`}>
-                                                                <div className={`w-1.5 h-1.5 rounded-full ${(u.isOnline || isOnline(u.lastSeen)) ? 'bg-green-400 animate-pulse' : 'bg-gray-500'}`} />
-                                                                {(u.isOnline || isOnline(u.lastSeen)) ? 'Online' : 'Offline'}
-                                                            </div>
-                                                            <span className="text-[10px] text-muted-foreground font-mono">
-                                                                {u.lastSeen ? new Date(u.lastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Never'}
-                                                            </span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-8 py-6">
-                                                        <div className="text-xs font-bold text-gray-700">
-                                                            {(() => {
-                                                                const stats = getPhasesStatus(curriculum, u.completedLessons);
-                                                                const current = stats.find(p => !p.locked && !p.completed) || stats[stats.length - 1];
-                                                                if (stats.every(p => p.completed)) return <span className="text-primary">GRADUATED</span>;
-                                                                return current?.title.split(" — ")[0] || "Phase 0";
-                                                            })()}
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-8 py-6">
-                                                        <div className="flex items-center gap-1">
-                                                            {getPhasesStatus(curriculum, u.completedLessons).map((p, i) => (
-                                                                <div
-                                                                    key={i}
-                                                                    className={`w-1.5 h-6 rounded-full transition-all ${p.completed ? 'bg-primary shadow-[0_0_8px_rgba(59,130,246,0.5)]' : p.locked ? 'bg-white/5' : 'bg-white/20 animate-pulse'}`}
-                                                                    title={p.title}
-                                                                />
-                                                            ))}
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-8 py-6 text-right">
-                                                        <div className="flex items-center justify-end gap-3 opacity-30 group-hover:opacity-100 transition-opacity">
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); handleStatusUpdate(u.email, u.status as any); }}
-                                                                className="p-3 bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-white rounded-xl transition-all active:scale-95"
-                                                                title={u.status === 'active' ? 'Hold Access' : 'Restore Access'}
-                                                            >
-                                                                {u.status === 'active' ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
-                                                            </button>
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); handleDelete(u.email); }}
-                                                                className="p-3 bg-white/5 hover:bg-red-500/10 text-muted-foreground hover:text-red-400 rounded-xl transition-all active:scale-95"
-                                                            >
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                                {/* Expanded Detail Panel */}
-                                                {expandedUser === u.email && (
-                                                    <tr>
-                                                        <td colSpan={5} className="px-0 py-0">
-                                                            <motion.div
-                                                                initial={{ height: 0, opacity: 0 }}
-                                                                animate={{ height: 'auto', opacity: 1 }}
-                                                                exit={{ height: 0, opacity: 0 }}
-                                                                className="bg-white/[0.02] border-t border-b border-white/5"
-                                                            >
-                                                                <div className="p-8 grid grid-cols-2 md:grid-cols-4 gap-6">
-                                                                    <div className="space-y-1">
-                                                                        <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Role</div>
-                                                                        <div className="text-sm font-bold text-white uppercase">{u.role || 'student'}</div>
-                                                                    </div>
-                                                                    <div className="space-y-1">
-                                                                        <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Plan</div>
-                                                                        <div className="text-sm font-bold flex flex-wrap gap-2">
-                                                                            {u.trialExpiresAt && u.trialExpiresAt !== 'EXPIRED' ? (
-                                                                                <span className="text-amber-400">TRIAL</span>
-                                                                            ) : (u.purchasedCourses && u.purchasedCourses.length > 0) ? (
-                                                                                <span className="text-yellow-400">PRO</span>
-                                                                            ) : (
-                                                                                <span className="text-zinc-500">FREE</span>
-                                                                            )}
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="space-y-1">
-                                                                        <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Courses</div>
-                                                                        <div className="flex flex-wrap gap-1">
-                                                                            {u.purchasedCourses && u.purchasedCourses.length > 0 ? (
-                                                                                u.purchasedCourses.map((c: string) => (
-                                                                                    <span key={c} className="px-2 py-0.5 rounded-md bg-white/5 text-[10px] font-black uppercase text-gray-500 border border-black/[0.06]">
-                                                                                        {c}
-                                                                                    </span>
-                                                                                ))
-                                                                            ) : (
-                                                                                <span className="text-[10px] font-bold text-muted-foreground/20 italic">None</span>
-                                                                            )}
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="space-y-1">
-                                                                        <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Account Status</div>
-                                                                        <div className={`text-sm font-bold ${u.status === 'active' ? 'text-green-400' : 'text-red-400'}`}>
-                                                                            {(u.status || 'active').toUpperCase()}
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="space-y-1">
-                                                                        <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Certificate</div>
-                                                                        <div className="text-sm font-bold text-white">{(u.certificateStatus || 'locked').toUpperCase()}</div>
-                                                                    </div>
-                                                                    <div className="space-y-1">
-                                                                        <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">XP</div>
-                                                                        <div className="text-sm font-bold text-primary">{u.xp || 0} XP</div>
-                                                                    </div>
-                                                                    <div className="space-y-1">
-                                                                        <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Level</div>
-                                                                        <div className="text-sm font-bold text-white">LVL {u.level || 1}</div>
-                                                                    </div>
-                                                                    <div className="space-y-1">
-                                                                        <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Streak</div>
-                                                                        <div className="text-sm font-bold text-orange-400">{u.streak || 0} days</div>
-                                                                    </div>
-                                                                    <div className="space-y-1">
-                                                                        <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Lessons Done</div>
-                                                                        <div className="text-sm font-bold text-white">{(u.completedLessons || []).length}</div>
-                                                                    </div>
-                                                                    <div className="space-y-1">
-                                                                        <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Joined</div>
-                                                                        <div className="text-sm font-bold text-zinc-400">
-                                                                            {u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown'}
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="space-y-1">
-                                                                        <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Last Login</div>
-                                                                        <div className="text-sm font-bold text-zinc-400">
-                                                                            {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Never'}
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="space-y-1">
-                                                                        <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Last Seen</div>
-                                                                        <div className="text-sm font-bold text-zinc-400">
-                                                                            {u.lastSeen ? new Date(u.lastSeen).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Never'}
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="space-y-1">
-                                                                        <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Online Status</div>
-                                                                        <div className={`text-sm font-bold ${(u.isOnline || isOnline(u.lastSeen)) ? 'text-green-400' : 'text-red-400'}`}>
-                                                                            {(u.isOnline || isOnline(u.lastSeen)) ? '🟢 LIVE NOW' : '🔴 OFFLINE'}
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="space-y-1">
-                                                                        <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Actions</div>
-                                                                        <button
-                                                                            onClick={() => {
-                                                                                fetchUserActivity(u.id);
-                                                                                setActiveTab('activity');
-                                                                            }}
-                                                                            className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-xs font-bold transition-all"
-                                                                        >
-                                                                            <Eye className="w-3 h-3" />
-                                                                            View History
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                            </motion.div>
-                                                        </td>
-                                                    </tr>
-                                                )}
-                                            </React.Fragment>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </motion.div>
-                    )}
-
-                    {activeTab === 'feedback' && (
-                        <motion.div
-                            key="feedback"
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 1.05 }}
-                            className="grid grid-cols-1 lg:grid-cols-2 gap-8"
-                        >
-                            {feedback.filter(f => f.type === 'feedback').length > 0 ? feedback.filter(f => f.type === 'feedback').map((item, i) => (
-                                <motion.div
-                                    key={item.id}
-                                    initial={{ opacity: 0, y: 30 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: i * 0.05 }}
-                                    className="p-8 rounded-[2.5rem] bg-secondary/10 border border-white/5 relative group hover:border-primary/30 transition-all shadow-xl"
-                                >
-                                    <div className="flex items-start justify-between gap-4 mb-6">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center font-black text-xl text-primary shadow-inner">
-                                                {item.userName?.charAt(0).toUpperCase()}
-                                            </div>
-                                            <div>
-                                                <h3 className="text-lg font-black text-white group-hover:text-primary transition-colors">{item.userName}</h3>
-                                                <p className="text-[10px] font-black text-muted-foreground tracking-widest uppercase">{new Date(item.createdAt).toLocaleString()}</p>
-                                            </div>
-                                        </div>
-                                        <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] shadow-sm ${item.status === 'implemented' ? 'bg-green-500/10 text-green-400 border border-green-500/20' :
-                                            item.status === 'ignored' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
-                                                'bg-blue-500/10 text-blue-400 border border-blue-500/20 animate-pulse'
-                                            }`}>
-                                            {item.status}
-                                        </span>
-                                    </div>
-
-                                    <div className="p-6 bg-gray-50 rounded-3xl border border-black/[0.06] min-h-[100px] relative overflow-hidden mb-6">
-                                        <div className="absolute top-0 right-0 p-4 opacity-5">
-                                            <MessageSquare className="w-16 h-16" />
-                                        </div>
-                                        <p className="relative z-10 text-zinc-300 font-medium leading-relaxed italic">"{item.content}"</p>
-                                    </div>
-
-                                    {item.reply && (
-                                        <div className="p-6 bg-primary/5 rounded-[2rem] border border-primary/10 mb-8 relative">
-                                            <div className="flex items-center gap-2 mb-3">
-                                                <Reply className="w-4 h-4 text-primary" />
-                                                <span className="text-[10px] uppercase font-black text-primary tracking-[0.3em]">Official Transmutation</span>
-                                            </div>
-                                            <p className="text-sm text-zinc-400 font-bold leading-relaxed">{item.reply}</p>
-                                        </div>
-                                    )}
-
-                                    <div className="flex items-center gap-4">
-                                        <button
-                                            onClick={() => updateFeedbackStatus(item.id, 'implemented')}
-                                            className="flex-1 py-4 bg-green-500 text-black font-black rounded-2xl text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-green-500/10"
-                                        >
-                                            Implement
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                const reply = prompt("Enter the official response:");
-                                                if (reply) replyToFeedback(item.id, reply);
-                                            }}
-                                            className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white font-black rounded-2xl text-xs uppercase tracking-widest transition-all border border-black/[0.06]"
-                                        >
-                                            Transmit
-                                        </button>
-                                        <button
-                                            onClick={() => deleteFeedback(item.id)}
-                                            className="p-4 bg-red-500/5 hover:bg-red-500/10 text-red-400 rounded-2xl transition-all border border-red-500/10"
-                                        >
-                                            <Trash2 className="w-5 h-5" />
-                                        </button>
-                                    </div>
-                                </motion.div>
-                            )) : (
-                                <div className="lg:col-span-2 py-32 text-center bg-secondary/5 rounded-[3rem] border border-dashed border-white/10 opacity-30">
-                                    <TrendingUp className="w-16 h-16 mx-auto mb-6" />
-                                    <h4 className="text-xl font-black text-white italic">Silence on the airwaves.</h4>
-                                    <p className="text-sm font-bold uppercase tracking-widest">Waiting for user signal.</p>
-                                </div>
-                            )}
-                        </motion.div>
-                    )}
-
-                    {activeTab === 'requests' && (
-                        <motion.div
-                            key="requests"
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -20 }}
-                            className="space-y-6"
-                        >
-                            {/* --- Certificate Appeals --- */}
-                            <div className="bg-primary/10 border border-primary/20 p-6 rounded-[2rem] mb-8">
-                                <h4 className="text-primary font-black text-xs uppercase tracking-widest mb-1">Certificate Requests</h4>
-                                <p className="text-primary/60 text-[10px] font-medium">Students who have completed the course and are requesting their certificate.</p>
-                            </div>
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                {users.filter(u => u.certificateStatus === 'pending').length > 0 ? users.filter(u => u.certificateStatus === 'pending').map((u: any) => {
-                                    const totalLessons = 31;
-                                    const completedCount = u.completedLessons?.length || 0;
-                                    const progress = Math.round((completedCount / totalLessons) * 100);
-
-                                    return (
-                                        <motion.div
-                                            key={u.email}
-                                            initial={{ opacity: 0, y: 20 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            className="p-8 rounded-[2.5rem] bg-secondary/10 border border-white/5 group hover:border-primary/30 transition-all"
-                                        >
-                                            <div className="flex items-center justify-between mb-6">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center font-black text-xl text-primary shadow-inner">
-                                                        {u.name?.charAt(0).toUpperCase()}
-                                                    </div>
-                                                    <div>
-                                                        <h3 className="text-lg font-black text-white">{u.name}</h3>
-                                                        <p className="text-[10px] text-zinc-500 font-mono">{u.email}</p>
-                                                    </div>
-                                                </div>
-                                                <span className="px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse">
-                                                    Pending Review
-                                                </span>
-                                            </div>
-
-                                            <div className="p-5 bg-gray-50 rounded-2xl border border-black/[0.06] mb-6">
-                                                <div className="flex items-center justify-between mb-3">
-                                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Course Progress</span>
-                                                    <span className="text-sm font-black text-white">{progress}%</span>
-                                                </div>
-                                                <div className="w-full h-3 rounded-full bg-white/10 overflow-hidden">
-                                                    <div
-                                                        className={`h-full rounded-full transition-all ${progress === 100 ? 'bg-green-500' : 'bg-primary'}`}
-                                                        style={{ width: `${progress}%` }}
-                                                    />
-                                                </div>
-                                                <div className="flex items-center justify-between mt-2">
-                                                    <span className="text-[10px] text-zinc-500">{completedCount} / {totalLessons} lessons</span>
-                                                    <span className="text-[10px] text-zinc-500">Level {u.level} · {u.xp} XP</span>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex gap-3">
-                                                <button
-                                                    onClick={async () => {
-                                                        await approveCertificate(u.email);
-                                                        const dbUsers = await getAllUsers();
-                                                        setUsers(dbUsers);
-                                                    }}
-                                                    className="flex-1 py-4 bg-green-500 text-black font-black rounded-2xl text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-green-500/10"
-                                                >
-                                                    GRANT CERTIFICATE
-                                                </button>
-                                                <button
-                                                    onClick={async () => {
-                                                        await rejectCertificate(u.email);
-                                                        const dbUsers = await getAllUsers();
-                                                        setUsers(dbUsers);
-                                                    }}
-                                                    className="flex-1 py-4 bg-red-500/10 text-red-400 font-black rounded-2xl text-xs uppercase tracking-widest hover:bg-red-500/20 transition-all border border-red-500/20"
-                                                >
-                                                    DENY
-                                                </button>
-                                            </div>
-                                        </motion.div>
-                                    );
-                                }) : (
-                                    <div className="lg:col-span-2 py-20 text-center opacity-20">
-                                        <ShieldCheck className="w-12 h-12 mx-auto mb-4" />
-                                        <p className="text-xs font-black uppercase tracking-widest">No certificate requests pending.</p>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* --- Account Suspensions Appeals --- */}
-                            <div className="bg-red-500/10 border border-red-500/20 p-6 rounded-[2rem] mt-12 mb-8">
-                                <h4 className="text-red-400 font-black text-xs uppercase tracking-widest mb-1">Account Suspensions</h4>
-                                <p className="text-red-400/60 text-[10px] font-medium">Appeals from suspended users requesting account reactivation.</p>
-                            </div>
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                {feedback.filter(f => f.type === 'access_request' && f.status === 'pending').length > 0 ? feedback.filter(f => f.type === 'access_request' && f.status === 'pending').map((item) => (
-                                    <motion.div
-                                        key={item.id}
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        className="p-8 rounded-[2.5rem] bg-secondary/10 border border-white/5 group hover:border-red-500/30 transition-all"
-                                    >
-                                        <div className="flex items-center justify-between mb-6">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center font-black text-xl text-red-500 shadow-inner">
-                                                    {item.userName?.charAt(0).toUpperCase()}
-                                                </div>
-                                                <div>
-                                                    <h3 className="text-lg font-black text-white">{item.userName}</h3>
-                                                    <p className="text-[10px] text-zinc-500 font-mono">{item.userId}</p>
-                                                </div>
-                                            </div>
-                                            <span className="px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] bg-red-500/10 text-red-400 border border-red-500/20 animate-pulse">
-                                                Review Appeal
-                                            </span>
-                                        </div>
-
-                                        <div className="p-5 bg-gray-50 rounded-2xl border border-black/[0.06] mb-6 relative">
-                                            <div className="absolute top-2 right-4 opacity-10">
-                                                <AlertTriangle className="w-8 h-8 text-red-500" />
-                                            </div>
-                                            <span className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Message from user</span>
-                                            <p className="text-sm text-zinc-300 italic">"{item.content}"</p>
-                                        </div>
-
-                                        <div className="flex gap-3">
-                                            <button
-                                                onClick={async () => {
-                                                    // Unblock User -> Sets status to active
-                                                    try {
-                                                        const res = await fetch(`/api/admin/users/${encodeURIComponent(item.userId)}/status`, {
-                                                            method: 'PATCH',
-                                                            headers: { 'Content-Type': 'application/json' },
-                                                            body: JSON.stringify({ status: 'active' })
-                                                        });
-                                                        if (res.ok) {
-                                                            await updateFeedbackStatus(item.id, 'implemented');
-                                                            const dbUsers = await getAllUsers();
-                                                            setUsers(dbUsers);
-                                                            toast.success('User unblocked seamlessly.');
-                                                        }
-                                                    } catch (error) {
-                                                        toast.error('Failed to unblock user.');
-                                                    }
-                                                }}
-                                                className="flex-1 py-4 bg-white hover:bg-white/90 text-black font-black rounded-2xl text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all"
-                                            >
-                                                UNBLOCK USER
-                                            </button>
-                                            <button
-                                                onClick={async () => {
-                                                    // 10-Day Timeout -> Replies and resolves ticket without changing unblock
-                                                    const officialReply = "Your appeal has been reviewed. A 10-day timeout has been issued for violating community guidelines. Your access will remain restricted during this period.";
-                                                    await replyToFeedback(item.id, officialReply);
-                                                    await updateFeedbackStatus(item.id, 'ignored');
-                                                    toast.success('Timeout issued and user notified.');
-                                                }}
-                                                className="flex-1 py-4 bg-red-500/10 text-red-400 font-black rounded-2xl text-[10px] uppercase tracking-widest hover:bg-red-500/20 transition-all border border-red-500/20"
-                                            >
-                                                10-DAY TIMEOUT
-                                            </button>
-                                        </div>
-                                    </motion.div>
-                                )) : (
-                                    <div className="lg:col-span-2 py-20 text-center opacity-20">
-                                        <AlertTriangle className="w-12 h-12 mx-auto mb-4" />
-                                        <p className="text-xs font-black uppercase tracking-widest">No account appeals pending.</p>
-                                    </div>
-                                )}
-                            </div>
-                        </motion.div>
-                    )}
-
-                    {activeTab === 'content' && (
-                        <motion.div
-                            key="content"
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -20 }}
-                            className="space-y-6"
-                        >
-                            {/* Global Course Settings */}
-                            <div className="bg-secondary/10 rounded-[2.5rem] border border-white/5 p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative group">
-                                <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                <div className="flex items-center gap-5 relative z-10">
-                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border shadow-lg transition-colors ${isOfferActive ? 'bg-primary/20 border-primary/30 text-primary shadow-primary/20' : 'bg-white/5 border-white/10 text-gray-400'}`}>
-                                        <Zap className="w-7 h-7" />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-xl font-black text-white uppercase tracking-tight">Full Stack + AI Bundle Offer</h3>
-                                        <p className="text-xs text-muted-foreground mt-1 max-w-md">Toggle the 2-day limited offer. When disabled, the standard Full Stack Web Dev course will be shown instead of the bundle.</p>
-                                    </div>
-                                </div>
-                                <div className="relative z-10">
-                                    <button
-                                        onClick={async () => {
-                                            try {
-                                                await toggleOffer(!isOfferActive);
-                                                toast.success(`Bundle offer ${!isOfferActive ? 'enabled' : 'disabled'}`);
-                                            } catch (e) {
-                                                toast.error("Failed to update offer state");
-                                            }
-                                        }}
-                                        className={`w-16 h-8 rounded-full flex items-center p-1 transition-all ${isOfferActive ? 'bg-primary border-primary' : 'bg-white/10 border-white/20'} border`}
-                                    >
-                                        <div className={`w-6 h-6 rounded-full bg-white transition-transform shadow-sm ${isOfferActive ? 'translate-x-8' : 'translate-x-0'}`} />
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Users Progress Table */}
-                            <div className="bg-secondary/10 rounded-[2.5rem] border border-white/5 overflow-hidden shadow-2xl">
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-left min-w-[900px]">
-                                    <thead className="bg-white/5 border-b border-white/5">
-                                        <tr>
-                                            <th className="px-6 md:px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Student</th>
-                                            <th className="px-6 md:px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Progress</th>
-                                            <th className="px-6 md:px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Certificate Status</th>
-                                            <th className="px-6 md:px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground text-right">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-black/[0.06]">
-                                        {users.filter(u => u.role !== 'admin').map((u) => {
-                                            const totalLessons = 31;
-                                            const completedCount = u.completedLessons?.length || 0;
-                                            const progress = Math.round((completedCount / totalLessons) * 100);
-
-                                            return (
-                                                <React.Fragment key={u.email}>
-                                                    <tr className="group hover:bg-white/[0.02] transition-colors cursor-pointer" onClick={() => setExpandedProgressUser(expandedProgressUser === u.email ? null : u.email)}>
-                                                        <td className="px-8 py-6">
-                                                            <div className="flex items-center gap-4">
-                                                                <ChevronRight className={`w-4 h-4 text-zinc-500 transition-transform ${expandedProgressUser === u.email ? 'rotate-90' : ''}`} />
-                                                                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center font-bold text-white border border-black/[0.06]">
-                                                                    {u.name?.charAt(0).toUpperCase()}
-                                                                </div>
-                                                                <div>
-                                                                    <div className="font-bold text-white text-sm">{u.name}</div>
-                                                                    <div className="text-xs text-muted-foreground">{u.email}</div>
-                                                                </div>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-8 py-6">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-24 h-2 rounded-full bg-white/10 overflow-hidden">
-                                                                    <div className="h-full bg-primary" style={{ width: `${progress}%` }} />
-                                                                </div>
-                                                                <span className="text-xs font-bold text-white">{progress}%</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-8 py-6">
-                                                            {u.certificateStatus === 'approved' && (
-                                                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-green-500/10 text-green-400 border border-green-500/20 text-[10px] font-black uppercase tracking-wider">
-                                                                    <CheckCircle className="w-3 h-3" /> Issued
-                                                                </span>
-                                                            )}
-                                                            {u.certificateStatus === 'pending' && (
-                                                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 text-[10px] font-black uppercase tracking-wider animate-pulse">
-                                                                    <Clock className="w-3 h-3" /> Pending Review
-                                                                </span>
-                                                            )}
-                                                            {(!u.certificateStatus || u.certificateStatus === 'locked' || u.certificateStatus === 'eligible') && (
-                                                                <span className="text-muted-foreground/30 text-[10px] font-black uppercase tracking-wider">Not Issued</span>
-                                                            )}
-                                                        </td>
-                                                        <td className="px-8 py-6 text-right" onClick={e => e.stopPropagation()}>
-                                                            {u.certificateStatus === 'pending' ? (
-                                                                <div className="flex items-center justify-end gap-2">
-                                                                    <button
-                                                                        onClick={async () => {
-                                                                            await approveCertificate(u.email);
-                                                                            const dbUsers = await getAllUsers();
-                                                                            setUsers(dbUsers);
-                                                                        }}
-                                                                        className="px-4 py-2 bg-green-500 text-black font-bold rounded-lg text-xs hover:scale-105 transition-transform"
-                                                                    >
-                                                                        Approve
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={async () => {
-                                                                            await rejectCertificate(u.email);
-                                                                            const dbUsers = await getAllUsers();
-                                                                            setUsers(dbUsers);
-                                                                        }}
-                                                                        className="px-4 py-2 bg-red-500/10 text-red-400 font-bold rounded-lg text-xs border border-red-500/20 hover:bg-red-500/20 transition-colors"
-                                                                    >
-                                                                        Reject
-                                                                    </button>
-                                                                </div>
-                                                            ) : (
-                                                                <span className="text-muted-foreground/20 text-xs">—</span>
-                                                            )}
-                                                        </td>
-                                                    </tr>
-                                                    {expandedProgressUser === u.email && (
-                                                        <tr>
-                                                            <td colSpan={4} className="px-8 py-6 bg-black/30">
-                                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                                    {curriculum.map((phase) => {
-                                                                        const phaseCompleted = phase.lessons.filter(l => u.completedLessons?.includes(l.id)).length;
-                                                                        const phaseTotal = phase.lessons.length;
-                                                                        const phaseProgress = Math.round((phaseCompleted / phaseTotal) * 100);
-                                                                        return (
-                                                                            <div key={phase.id} className="p-4 rounded-2xl bg-white/5 border border-black/[0.06]">
-                                                                                <div className="flex items-center justify-between mb-3">
-                                                                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{phase.title}</span>
-                                                                                    <span className={`text-[10px] font-black ${phaseProgress === 100 ? 'text-green-400' : 'text-zinc-500'}`}>{phaseCompleted}/{phaseTotal}</span>
-                                                                                </div>
-                                                                                <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden mb-3">
-                                                                                    <div className={`h-full rounded-full ${phaseProgress === 100 ? 'bg-green-500' : 'bg-primary/60'}`} style={{ width: `${phaseProgress}%` }} />
-                                                                                </div>
-                                                                                <div className="space-y-1">
-                                                                                    {phase.lessons.map(lesson => (
-                                                                                        <div key={lesson.id} className="flex items-center gap-2 text-[10px]">
-                                                                                            {u.completedLessons?.includes(lesson.id) ? (
-                                                                                                <CheckCircle className="w-3 h-3 text-green-500 flex-shrink-0" />
-                                                                                            ) : (
-                                                                                                <div className="w-3 h-3 rounded-full border border-zinc-700 flex-shrink-0" />
-                                                                                            )}
-                                                                                            <span className={u.completedLessons?.includes(lesson.id) ? 'text-zinc-400' : 'text-zinc-600'}>{lesson.title}</span>
-                                                                                        </div>
-                                                                                    ))}
-                                                                                </div>
-                                                                            </div>
-                                                                        );
-                                                                    })}
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    )}
-                                                </React.Fragment>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </motion.div>
-                )}
-
-                    {activeTab === 'codes' && (
-                        <motion.div
-                            key="codes"
-                            initial={{ opacity: 0, y: 50 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -50 }}
-                            className="space-y-12"
-                        >
-                            <div className="bg-white/5 backdrop-blur-3xl p-8 md:p-14 rounded-[3.5rem] border border-white/10 shadow-3xl relative overflow-hidden">
-                                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px] -mr-64 -mt-64" />
-                                <div className="relative z-10 max-w-4xl mx-auto">
-                                    <div className="text-center mb-12">
-                                        <div className="inline-flex p-5 md:p-6 bg-primary/10 rounded-3xl border border-primary/20 mb-8 shadow-2xl shadow-primary/10 rotate-3">
-                                            <Zap className="w-10 h-10 md:w-12 md:h-12 text-primary" />
-                                        </div>
-                                        <h3 className="text-3xl md:text-5xl font-black text-white mb-3 tracking-tighter uppercase">PROGENITOR <span className="text-primary italic">X</span></h3>
-                                        <p className="text-muted-foreground text-sm md:text-lg font-medium opacity-60">Authorize high-sync architectural access across the grid.</p>
-                                    </div>                                     <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-center gap-6 bg-gray-50 p-6 md:p-8 rounded-[2.5rem] border border-black/[0.06]">
-                                        <div className="flex p-1.5 bg-white/5 rounded-2xl border border-white/5 w-full lg:w-auto">
-                                            {[
-                                                { id: '3days', label: '72H LEVEL' },
-                                                { id: '5mins', label: '5M FLASH' },
-                                                { id: 'lifetime', label: 'LIFETIME' }
-                                            ].map(t => (
-                                                <button
-                                                    key={t.id}
-                                                    onClick={() => setCodeType(t.id as any)}
-                                                    className={`flex-1 lg:flex-none px-8 py-5 rounded-xl text-[10px] font-black tracking-widest transition-all ${codeType === t.id ? 'bg-primary text-white shadow-2xl shadow-primary/30' : 'text-muted-foreground hover:text-white'}`}
-                                                >
-                                                    {t.label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                        <button
-                                            onClick={handleGenerateCode}
-                                            className="px-10 py-5 bg-white text-black font-black rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-2xl shadow-white/10 flex items-center justify-center gap-3 text-[10px] uppercase tracking-[0.2em]"
-                                        >
-                                            REVEAL ESSENCE <Zap className="w-4 h-4" />
-                                        </button>
-                                    </div>
-
-                                    <AnimatePresence>
-                                        {generatedCode && (
-                                            <motion.div
-                                                initial={{ opacity: 0, scale: 0.9, y: 30 }}
-                                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                                className="mt-12 p-8 md:p-12 bg-primary/5 border border-primary/20 rounded-[3rem] shadow-inner flex flex-col items-center gap-8 text-center"
-                                            >
-                                                <div className="text-3xl md:text-6xl font-black font-mono tracking-[0.3em] text-white bg-black/60 px-8 md:px-12 py-6 md:py-8 rounded-3xl border border-white/5 select-all shadow-2xl">
-                                                    {generatedCode}
-                                                </div>
-                                                <button
-                                                    onClick={() => {
-                                                        navigator.clipboard.writeText(generatedCode);
-                                                        alert("Sequence stored in buffer.");
-                                                    }}
-                                                    className="w-full md:w-auto px-16 py-5 bg-primary text-white font-black rounded-2xl text-[10px] uppercase tracking-[0.3em] hover:bg-primary/80 transition-all shadow-2xl shadow-primary/40 active:scale-95"
-                                                >
-                                                    COPY SEQUENCE
-                                                </button>
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-                                </div>
-                            </div>
-
-                            <div className="bg-secondary/10 rounded-[3rem] border border-white/5 overflow-hidden shadow-2xl">
-                                <div className="px-10 py-6 border-b border-white/5 bg-white/5 flex items-center justify-between">
-                                    <h4 className="font-black text-xs uppercase tracking-[0.3em] text-muted-foreground">Essence Log</h4>
-                                    <span className="text-[10px] font-black text-primary/60 uppercase tracking-widest">{codes.length} Entries Recorded</span>
-                                </div>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-left min-w-[700px]">
-                                        <thead>
-                                            <tr className="bg-white/5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 border-b border-white/5">
-                                                <th className="px-8 py-6">Unique identifier</th>
-                                                <th className="px-8 py-6">Potency</th>
-                                                <th className="px-8 py-6">State</th>
-                                                <th className="px-8 py-6">Timelog</th>
-                                                <th className="px-8 py-6">Linked Entity</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-black/[0.06]">
-                                            {codes.map((c: any) => (
-                                                <tr key={c.code} className="group hover:bg-white/[0.02] transition-colors">
-                                                    <td className="px-10 py-6 font-mono font-black text-white text-xl tracking-[0.2em]">{c.code}</td>
-                                                    <td className="px-10 py-6">
-                                                        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl font-black text-[10px] uppercase tracking-widest ${c.type === 'lifetime' ? 'text-green-400 bg-green-400/10 border border-green-500/20' :
-                                                            c.type === '5mins' ? 'text-amber-400 bg-amber-400/5' :
-                                                                'text-[#2997ff] bg-[#2997ff]/5'
-                                                            }`}>
-                                                            {c.type === 'lifetime' ? <Award className="w-3.5 h-3.5" /> : <Zap className="w-3.5 h-3.5" />}
-                                                            {c.type === 'lifetime' ? 'Progenitor Core' : c.type === '5mins' ? 'Low-Orbit' : 'High-Sync'}
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-10 py-6">
-                                                        {c.isUsed ? (
-                                                            <div className="flex items-center gap-2 text-muted-foreground/40 font-black text-[10px] uppercase tracking-widest">
-                                                                <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/20" /> Claimed
-                                                            </div>
-                                                        ) : c.isRevoked ? (
-                                                            <div className="flex items-center gap-2 text-red-500/50 font-black text-[10px] uppercase tracking-widest">
-                                                                <XCircle className="w-3 h-3" /> Revoked
-                                                            </div>
-                                                        ) : (
-                                                            <div className="flex items-center gap-2 text-green-400 font-black text-[10px] uppercase tracking-widest animate-pulse">
-                                                                <div className="w-1.5 h-1.5 rounded-full bg-green-400" /> Radiant
-                                                            </div>
-                                                        )}
-                                                    </td>
-                                                    <td className="px-10 py-6 text-xs text-muted-foreground/60 font-black tracking-tighter">
-                                                        {new Date(c.createdAt).toLocaleDateString()}
-                                                    </td>
-                                                    <td className="px-10 py-6">
-                                                        <div className="flex items-center justify-between">
-                                                            {c.usedBy ? (
-                                                                <div className="flex items-center gap-3">
-                                                                    <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-[10px] font-black text-primary border border-primary/20">
-                                                                        {c.usedBy.charAt(0).toUpperCase()}
-                                                                    </div>
-                                                                    <span className="text-sm font-black text-white/50">{c.usedBy}</span>
-                                                                </div>
-                                                            ) : (
-                                                                <span className="text-muted-foreground/10">—</span>
-                                                            )}
-                                                            {!c.isUsed && !c.isRevoked && (
-                                                                <button
-                                                                    onClick={async () => {
-                                                                        if (confirm("Revoke this code?")) {
-                                                                            await revokeAccessCode(c.code);
-                                                                            const updatedCodes = await getAllAccessCodes();
-                                                                            setCodes(updatedCodes);
-                                                                        }
-                                                                    }}
-                                                                    className="px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors"
-                                                                >
-                                                                    REVOKE
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </motion.div>
-                    )}
-
-                    {activeTab === 'activity' && (
-                        <motion.div
-                            key="activity"
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -20 }}
-                            className="bg-secondary/10 rounded-[2.5rem] border border-white/5 overflow-hidden shadow-2xl"
-                        >
-                            <div className="p-8 border-b border-white/5 flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                    <h3 className="text-sm font-black uppercase tracking-[0.3em] text-primary">
-                                        {viewingUserActivity ? 'User Activity History' : 'Live Action Stream'}
-                                    </h3>
-                                    {viewingUserActivity && (
-                                        <button
-                                            onClick={() => setViewingUserActivity(null)}
-                                            className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-white transition-colors"
-                                        >
-                                            ← Back to Live Stream
-                                        </button>
-                                    )}
-                                </div>
-                                <div className="flex items-center gap-2 px-3 py-1 bg-green-500/10 text-green-400 rounded-full text-[9px] font-black uppercase border border-green-500/20">
-                                    <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse" />
-                                    {viewingUserActivity ? 'History Loaded' : 'Live Tracking'}
-                                </div>
-                            </div>
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left min-w-[700px]">
-                                    <thead className="bg-white/5">
-                                        <tr className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
-                                            <th className="px-8 py-5">User</th>
-                                            <th className="px-8 py-5">Action</th>
-                                            <th className="px-8 py-5">Path</th>
-                                            <th className="px-8 py-5 text-right">Time</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-black/[0.06]">
-                                        {Object.entries(groupedLogs).map(([email, logs]) => {
-                                            const isExpanded = expandedEmails.has(email);
-                                            const firstLog = logs[0];
-                                            return (
-                                                <React.Fragment key={email}>
-                                                    <tr
-                                                        onClick={() => toggleUserExpand(email)}
-                                                        className="group cursor-pointer hover:bg-white/[0.05] transition-all"
-                                                    >
-                                                        <td className="px-8 py-5">
-                                                            <div className="flex items-center gap-4">
-                                                                <div className={`p-1 rounded-lg bg-primary/10 border border-primary/20 transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
-                                                                    <ChevronRight className="w-3 h-3 text-primary" />
-                                                                </div>
-                                                                <div className="flex flex-col">
-                                                                    <span className="font-bold text-white uppercase text-xs">{firstLog.name || 'User'}</span>
-                                                                    <div className="flex items-center gap-1.5 opacity-40">
-                                                                        <Mail className="w-2.5 h-2.5" />
-                                                                        <span className="font-mono text-[9px]">{email}</span>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-8 py-5">
-                                                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-black/[0.06]">
-                                                                <TrendingUp className="w-3 h-3 text-primary/60" />
-                                                                <span className="text-[10px] font-black uppercase tracking-widest text-white/50">
-                                                                    {logs.length} Actions
-                                                                </span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-8 py-5">
-                                                            {isOnline(firstLog.userLastSeen) && (
-                                                                <div className="flex items-center gap-2 text-green-400 text-[9px] font-black uppercase tracking-widest">
-                                                                    <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                                                                    ACTIVE NOW
-                                                                </div>
-                                                            )}
-                                                        </td>
-                                                        <td className="px-8 py-5 text-right">
-                                                            <div className="text-[10px] text-zinc-500 font-medium">
-                                                                LATEST activity: {new Date(firstLog.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-
-                                                    {isExpanded && logs.map((log: any, i: number) => (
-                                                        <motion.tr
-                                                            key={log.id || `${email}-${i}`}
-                                                            initial={{ opacity: 0, x: -10 }}
-                                                            animate={{ opacity: 1, x: 0 }}
-                                                            className="bg-black/20 border-l-2 border-primary/30"
-                                                        >
-                                                            <td className="px-8 py-4 pl-20">
-                                                                <div className="flex items-center gap-2">
-                                                                    <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
-                                                                    <span className="text-[10px] text-zinc-500 font-mono tracking-tighter">Event Trace</span>
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-8 py-4">
-                                                                <div className="flex items-center gap-3">
-                                                                    <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border ${log.type === 'NAVIGATE' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
-                                                                        log.type === 'CLICK' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                                                                            'bg-[#2997ff]/10 text-[#2997ff] border-[#2997ff]/20'
-                                                                        }`}>
-                                                                        {log.type}
-                                                                    </span>
-                                                                    <span className="text-xs text-white/80 font-medium">{log.description}</span>
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-8 py-4 text-[10px] font-mono text-zinc-500">{log.path}</td>
-                                                            <td className="px-8 py-4 text-right text-xs text-zinc-400 font-medium whitespace-nowrap">
-                                                                {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                                                            </td>
-                                                        </motion.tr>
-                                                    ))}
-                                                </React.Fragment>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                                {((viewingUserActivity ? selectedUserActivity : activityLogs)?.length === 0) && (
-                                    <div className="p-20 text-center opacity-30">
-                                        <Clock className="w-12 h-12 mx-auto mb-4" />
-                                        <p className="text-xs font-black uppercase tracking-widest italic">Signal buffer empty.</p>
-                                    </div>
-                                )}
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
-        </div >
+            </main>
+        </div>
     );
 };
 

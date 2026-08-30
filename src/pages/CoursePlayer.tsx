@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { curriculum } from "../data/curriculum";
-import { cybersecurityCurriculum } from "../data/cybersecurityCurriculum";
-import { dataScienceCurriculum } from "../data/dataScienceCurriculum";
-import { aiCurriculum } from "../data/aiCurriculum";
 import { getPhasesStatus } from "../utils/progress";
+import { useAllCurricula, type CourseWithModules } from "../hooks/useCourses";
 import { ChevronLeft, ChevronRight, CheckCircle, FileText, Save, Lock } from "lucide-react";
 import type { Module } from "../data/curriculum";
 
@@ -26,10 +23,31 @@ const CoursePlayer: React.FC = () => {
     const [isCompleting, setIsCompleting] = useState(false);
     const [markdownContent, setMarkdownContent] = useState<string | null>(null);
 
-    // Resolve which curriculum to use based on moduleId prefix
-    const activeCurriculum: Module[] = moduleId?.startsWith('cyber-') ? cybersecurityCurriculum :
-        moduleId?.startsWith('ds-') ? dataScienceCurriculum :
-            moduleId?.startsWith('ai-') ? aiCurriculum : curriculum;
+    const { curricula } = useAllCurricula();
+
+    // Resolve which curriculum to use by finding the module across all courses
+    let activeCourseSlug = 'fullstack';
+    let activeCurriculum: Module[] = [];
+    for (const course of curricula) {
+        const foundMod = course.modules.find(m => m.slug === moduleId);
+        if (foundMod) {
+            activeCourseSlug = course.slug;
+            activeCurriculum = course.modules.map(m => ({
+                id: m.slug,
+                title: m.title,
+                description: m.description || '',
+                lessons: m.lessons.map(l => ({
+                    id: l.slug,
+                    title: l.title,
+                    duration: l.duration || '',
+                    youtubeId: l.youtubeId || '',
+                    free: l.free,
+                    notesPath: l.notesPath || undefined,
+                })),
+            }));
+            break;
+        }
+    }
 
     // Find current lesson and module
     const currentModule = activeCurriculum.find(m => m.id === moduleId);
@@ -48,11 +66,7 @@ const CoursePlayer: React.FC = () => {
     const prevLesson = currentModule?.lessons[currentLessonIndex - 1];
 
     // Access Check
-    const hasAccess = user?.role === 'admin' || user?.purchasedCourses?.includes(
-        moduleId?.startsWith('cyber-') ? 'cyber' :
-            moduleId?.startsWith('ds-') ? 'datascience' :
-                moduleId?.startsWith('ai-') ? 'ai' : 'fullstack'
-    );
+    const hasAccess = user?.role === 'admin' || user?.purchasedCourses?.includes(activeCourseSlug);
 
     useEffect(() => {
         const loadNote = async () => {

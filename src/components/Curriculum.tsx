@@ -2,33 +2,40 @@ import React from "react";
 import { motion } from "motion/react";
 import * as Accordion from "@radix-ui/react-accordion";
 import { ChevronDown, PlayCircle, Lock } from "lucide-react";
-import { curriculum } from "../data/curriculum";
-import { cybersecurityCurriculum } from "../data/cybersecurityCurriculum";
-import { dataScienceCurriculum } from "../data/dataScienceCurriculum";
 import type { Module } from "../data/curriculum";
 import { useActiveCourse } from "../hooks/useActiveCourse";
-
-const courses = [
-    { id: "fullstack" as const, label: "Full Stack Web Dev" },
-    { id: "cyber" as const, label: "Cyber Security" },
-    { id: "datascience" as const, label: "Data Science" },
-] as const;
+import { useAllCurricula } from "../hooks/useCourses";
 
 const Curriculum: React.FC = () => {
     const [activeCourse, setActiveCourse] = useActiveCourse();
-    const activeCurriculum: Module[] =
-        activeCourse === "cyber"
-            ? cybersecurityCurriculum
-            : activeCourse === "datascience"
-            ? dataScienceCurriculum
-            : curriculum;
+    const { curricula } = useAllCurricula();
 
-    const activeInfo =
-        activeCourse === "cyber"
-            ? { title: "Master Cybersecurity in 90 Days", subtitle: "From networking fundamentals to ethical hacking — your complete cybersecurity journey." }
-            : activeCourse === "datascience"
-            ? { title: "Data Science for Beginners", subtitle: "Learn the concepts behind data science, visualization, and real-world deployment." }
-            : { title: "Master the Modern Stack", subtitle: "From 'Hello World' to deployed SaaS application." };
+    const activeCourseObj = curricula.find(c => c.slug === activeCourse);
+    const activeCurriculum: Module[] = (activeCourseObj?.modules || []).map(m => ({
+        id: m.slug,
+        title: m.title,
+        description: m.description || '',
+        lessons: m.lessons.map(l => ({
+            id: l.slug,
+            title: l.title,
+            duration: l.duration || '',
+            youtubeId: l.youtubeId || '',
+            free: l.free,
+            notesPath: l.notesPath || undefined,
+        })),
+    }));
+
+    const activeInfo = activeCourseObj
+        ? { title: activeCourseObj.title, subtitle: activeCourseObj.description || activeCourseObj.landingDescription || '' }
+        : { title: "Master the Modern Stack", subtitle: "From 'Hello World' to deployed SaaS application." };
+
+    const courses = curricula.length > 0
+        ? curricula.map(c => ({ id: c.slug as any, label: c.title }))
+        : [
+            { id: "fullstack" as const, label: "Full Stack Web Dev" },
+            { id: "cyber" as const, label: "Cyber Security" },
+            { id: "datascience" as const, label: "Data Science" },
+        ] as const;
 
     return (
         <section id="curriculum">

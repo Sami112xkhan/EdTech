@@ -428,7 +428,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (user) {
             const currentCourses = user.purchasedCourses || [];
 
-            // Determine which courses to grant locally
+            // Determine which courses to grant locally (mirrors server logic)
             let coursesToGrant: string[] = [];
             if (courseId === 'fullstack') {
                 coursesToGrant = ['fullstack', 'ai'];
@@ -499,64 +499,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const markLessonComplete = async (lessonId: string) => {
         if (!user) return;
 
-        // 1. Sync with SQL Backend First (Strict Mode)
+        // Skip if already completed
+        if (user.completedLessons.includes(lessonId)) {
+            toast.info("Lesson already marked as complete!");
+            return;
+        }
+
+        // 1. Update Local State Immediately (works offline)
+        const updatedLessons = [...user.completedLessons, lessonId];
+        const updatedUser = { ...user, completedLessons: updatedLessons };
+        setUser(updatedUser);
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+        toast.success("Lesson Completed!", {
+            description: "Progress saved locally."
+        });
+
+        // 2. Sync with SQL Backend (non-blocking, best-effort)
         try {
             const response = await fetch('/api/progress/lesson', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: user.email, lessonId })
             });
-            const data = await response.json();
-
-            if (!response.ok) {
-                toast.error("Failed to sync progress. Please check connection.");
-                return;
+            if (response.ok) {
+                const data = await response.json();
+                if (data.lessons) {
+                    // Use server's lesson list as source of truth if available
+                    const syncedUser = { ...updatedUser, completedLessons: data.lessons };
+                    setUser(syncedUser);
+                    localStorage.setItem("user", JSON.stringify(syncedUser));
+                }
             }
+        } catch (e) {
+            // Backend unavailable — local progress already saved, that's fine
+        }
 
-            if (data.message === "Already completed") {
-                toast.info("Lesson already marked as complete!");
-                return;
-            }
-
-            // 2. Update Local State with Server Response
-            setUser(prev => {
-                if (!prev) return prev;
-
-                // Use server's lesson list if available, or append locally
-                const updatedLessons = data.lessons || [...prev.completedLessons, lessonId];
-                const updatedUser = { ...prev, completedLessons: updatedLessons };
-
-                // Update Local Storage
-                localStorage.setItem("user", JSON.stringify(updatedUser));
-
-                // Visual Feedback
-                toast.success("Lesson Completed!", {
-                    description: "Progress synced to cloud."
-                });
-
-                // Check for Module Unlock across all curriculums
-                const allCurriculums = [curriculum, cybersecurityCurriculum, dataScienceCurriculum];
-
-                allCurriculums.forEach(curr => {
-                    curr.forEach((module, index) => {
-                        const nextModule = curr[index + 1];
-                        if (nextModule && isPhaseComplete(module, updatedLessons)) {
-                            if (!isPhaseComplete(module, prev.completedLessons)) {
-                                toast.success(`Module Unlocked: ${nextModule.title} 🔓`, {
-                                    description: "New lessons and materials are now available.",
-                                    duration: 5000
-                                });
-                            }
+        // 3. Check for Module Unlock using static curriculum data
+        try {
+            const allCurriculums = [
+                { slug: 'fullstack', modules: curriculum },
+                { slug: 'cyber', modules: cybersecurityCurriculum },
+                { slug: 'datascience', modules: dataScienceCurriculum },
+            ];
+            allCurriculums.forEach(({ modules }) => {
+                modules.forEach((mod, index) => {
+                    const nextMod = modules[index + 1];
+                    if (nextMod && isPhaseComplete(mod, updatedLessons)) {
+                        if (!isPhaseComplete(mod, user.completedLessons)) {
+                            toast.success(`Module Unlocked: ${nextMod.title} 🔓`, {
+                                description: "New lessons and materials are now available.",
+                                duration: 5000
+                            });
                         }
-                    });
+                    }
                 });
-
-                return updatedUser;
             });
-
-        } catch (error) {
-            console.error("Failed to sync lesson completion", error);
-            toast.error("Network error. Progress not saved.");
+        } catch (e) {
+            // Module unlock toast is non-critical
         }
     };
 

@@ -2,10 +2,8 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { Module, curriculum } from "../data/curriculum";
-import { cybersecurityCurriculum } from "../data/cybersecurityCurriculum";
-import { dataScienceCurriculum } from "../data/dataScienceCurriculum";
-import { aiCurriculum } from "../data/aiCurriculum";
+import type { Module } from "../data/curriculum";
+import { useAllCurricula, type CourseWithModules, type ModuleData } from "../hooks/useCourses";
 import { getPhasesStatus } from "../utils/progress";
 import { PlayCircle, Award, Clock, Lock, FileText, Download, Search, BookOpen, Shield, Bot } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -25,11 +23,22 @@ const CurriculumPage: React.FC = () => {
     const [activePhaseId, setActivePhaseId] = useState<string | null>(null);
     const searchQuery = noteSearch; // Align variable names
 
-    const activeCurriculum =
-        activeCourse === 'cyber' ? cybersecurityCurriculum
-            : activeCourse === 'datascience' ? dataScienceCurriculum
-                : activeCourse === 'ai' ? aiCurriculum
-                    : curriculum;
+    const { curricula } = useAllCurricula();
+    const activeCourseObj = curricula.find(c => c.slug === activeCourse);
+    // Convert DB modules to the Module[] type expected by getPhasesStatus
+    const activeCurriculum: Module[] = (activeCourseObj?.modules || []).map(m => ({
+        id: m.slug,
+        title: m.title,
+        description: m.description || '',
+        lessons: m.lessons.map(l => ({
+            id: l.slug,
+            title: l.title,
+            duration: l.duration || '',
+            youtubeId: l.youtubeId || '',
+            free: l.free,
+            notesPath: l.notesPath || undefined,
+        })),
+    }));
 
     // Calculate Progress logic reused for display
     const completedLessons = user?.completedLessons || [];
@@ -62,75 +71,60 @@ const CurriculumPage: React.FC = () => {
     return (
         <div className="space-y-8 animate-in fade-in duration-500 max-w-7xl mx-auto pb-20">
             {/* Course Selector Tabs */}
-            <div className="flex justify-center mb-2 overflow-x-auto scrollbar-hide">
-                {isRich ? (
-                    <div className="flex p-1 rounded-full bg-gray-100 border border-black/[0.06] w-full md:w-auto">
-                        <button
-                            onClick={() => { setActiveCourse('fullstack'); setActivePhaseId(null); }}
-                            className={`relative flex-1 md:flex-none px-2 md:px-8 py-3 md:py-2.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap min-w-0 md:min-w-[160px] ${activeCourse === 'fullstack' ? (isRich ? 'bg-emerald-900 text-white' : 'text-white') : (isRich ? 'text-gray-400 hover:text-gray-900' : 'text-white/40 hover:text-white')}`}
-                        >
-                            <span className="flex items-center justify-center gap-1.5">
-                                <BookOpen className="w-3.5 h-3.5" />
-                                {isOfferActive ? 'Full Stack + AI' : 'Full Stack'}
-                            </span>
-                        </button>
-                        <button
-                            onClick={() => { setActiveCourse('cyber'); setActivePhaseId(null); }}
-                            className={`relative flex-1 md:flex-none px-2 md:px-8 py-3 md:py-2.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap min-w-0 md:min-w-[160px] ${activeCourse === 'cyber' ? (isRich ? 'bg-emerald-900 text-white' : 'text-white') : (isRich ? 'text-gray-400 hover:text-gray-900' : 'text-white/40 hover:text-white')}`}
-                        >
-                            <span className="flex items-center justify-center gap-1.5 whitespace-nowrap">
-                                <Shield className="w-3.5 h-3.5" />
-                                Cybersecurity
-                            </span>
-                        </button>
-                        <button
-                            onClick={() => { setActiveCourse('datascience'); setActivePhaseId(null); }}
-                            className={`relative flex-1 md:flex-none px-2 md:px-8 py-3 md:py-2.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap min-w-0 md:min-w-[160px] ${activeCourse === 'datascience' ? (isRich ? 'bg-emerald-900 text-white' : 'text-white') : (isRich ? 'text-gray-400 hover:text-gray-900' : 'text-white/40 hover:text-white')}`}
-                        >
-                            <span className="flex items-center justify-center gap-1.5 whitespace-nowrap">
-                                <Award className="w-3.5 h-3.5" />
-                                Data Science
-                            </span>
-                        </button>
-                        <button
-                            onClick={() => { setActiveCourse('ai'); setActivePhaseId(null); }}
-                            className={`relative flex-1 md:flex-none px-2 md:px-8 py-3 md:py-2.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap min-w-0 md:min-w-[160px] ${activeCourse === 'ai' ? (isRich ? 'bg-emerald-900 text-white' : 'text-white') : (isRich ? 'text-gray-400 hover:text-gray-900' : 'text-white/40 hover:text-white')}`}
-                        >
-                            <span className="flex items-center justify-center gap-1.5 whitespace-nowrap">
-                                <Bot className="w-3.5 h-3.5" />
-                                AI Course
-                            </span>
-                        </button>
+            {(() => {
+                const courseIconMap: Record<string, React.ReactNode> = {
+                    fullstack: <BookOpen className="w-3.5 h-3.5" />,
+                    cyber: <Shield className="w-3.5 h-3.5" />,
+                    datascience: <Award className="w-3.5 h-3.5" />,
+                    ai: <Bot className="w-3.5 h-3.5" />,
+                };
+                const tabCourses = curricula.length > 0 ? curricula : [
+                    { slug: 'fullstack', title: 'Full Stack' } as any,
+                    { slug: 'cyber', title: 'Cybersecurity' } as any,
+                    { slug: 'datascience', title: 'Data Science' } as any,
+                    { slug: 'ai', title: 'AI Course' } as any,
+                ];
+                return (
+                    <div className="flex justify-center mb-2 overflow-x-auto scrollbar-hide">
+                        {isRich ? (
+                            <div className="flex p-1 rounded-full bg-gray-100 border border-black/[0.06] w-full md:w-auto">
+                                {tabCourses.map(c => (
+                                    <button
+                                        key={c.slug}
+                                        onClick={() => { setActiveCourse(c.slug as any); setActivePhaseId(null); }}
+                                        className={`relative flex-1 md:flex-none px-2 md:px-8 py-3 md:py-2.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap min-w-0 md:min-w-[160px] ${activeCourse === c.slug ? (isRich ? 'bg-emerald-900 text-white' : 'text-white') : (isRich ? 'text-gray-400 hover:text-gray-900' : 'text-white/40 hover:text-white')}`}
+                                    >
+                                        <span className="flex items-center justify-center gap-1.5">
+                                            {courseIconMap[c.slug] || <BookOpen className="w-3.5 h-3.5" />}
+                                            {c.slug === 'fullstack' && isOfferActive ? 'Full Stack + AI' : c.title}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                        ) : (
+                            <GlassSurface borderRadius={50} borderWidth={0.5} opacity={0.4} blur={10} className="p-1 w-full md:w-auto">
+                                <div className="flex w-full md:w-auto">
+                                    {tabCourses.map(c => (
+                                        <button key={c.slug} onClick={() => { setActiveCourse(c.slug as any); setActivePhaseId(null); }} className={`relative flex-1 md:flex-none px-4 md:px-8 py-3 md:py-2.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all text-center min-w-[120px] md:min-w-[160px] ${activeCourse === c.slug ? 'text-white' : 'text-white/40 hover:text-white'}`}>{activeCourse === c.slug && <motion.div layoutId="curriculum-active-pill" className="absolute inset-0 bg-white/20 backdrop-blur-2xl rounded-full border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)] z-0" />}<span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">{courseIconMap[c.slug] || <BookOpen className="w-3.5 h-3.5" />}{c.slug === 'fullstack' && isOfferActive ? 'Full Stack + AI' : c.title}</span></button>
+                                    ))}
+                                </div>
+                            </GlassSurface>
+                        )}
                     </div>
-                ) : (
-                    <GlassSurface
-                        borderRadius={50}
-                        borderWidth={0.5}
-                        opacity={0.4}
-                        blur={10}
-                        className="p-1 w-full md:w-auto"
-                    >
-                        <div className="flex w-full md:w-auto">
-                            <button onClick={() => { setActiveCourse('fullstack'); setActivePhaseId(null); }} className={`relative flex-1 md:flex-none px-4 md:px-8 py-3 md:py-2.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all text-center min-w-[120px] md:min-w-[160px] ${activeCourse === 'fullstack' ? 'text-white' : 'text-white/40 hover:text-white'}`}>{activeCourse === 'fullstack' && <motion.div layoutId="curriculum-active-pill" className="absolute inset-0 bg-white/20 backdrop-blur-2xl rounded-full border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)] z-0" />}<span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none"><BookOpen className="w-3.5 h-3.5" />{isOfferActive ? 'Full Stack + AI' : 'Full Stack'}</span></button>
-                            <button onClick={() => { setActiveCourse('cyber'); setActivePhaseId(null); }} className={`relative flex-1 md:flex-none px-4 md:px-8 py-3 md:py-2.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all text-center min-w-[120px] md:min-w-[160px] ${activeCourse === 'cyber' ? 'text-white' : 'text-white/40 hover:text-white'}`}>{activeCourse === 'cyber' && <motion.div layoutId="curriculum-active-pill" className="absolute inset-0 bg-white/20 backdrop-blur-2xl rounded-full border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)] z-0" />}<span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap"><Shield className="w-3.5 h-3.5" />Cybersecurity</span></button>
-                            <button onClick={() => { setActiveCourse('datascience'); setActivePhaseId(null); }} className={`relative flex-1 md:flex-none px-4 md:px-8 py-3 md:py-2.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all text-center min-w-[120px] md:min-w-[160px] ${activeCourse === 'datascience' ? 'text-white' : 'text-white/40 hover:text-white'}`}>{activeCourse === 'datascience' && <motion.div layoutId="curriculum-active-pill" className="absolute inset-0 bg-white/20 backdrop-blur-2xl rounded-full border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)] z-0" />}<span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap"><Award className="w-3.5 h-3.5" />Data Science</span></button>
-                            <button onClick={() => { setActiveCourse('ai'); setActivePhaseId(null); }} className={`relative flex-1 md:flex-none px-4 md:px-8 py-3 md:py-2.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all text-center min-w-[120px] md:min-w-[160px] ${activeCourse === 'ai' ? 'text-white' : 'text-white/40 hover:text-white'}`}>{activeCourse === 'ai' && <motion.div layoutId="curriculum-active-pill" className="absolute inset-0 bg-white/20 backdrop-blur-2xl rounded-full border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)] z-0" />}<span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap"><Bot className="w-3.5 h-3.5" />AI Course</span></button>
-                        </div>
-                    </GlassSurface>
-                )}
-            </div>
+                );
+            })()}
 
             <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 px-2 md:px-0">
                 <div className="space-y-2">
                     <h1 className={`text-3xl md:text-5xl font-black tracking-tighter leading-none ${isRich ? 'text-gray-900' : 'text-white'}`}>
-                        {activeCourse === 'cyber' ? (<>CYBER <span className="text-primary italic">SECURITY</span></>) : activeCourse === 'datascience' ? (<>DATA <span className="text-primary italic">SCIENCE</span></>) : (<>CURRICULUM <span className="text-primary italic">CORE</span></>)}
+                        {activeCourseObj ? (
+                            <>{activeCourseObj.title.split(' ').slice(0, 2).join(' ').toUpperCase()} <span className="text-primary italic">{activeCourseObj.title.split(' ').slice(2).join(' ') || 'CORE'}</span></>
+                        ) : (
+                            <>CURRICULUM <span className="text-primary italic">CORE</span></>
+                        )}
                     </h1>
                     <p className="text-sm text-muted-foreground max-w-xl font-medium leading-relaxed opacity-80">
-                        {activeCourse === 'cyber'
-                            ? 'Master cybersecurity in 90 days — from networking and Linux to ethical hacking and cloud security.'
-                            : activeCourse === 'datascience'
-                                ? 'Unlock the power of data through Python, math, machine learning, and visualization.'
-                                : 'Master the full stack architecture through our structured, performance-driven transition roadmap.'}
+                        {activeCourseObj?.description || 'Master the full stack architecture through our structured, performance-driven transition roadmap.'}
                     </p>
                 </div>
 

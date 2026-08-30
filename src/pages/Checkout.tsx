@@ -8,6 +8,7 @@ import { useAuth } from "../context/AuthContext";
 import { useOffer } from "../context/OfferContext";
 import { initializePayment } from "../utils/razorpay";
 import { useActiveCourse } from "../hooks/useActiveCourse";
+import { useCourses, getCoursesGrantedOnPurchase, type CourseData } from "../hooks/useCourses";
 
 const Checkout: React.FC = () => {
   const { user, completePurchase, redeemCode } = useAuth();
@@ -26,69 +27,47 @@ const Checkout: React.FC = () => {
     if (searchParams.get('course')) {
       setSelectedCourse(searchParams.get('course')!);
     }
-  }, [searchParams]);
+  }, [searchParams]);    const { courses: dbCourses } = useCourses();
 
-  const courseDetails = {
-    'fullstack': {
-      title: isOfferActive ? "Full Stack + AI Course Bundle" : "Full Stack Web Dev",
-      badge: isOfferActive ? "Limited 2-Day Offer" : undefined,
-      price: 15000,
-      salePrice: isOfferActive ? 10000 : 8000,
-      features: isOfferActive ? [
-        "Lifetime Access to Full Stack Content",
-        "AI & Machine Learning Course Included",
-        "Frontend & Backend Deep Dive",
-        "AI Mentor Support (Beta)",
-        "5+ Real World Projects",
-        "Certificate of Completion",
-        "Discord Community Access"
-      ] : [
-        "Lifetime Access to Full Stack Content",
-        "Frontend & Backend Deep Dive",
-        "AI Mentor Support (Beta)",
-        "5+ Real World Projects",
-        "Certificate of Completion",
-        "Discord Community Access"
-      ]
-    },
-    'cyber': {
-      title: "90 Days Cyber Security",
-      price: 8000,
-      salePrice: 5000,
-      features: [
-        "90 Days Intensive Training",
-        "Ethical Hacking Workshops",
-        "Linux & Networking Deep Dive",
-        "Certificate of Completion",
-        "Discord Community Access"
-      ]
-    },
-    'datascience': {
-      title: "Data Science Specialization",
-      price: 12000,
-      salePrice: 8000,
-      features: [
-        "Complete ML & Math Foundation",
-        "Python & Data Wrangling Projects",
-        "Advanced Data Visualization",
-        "Certificate of Completion",
-        "Discord Community Access"
-      ]
-    },
-    'ai_upgrade': {
-      title: "AI Course Upgrade",
-      badge: "Exclusive for Full Stack Students",
-      price: 5000,
-      salePrice: 2000,
-      features: [
-        "Complete AI & ML Course Content",
-        "Builds on Your Full Stack Skills",
-        "Hands-on AI Projects",
-        "Early Access to New AI Modules",
-        "Discord Community Access"
-      ]
-    }
-  };
+    // Build course details from DB courses + fallback for ai_upgrade
+    const buildCourseDetails = () => {
+        const details: Record<string, any> = {};
+        dbCourses.forEach(c => {
+            details[c.slug] = {
+                title: isOfferActive && c.slug === 'fullstack' ? "Full Stack + AI Course Bundle" : c.title,
+                badge: isOfferActive && c.slug === 'fullstack' ? "Limited 2-Day Offer" : c.badge || undefined,
+                price: c.price,
+                salePrice: isOfferActive && c.slug === 'fullstack' ? 10000 : (c.salePrice || c.price),
+                features: isOfferActive && c.slug === 'fullstack' ? [
+                    "Lifetime Access to Full Stack Content",
+                    "AI & Machine Learning Course Included",
+                    "Frontend & Backend Deep Dive",
+                    "AI Mentor Support (Beta)",
+                    "5+ Real World Projects",
+                    "Certificate of Completion",
+                    "Discord Community Access"
+                ] : (c.features || []),
+            };
+        });
+        // ai_upgrade is a virtual course (not in DB)
+        if (!details['ai_upgrade']) {
+            details['ai_upgrade'] = {
+                title: "AI Course Upgrade",
+                badge: "Exclusive for Full Stack Students",
+                price: 5000,
+                salePrice: 2000,
+                features: [
+                    "Complete AI & ML Course Content",
+                    "Builds on Your Full Stack Skills",
+                    "Hands-on AI Projects",
+                    "Early Access to New AI Modules",
+                    "Discord Community Access"
+                ],
+            };
+        }
+        return details;
+    };
+    const courseDetails = buildCourseDetails();
 
   const [, setActiveCourse] = useActiveCourse();
   const currentCourse = selectedCourse ? courseDetails[selectedCourse as keyof typeof courseDetails] : null;
@@ -236,7 +215,7 @@ const Checkout: React.FC = () => {
                 </div>
               )}
               <div className={`space-y-3 pt-1 transition-all duration-500 ${!currentCourse ? 'opacity-30 pointer-events-none blur-[2px]' : 'opacity-100'}`}>
-                {(currentCourse ? currentCourse.features : courseDetails.fullstack.features).map((item, i) => (
+                {((currentCourse ? currentCourse.features : courseDetails.fullstack.features) || []).map((item: string, i: number) => (
                   <div key={i} className="flex items-center gap-3">
                     <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />

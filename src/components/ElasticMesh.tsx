@@ -194,6 +194,10 @@ const ElasticMesh: React.FC<ElasticMeshProps> = ({
     const container = containerRef.current;
     if (!container) return;
 
+    let raf = 0;
+    let ro: ResizeObserver | undefined;
+    try {
+
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     const renderer = new Renderer({ alpha: true, antialias: true, dpr: Math.min(window.devicePixelRatio || 1, 2) });
@@ -575,20 +579,13 @@ const ElasticMesh: React.FC<ElasticMeshProps> = ({
 
     container.appendChild((gl as any).canvas);
 
+    } catch (err) {
+      console.warn('ElasticMesh: WebGL initialization failed', err);
+    }
+
     return () => {
       cancelAnimationFrame(raf);
-      ro.disconnect();
-      container!.removeEventListener('mousemove', onMove);
-      container!.removeEventListener('mouseenter', onEnter);
-      container!.removeEventListener('mouseleave', onLeave);
-      container!.removeEventListener('mousedown', onDown);
-      window.removeEventListener('mouseup', onUp);
-      container!.removeEventListener('touchstart', onTouch);
-      container!.removeEventListener('touchmove', onTouch);
-      container!.removeEventListener('touchend', onLeave);
-      if ((gl as any).canvas.parentElement === container) container!.removeChild((gl as any).canvas);
-      const lose = gl.getExtension('WEBGL_lose_context');
-      if (lose) lose.loseContext();
+      if (ro) ro.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [image, resolution]);

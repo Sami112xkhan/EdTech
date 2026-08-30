@@ -2,14 +2,12 @@
 import React, { useEffect } from "react";
 import { useSearchParams, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { curriculum } from "../data/curriculum";
-import { cybersecurityCurriculum } from "../data/cybersecurityCurriculum";
-import { dataScienceCurriculum } from "../data/dataScienceCurriculum";
-import { aiCurriculum } from "../data/aiCurriculum";
 import { getPhasesStatus } from "../utils/progress";
+import { useAllCurricula } from "../hooks/useCourses";
 import { PlayCircle, Award, Clock, Lock, ShieldAlert, Flame, Download, BookOpen, Shield, Bot, Zap, ArrowRight } from "lucide-react";
 import { jsPDF } from "jspdf";
 import type { Module } from "../data/curriculum";
+import type { CourseWithModules } from "../hooks/useCourses";
 import { motion, AnimatePresence } from "motion/react";
 import GlassSurface from "../components/GlassSurface";
 import { useActiveCourse } from "../hooks/useActiveCourse";
@@ -32,11 +30,21 @@ const Dashboard: React.FC = () => {
     const [isRedeeming, setIsRedeeming] = React.useState(false);
     const [activeCourse, setActiveCourse] = useActiveCourse();
 
-    const activeCurriculum: Module[] =
-        activeCourse === 'cyber' ? cybersecurityCurriculum
-            : activeCourse === 'datascience' ? dataScienceCurriculum
-                : activeCourse === 'ai' ? aiCurriculum
-                    : curriculum;
+    const { curricula } = useAllCurricula();
+    const activeCourseObj = curricula.find(c => c.slug === activeCourse);
+    const activeCurriculum: Module[] = (activeCourseObj?.modules || []).map(m => ({
+        id: m.slug,
+        title: m.title,
+        description: m.description || '',
+        lessons: m.lessons.map(l => ({
+            id: l.slug,
+            title: l.title,
+            duration: l.duration || '',
+            youtubeId: l.youtubeId || '',
+            free: l.free,
+            notesPath: l.notesPath || undefined,
+        })),
+    }));
 
     // AI upgrade logic: user has any course but not ai
     const hasAnyCourse = user?.purchasedCourses.includes('fullstack') || user?.purchasedCourses.includes('cyber') || user?.purchasedCourses.includes('datascience');
@@ -228,7 +236,7 @@ const Dashboard: React.FC = () => {
         }
     }
 
-    if (!nextLesson && phasesStatus.every(p => p.completed)) {
+    if (!nextLesson && phasesStatus.length > 0 && phasesStatus.every(p => p.completed)) {
         const lastPhase = phasesStatus[phasesStatus.length - 1];
         nextLesson = lastPhase.lessons[lastPhase.lessons.length - 1];
         nextPhaseId = lastPhase.id;

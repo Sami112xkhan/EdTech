@@ -7,9 +7,7 @@ import { Lock, PlayCircle, ChevronDown, ChevronRight, Menu, X } from 'lucide-rea
 import * as Accordion from '@radix-ui/react-accordion';
 import { useOffer } from '../context/OfferContext';
 import { useActiveCourse } from '../hooks/useActiveCourse';
-import { curriculum } from '../data/curriculum';
-import { cybersecurityCurriculum } from '../data/cybersecurityCurriculum';
-import { dataScienceCurriculum } from '../data/dataScienceCurriculum';
+import { useCourses, useAllCurricula, type CourseData, type CourseWithModules } from '../hooks/useCourses';
 import ElasticMesh from '../components/ElasticMesh';
 import GradualBlur from '../components/GradualBlur';
 
@@ -66,21 +64,38 @@ const Landing: React.FC = () => {
         }
     }, [isAuthenticated, user, navigate]);
 
-    const activeCurriculum =
-        activeCourse === 'cyber' ? cybersecurityCurriculum :
-        activeCourse === 'datascience' ? dataScienceCurriculum : curriculum;
+    const { courses: dbCourses } = useCourses();
+    const { curricula } = useAllCurricula();
 
-    const courseInfo: Record<string, { title: string; sub: string }> = {
-        cyber: { title: 'Master Cybersecurity in 90 Days', sub: 'From networking fundamentals to ethical hacking -- your complete cybersecurity journey.' },
-        datascience: { title: 'Data Science for Beginners', sub: 'Learn the concepts behind data science, visualization, and real-world deployment.' },
-        fullstack: { title: 'Master the Modern Stack', sub: "From 'Hello World' to deployed SaaS application." },
-    };
+    const activeCurriculumObj = curricula.find(c => c.slug === activeCourse);
+    const activeCurriculumModules = activeCurriculumObj?.modules || [];
 
-    const courseTabs = [
-        { id: 'fullstack' as const, label: 'Full Stack' },
-        { id: 'cyber' as const, label: 'Cyber Security' },
-        { id: 'datascience' as const, label: 'Data Science' },
-    ];
+    // Build course info dynamically from DB courses
+    const courseInfo: Record<string, { title: string; sub: string }> = {};
+    dbCourses.forEach(c => {
+        courseInfo[c.slug] = {
+            title: c.landingDescription || c.subtitle || c.title,
+            sub: c.description || c.landingDescription || '',
+        };
+    });
+    // Fallbacks for courses not yet in DB
+    if (!courseInfo['fullstack']) courseInfo['fullstack'] = { title: 'Master the Modern Stack', sub: "From 'Hello World' to deployed SaaS application." };
+    if (!courseInfo['cyber']) courseInfo['cyber'] = { title: 'Master Cybersecurity in 90 Days', sub: 'From networking fundamentals to ethical hacking -- your complete cybersecurity journey.' };
+    if (!courseInfo['datascience']) courseInfo['datascience'] = { title: 'Data Science for Beginners', sub: 'Learn the concepts behind data science, visualization, and real-world deployment.' };
+
+    // Build course tabs from published DB courses
+    const courseTabs = dbCourses
+        .filter(c => c.isPublished && c.slug !== 'ai')
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map(c => ({ id: c.slug as any, label: c.title.split(' ').slice(0, 2).join(' ') }));
+    // Fallback if DB is empty
+    if (courseTabs.length === 0) {
+        courseTabs.push(
+            { id: 'fullstack' as const, label: 'Full Stack' },
+            { id: 'cyber' as const, label: 'Cyber Security' },
+            { id: 'datascience' as const, label: 'Data Science' }
+        );
+    }
 
     return (
         <>
@@ -291,63 +306,38 @@ const Landing: React.FC = () => {
                     </Reveal>
 
                     <div className="space-y-0">
-                        {[
-                            {
-                                num: '01',
-                                title: 'Full Stack + AI',
-                                sub: 'Web Development',
-                                desc: 'Master frontend, backend, databases, and deploy real applications. Includes the complete AI & Machine Learning course.',
-                                features: ['Frontend & Backend Deep Dive', 'AI & ML Included', '5+ Real Projects', 'Lifetime Access'],
-                                price: 'Rs.10,000',
-                                original: 'Rs.15,000',
-                                link: '/checkout?course=fullstack',
-                            },
-                            {
-                                num: '02',
-                                title: 'Cyber Security',
-                                sub: '90 Day Program',
-                                desc: 'Ethical hacking, penetration testing, network security, and defensive strategies used by industry professionals.',
-                                features: ['Ethical Hacking Workshops', 'Linux & Networking', 'Penetration Testing Labs', 'Certificate'],
-                                price: 'Rs.5,000',
-                                original: 'Rs.8,000',
-                                link: '/checkout?course=cyber',
-                            },
-                            {
-                                num: '03',
-                                title: 'Data Science',
-                                sub: 'Analytics & ML',
-                                desc: 'Python, statistics, data visualization, machine learning, and real-world data projects from scratch.',
-                                features: ['ML & Math Foundation', 'Python & Data Wrangling', 'Advanced Visualization', 'Certificate'],
-                                price: 'Rs.8,000',
-                                original: 'Rs.12,000',
-                                link: '/checkout?course=datascience',
-                            },
-                        ].map((course, i) => (
-                            <Reveal key={i} delay={i * 0.08}>
+                        {(dbCourses.length > 0 ? dbCourses.filter(c => c.isPublished && c.slug !== 'ai') : [
+                            { id: '1', slug: 'fullstack', title: 'Full Stack + AI', subtitle: 'Web Development', description: 'Master frontend, backend, databases, and deploy real applications. Includes the complete AI & Machine Learning course.', features: ['Frontend & Backend Deep Dive', 'AI & ML Included', '5+ Real Projects', 'Lifetime Access'], price: 15000, salePrice: 10000, sortOrder: 0 },
+                            { id: '2', slug: 'cyber', title: 'Cyber Security', subtitle: '90 Day Program', description: 'Ethical hacking, penetration testing, network security, and defensive strategies used by industry professionals.', features: ['Ethical Hacking Workshops', 'Linux & Networking', 'Penetration Testing Labs', 'Certificate'], price: 8000, salePrice: 5000, sortOrder: 1 },
+                            { id: '3', slug: 'datascience', title: 'Data Science', subtitle: 'Analytics & ML', description: 'Python, statistics, data visualization, machine learning, and real-world data projects from scratch.', features: ['ML & Math Foundation', 'Python & Data Wrangling', 'Advanced Visualization', 'Certificate'], price: 12000, salePrice: 8000, sortOrder: 2 },
+                        ] as CourseData[]).sort((a, b) => a.sortOrder - b.sortOrder).map((course, i) => (
+                            <Reveal key={course.id || i} delay={i * 0.08}>
                                 <div className="numbered-row py-10 border-t border-black/[0.06] group cursor-default px-3 -mx-3">
                                     <div className="flex items-start gap-6 md:gap-10">
-                                        <span className="text-[13px] text-emerald-600/50 font-medium mt-1.5 shrink-0">{course.num}</span>
+                                        <span className="text-[13px] text-emerald-600/50 font-medium mt-1.5 shrink-0">{String(i + 1).padStart(2, '0')}</span>
                                         <div className="flex-1">
                                             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-4">
                                                 <div>
                                                     <h3 className="text-[22px] font-bold tracking-tight text-gray-900">{course.title}</h3>
-                                                    <p className="text-[13px] text-gray-400 mt-0.5">{course.sub}</p>
+                                                    <p className="text-[13px] text-gray-400 mt-0.5">{course.subtitle || ''}</p>
                                                 </div>
                                                 <div className="flex items-baseline gap-2">
-                                                    <span className="text-[24px] font-bold text-gray-900">{course.price}</span>
-                                                    <span className="text-[14px] text-gray-300 line-through">{course.original}</span>
+                                                    <span className="text-[24px] font-bold text-gray-900">Rs.{(course.salePrice || course.price).toLocaleString()}</span>
+                                                    {course.salePrice && course.salePrice !== course.price && (
+                                                        <span className="text-[14px] text-gray-300 line-through">Rs.{course.price.toLocaleString()}</span>
+                                                    )}
                                                 </div>
                                             </div>
-                                            <p className="text-[15px] text-gray-400 leading-relaxed mb-5 max-w-[560px]">{course.desc}</p>
+                                            <p className="text-[15px] text-gray-400 leading-relaxed mb-5 max-w-[560px]">{course.description || ''}</p>
                                             <div className="flex flex-wrap gap-3 mb-6">
-                                                {course.features.map((f, fi) => (
+                                                {(course.features || []).map((f, fi) => (
                                                     <span key={fi} className="px-3 py-1.5 rounded-full border border-emerald-200/60 text-[12px] text-emerald-700/60 bg-emerald-50/40">
                                                         {f}
                                                     </span>
                                                 ))}
                                             </div>
                                             <Link
-                                                to={course.link}
+                                                to={`/checkout?course=${course.slug}`}
                                                 className="inline-flex items-center gap-2 text-[14px] text-emerald-700/60 hover:text-emerald-700 transition-colors duration-300 font-medium"
                                             >
                                                 Enroll now <ChevronRight className="w-4 h-4" />
@@ -432,10 +422,10 @@ const Landing: React.FC = () => {
                     </Reveal>
 
                     <Accordion.Root type="multiple" className="space-y-0">
-                        {activeCurriculum.map((phase, index) => (
+                        {activeCurriculumModules.map((mod, index) => (
                             <Accordion.Item
-                                key={phase.id}
-                                value={phase.id}
+                                key={mod.id}
+                                value={mod.id}
                                 className="border-t border-black/[0.06] data-[state=open]:border-emerald-200 transition-colors"
                             >
                                 <Accordion.Header>
@@ -443,8 +433,8 @@ const Landing: React.FC = () => {
                                         <div className="flex items-center gap-5">
                                             <span className="text-[13px] text-emerald-600/50 font-medium">{String(index + 1).padStart(2, '0')}</span>
                                             <div>
-                                                <h3 className="text-[15px] font-semibold text-gray-900 group-hover:text-emerald-800 transition-colors">{phase.title}</h3>
-                                                <p className="text-[12px] text-gray-400 mt-0.5">{phase.lessons.length} Lessons</p>
+                                                <h3 className="text-[15px] font-semibold text-gray-900 group-hover:text-emerald-800 transition-colors">{mod.title}</h3>
+                                                <p className="text-[12px] text-gray-400 mt-0.5">{mod.lessons.length} Lessons</p>
                                             </div>
                                         </div>
                                         <ChevronDown className="w-4 h-4 text-gray-300 transition-transform duration-300 group-data-[state=open]:rotate-180 group-data-[state=open]:text-emerald-500" />
@@ -452,11 +442,11 @@ const Landing: React.FC = () => {
                                 </Accordion.Header>
                                 <Accordion.Content className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up">
                                     <div className="pb-6 pl-[42px]">
-                                        {phase.lessons.map((lesson, li) => (
+                                        {mod.lessons.map((lesson, li) => (
                                             <div
                                                 key={lesson.id}
                                                 className={`flex items-center justify-between py-2.5 ${
-                                                    li < phase.lessons.length - 1 ? 'border-b border-black/[0.04]' : ''
+                                                    li < mod.lessons.length - 1 ? 'border-b border-black/[0.04]' : ''
                                                 }`}
                                             >
                                                 <div className="flex items-center gap-3">
@@ -469,7 +459,7 @@ const Landing: React.FC = () => {
                                                         {lesson.title}
                                                     </span>
                                                 </div>
-                                                <span className="text-[11px] text-gray-300 font-medium">{lesson.duration}</span>
+                                                <span className="text-[11px] text-gray-300 font-medium">{lesson.duration || ''}</span>
                                             </div>
                                         ))}
                                     </div>

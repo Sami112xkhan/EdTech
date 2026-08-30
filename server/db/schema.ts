@@ -108,3 +108,49 @@ export const activityLogs = pgTable("activity_logs", {
     metadata: text("metadata"), // JSON string
     createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+// ─── Dynamic Course Management ───────────────────────────────────────────────
+
+export const courses = pgTable("courses", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    slug: text("slug").unique().notNull(),          // e.g. 'fullstack', 'cyber'
+    title: text("title").notNull(),                 // "Full Stack Web Dev"
+    subtitle: text("subtitle"),                     // "90 Day Program"
+    description: text("description"),               // Long description for checkout/landing
+    landingDescription: text("landing_description"), // Short blurb for landing page
+    price: integer("price").notNull(),              // In INR (e.g. 15000 = ₹15,000)
+    salePrice: integer("sale_price"),               // Discounted price
+    features: text("features").array().default(sql`'{}'`).notNull(),
+    badge: text("badge"),                           // "Limited 2-Day Offer"
+    icon: text("icon"),                             // Lucide icon name
+    color: text("color"),                           // Theme accent color
+    sortOrder: integer("sort_order").default(0).notNull(),
+    isPublished: boolean("is_published").default(false).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const modules = pgTable("modules", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    courseId: uuid("course_id").references(() => courses.id, { onDelete: 'cascade' }).notNull(),
+    slug: text("slug").notNull(),                   // e.g. 'phase-0', 'cyber-phase-1'
+    title: text("title").notNull(),
+    description: text("description"),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const lessons = pgTable("lessons", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    moduleId: uuid("module_id").references(() => modules.id, { onDelete: 'cascade' }).notNull(),
+    slug: text("slug").notNull(),                   // e.g. 'git-github', 'python-intro'
+    title: text("title").notNull(),
+    duration: text("duration"),                     // "15:00", "4h 26m"
+    youtubeId: text("youtube_id"),                  // YouTube video ID
+    notesPath: text("notes_path"),                  // Optional PDF/MD path
+    free: boolean("free").default(false).notNull(),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});

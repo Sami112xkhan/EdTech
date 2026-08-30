@@ -3,7 +3,6 @@ import {
   Code, Terminal, Box, Play, Layers, Save, FolderOpen, Plus, Loader2, Sparkles, Trash2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { curriculum } from "../data/curriculum";
 import { useAuth } from "../context/AuthContext";
 import { trackAction } from "../components/NavigationTracker";
 import { toast } from "sonner";

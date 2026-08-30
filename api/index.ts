@@ -3,8 +3,8 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { OAuth2Client } from "google-auth-library";
 import { db } from "../server/db/index.js";
-import { users, sessions, feedback as feedbackTable, accessCodes, userNotes, playgroundProjects, aiChats, systemSettings, activityLogs } from "../server/db/schema.js";
-import { eq, and, gte, sql, desc, ne } from "drizzle-orm";
+import { users, sessions, feedback as feedbackTable, accessCodes, userNotes, playgroundProjects, aiChats, systemSettings, activityLogs, courses, modules, lessons } from "../server/db/schema.js";
+import { eq, and, gte, sql, desc, ne, asc } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -1078,5 +1078,478 @@ app.post("/api/codes/redeem", async (req, res) => {
         });
     }
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DYNAMIC COURSE MANAGEMENT — CRUD Endpoints
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Admin middleware helper
+const requireAdmin = async (req: any, res: any, next: any) => {
+    const sessionId = req.headers.authorization?.replace('Bearer ', '');
+    if (!sessionId) return res.status(401).json({ error: 'No session' });
+    const [session] = await db.select().from(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.isActive, true)));
+    if (!session) return res.status(401).json({ error: 'Invalid session' });
+    const [user] = await db.select().from(users).where(eq(users.id, session.userId));
+    if (!user || user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+    req.adminUser = user;
+    next();
+};
+
+// ─── PUBLIC: List published courses ──────────────────────────────────────────
+app.get("/api/courses", async (req, res) => {
+    try {
+        const allCourses = await db.select().from(courses).orderBy(asc(courses.sortOrder));
+        res.json(allCourses);
+    } catch (error) {
+        console.error("Failed to fetch courses:", error);
+        res.status(500).json({ error: "Failed to fetch courses" });
+    }
+});
+
+// ─── PUBLIC: Get course with modules and lessons ─────────────────────────────
+app.get("/api/courses/:slug", async (req, res) => {
+    try {
+        const [course] = await db.select().from(courses).where(eq(courses.slug, req.params.slug));
+        if (!course) return res.status(404).json({ error: "Course not found" });
+
+        const courseModules = await db.select().from(modules)
+            .where(eq(modules.courseId, course.id))
+            .orderBy(asc(modules.sortOrder));
+
+        const moduleIds = courseModules.map(m => m.id);
+        const courseLessons = moduleIds.length > 0
+            ? await db.select().from(lessons)
+                .where(sql`${lessons.moduleId} IN ${moduleIds}`)
+                .orderBy(asc(lessons.sortOrder))
+            : [];
+
+        // Group lessons by moduleId
+        const lessonsByModule: Record<string, any[]> = {};
+        courseLessons.forEach(l => {
+            if (!lessonsByModule[l.moduleId]) lessonsByModule[l.moduleId] = [];
+            lessonsByModule[l.moduleId].push(l);
+        });
+
+        const modulesWithLessons = courseModules.map(m => ({
+            ...m,
+            lessons: lessonsByModule[m.id] || []
+        }));
+
+        res.json({ ...course, modules: modulesWithLessons });
+    } catch (error) {
+        console.error("Failed to fetch course:", error);
+        res.status(500).json({ error: "Failed to fetch course" });
+    }
+});
+
+// ─── PUBLIC: Get all published courses with modules+lessons (for curriculum) ──
+app.get("/api/courses/all/curriculum", async (req, res) => {
+    try {
+        const allCourses = await db.select().from(courses)
+            .where(eq(courses.isPublished, true))
+            .orderBy(asc(courses.sortOrder));
+
+        const result = [];
+        for (const course of allCourses) {
+            const courseModules = await db.select().from(modules)
+                .where(eq(modules.courseId, course.id))
+                .orderBy(asc(modules.sortOrder));
+
+            const moduleIds = courseModules.map(m => m.id);
+            const courseLessons = moduleIds.length > 0
+                ? await db.select().from(lessons)
+                    .where(sql`${lessons.moduleId} IN ${moduleIds}`)
+                    .orderBy(asc(lessons.sortOrder))
+                : [];
+
+            const lessonsByModule: Record<string, any[]> = {};
+            courseLessons.forEach(l => {
+                if (!lessonsByModule[l.moduleId]) lessonsByModule[l.moduleId] = [];
+                lessonsByModule[l.moduleId].push(l);
+            });
+
+            result.push({
+                ...course,
+                modules: courseModules.map(m => ({ ...m, lessons: lessonsByModule[m.id] || [] }))
+            });
+        }
+
+        res.json(result);
+    } catch (error) {
+        console.error("Failed to fetch curricula:", error);
+        res.status(500).json({ error: "Failed to fetch curricula" });
+    }
+});
+
+// ─── ADMIN: Create course ────────────────────────────────────────────────────
+app.post("/api/admin/courses", requireAdmin, async (req, res) => {
+    try {
+        const { slug, title, subtitle, description, landingDescription, price, salePrice, features, badge, icon, color, sortOrder, isPublished } = req.body;
+        if (!slug || !title) return res.status(400).json({ error: "Slug and title required" });
+
+        const [course] = await db.insert(courses).values({
+            slug, title, subtitle, description, landingDescription,
+            price: price || 0, salePrice, features: features || [],
+            badge, icon, color, sortOrder: sortOrder || 0, isPublished: isPublished || false
+        }).returning();
+
+        res.json(course);
+    } catch (error: any) {
+        console.error("Failed to create course:", error);
+        if (error.code === '23505') return res.status(409).json({ error: "Course slug already exists" });
+        res.status(500).json({ error: "Failed to create course" });
+    }
+});
+
+// ─── ADMIN: Update course ────────────────────────────────────────────────────
+app.put("/api/admin/courses/:id", requireAdmin, async (req, res) => {
+    try {
+        const { slug, title, subtitle, description, landingDescription, price, salePrice, features, badge, icon, color, sortOrder, isPublished } = req.body;
+        const [course] = await db.update(courses).set({
+            slug, title, subtitle, description, landingDescription,
+            price, salePrice, features, badge, icon, color, sortOrder, isPublished,
+            updatedAt: new Date()
+        }).where(eq(courses.id, req.params.id)).returning();
+
+        if (!course) return res.status(404).json({ error: "Course not found" });
+        res.json(course);
+    } catch (error: any) {
+        console.error("Failed to update course:", error);
+        if (error.code === '23505') return res.status(409).json({ error: "Course slug already exists" });
+        res.status(500).json({ error: "Failed to update course" });
+    }
+});
+
+// ─── ADMIN: Delete course ────────────────────────────────────────────────────
+app.delete("/api/admin/courses/:id", requireAdmin, async (req, res) => {
+    try {
+        await db.delete(courses).where(eq(courses.id, req.params.id));
+        res.json({ success: true });
+    } catch (error) {
+        console.error("Failed to delete course:", error);
+        res.status(500).json({ error: "Failed to delete course" });
+    }
+});
+
+// ─── ADMIN: Create module ────────────────────────────────────────────────────
+app.post("/api/admin/courses/:courseId/modules", requireAdmin, async (req, res) => {
+    try {
+        const { slug, title, description, sortOrder } = req.body;
+        if (!slug || !title) return res.status(400).json({ error: "Slug and title required" });
+
+        const [mod] = await db.insert(modules).values({
+            courseId: req.params.courseId, slug, title, description,
+            sortOrder: sortOrder || 0
+        }).returning();
+
+        res.json(mod);
+    } catch (error) {
+        console.error("Failed to create module:", error);
+        res.status(500).json({ error: "Failed to create module" });
+    }
+});
+
+// ─── ADMIN: Update module ────────────────────────────────────────────────────
+app.put("/api/admin/modules/:id", requireAdmin, async (req, res) => {
+    try {
+        const { slug, title, description, sortOrder } = req.body;
+        const [mod] = await db.update(modules).set({
+            slug, title, description, sortOrder, updatedAt: new Date()
+        }).where(eq(modules.id, req.params.id)).returning();
+
+        if (!mod) return res.status(404).json({ error: "Module not found" });
+        res.json(mod);
+    } catch (error) {
+        console.error("Failed to update module:", error);
+        res.status(500).json({ error: "Failed to update module" });
+    }
+});
+
+// ─── ADMIN: Delete module ────────────────────────────────────────────────────
+app.delete("/api/admin/modules/:id", requireAdmin, async (req, res) => {
+    try {
+        await db.delete(modules).where(eq(modules.id, req.params.id));
+        res.json({ success: true });
+    } catch (error) {
+        console.error("Failed to delete module:", error);
+        res.status(500).json({ error: "Failed to delete module" });
+    }
+});
+
+// ─── ADMIN: Reorder modules ──────────────────────────────────────────────────
+app.put("/api/admin/modules/reorder", requireAdmin, async (req, res) => {
+    try {
+        const { orderedIds } = req.body; // string[] of module IDs in new order
+        if (!Array.isArray(orderedIds)) return res.status(400).json({ error: "orderedIds array required" });
+
+        for (let i = 0; i < orderedIds.length; i++) {
+            await db.update(modules).set({ sortOrder: i }).where(eq(modules.id, orderedIds[i]));
+        }
+        res.json({ success: true });
+    } catch (error) {
+        console.error("Failed to reorder modules:", error);
+        res.status(500).json({ error: "Failed to reorder modules" });
+    }
+});
+
+// ─── ADMIN: Create lesson ────────────────────────────────────────────────────
+app.post("/api/admin/modules/:moduleId/lessons", requireAdmin, async (req, res) => {
+    try {
+        const { slug, title, duration, youtubeId, notesPath, free, sortOrder } = req.body;
+        if (!slug || !title) return res.status(400).json({ error: "Slug and title required" });
+
+        const [lesson] = await db.insert(lessons).values({
+            moduleId: req.params.moduleId, slug, title, duration,
+            youtubeId, notesPath, free: free || false, sortOrder: sortOrder || 0
+        }).returning();
+
+        res.json(lesson);
+    } catch (error) {
+        console.error("Failed to create lesson:", error);
+        res.status(500).json({ error: "Failed to create lesson" });
+    }
+});
+
+// ─── ADMIN: Update lesson ────────────────────────────────────────────────────
+app.put("/api/admin/lessons/:id", requireAdmin, async (req, res) => {
+    try {
+        const { slug, title, duration, youtubeId, notesPath, free, sortOrder } = req.body;
+        const [lesson] = await db.update(lessons).set({
+            slug, title, duration, youtubeId, notesPath, free, sortOrder, updatedAt: new Date()
+        }).where(eq(lessons.id, req.params.id)).returning();
+
+        if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+        res.json(lesson);
+    } catch (error) {
+        console.error("Failed to update lesson:", error);
+        res.status(500).json({ error: "Failed to update lesson" });
+    }
+});
+
+// ─── ADMIN: Delete lesson ────────────────────────────────────────────────────
+app.delete("/api/admin/lessons/:id", requireAdmin, async (req, res) => {
+    try {
+        await db.delete(lessons).where(eq(lessons.id, req.params.id));
+        res.json({ success: true });
+    } catch (error) {
+        console.error("Failed to delete lesson:", error);
+        res.status(500).json({ error: "Failed to delete lesson" });
+    }
+});
+
+// ─── ADMIN: Reorder lessons ──────────────────────────────────────────────────
+app.put("/api/admin/lessons/reorder", requireAdmin, async (req, res) => {
+    try {
+        const { orderedIds } = req.body;
+        if (!Array.isArray(orderedIds)) return res.status(400).json({ error: "orderedIds array required" });
+
+        for (let i = 0; i < orderedIds.length; i++) {
+            await db.update(lessons).set({ sortOrder: i }).where(eq(lessons.id, orderedIds[i]));
+        }
+        res.json({ success: true });
+    } catch (error) {
+        console.error("Failed to reorder lessons:", error);
+        res.status(500).json({ error: "Failed to reorder lessons" });
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SEED: Populate courses from static curriculum data (one-time migration)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function seedCoursesFromStaticData() {
+    try {
+        const [existing] = await db.select({ count: sql<number>`count(*)` }).from(courses);
+        if (existing.count > 0) {
+            console.log(`[Seed] ${existing.count} courses already exist, skipping seed.`);
+            return;
+        }
+
+        console.log("[Seed] No courses found. Seeding from static curriculum data...");
+
+        // ── Full Stack ──
+        const [fs] = await db.insert(courses).values({
+            slug: 'fullstack', title: 'Full Stack Web Dev',
+            subtitle: 'Master the Modern Stack',
+            description: 'From Hello World to deployed SaaS application. Master frontend, backend, databases, and deploy real applications.',
+            landingDescription: "From 'Hello World' to deployed SaaS application.",
+            price: 15000, salePrice: 8000,
+            features: ['Lifetime Access to Full Stack Content', 'Frontend & Backend Deep Dive', 'AI Mentor Support (Beta)', '5+ Real World Projects', 'Certificate of Completion', 'Discord Community Access'],
+            icon: 'BookOpen', color: 'emerald', sortOrder: 0, isPublished: true
+        }).returning();
+
+        // ── Cybersecurity ──
+        const [cy] = await db.insert(courses).values({
+            slug: 'cyber', title: '90 Days Cyber Security',
+            subtitle: '90 Day Program',
+            description: 'Master cybersecurity in 90 days — from networking and Linux to ethical hacking and cloud security.',
+            landingDescription: 'Ethical hacking, penetration testing, network security, and defensive strategies used by industry professionals.',
+            price: 8000, salePrice: 5000,
+            features: ['90 Days Intensive Training', 'Ethical Hacking Workshops', 'Linux & Networking Deep Dive', 'Certificate of Completion', 'Discord Community Access'],
+            icon: 'Shield', color: 'blue', sortOrder: 1, isPublished: true
+        }).returning();
+
+        // ── Data Science ──
+        const [ds] = await db.insert(courses).values({
+            slug: 'datascience', title: 'Data Science Specialization',
+            subtitle: 'Analytics & ML',
+            description: 'Unlock the power of data through Python, math, machine learning, and visualization.',
+            landingDescription: 'Python, statistics, data visualization, machine learning, and real-world data projects from scratch.',
+            price: 12000, salePrice: 8000,
+            features: ['Complete ML & Math Foundation', 'Python & Data Wrangling Projects', 'Advanced Data Visualization', 'Certificate of Completion', 'Discord Community Access'],
+            icon: 'Award', color: 'purple', sortOrder: 2, isPublished: true
+        }).returning();
+
+        // ── AI ──
+        const [ai] = await db.insert(courses).values({
+            slug: 'ai', title: 'AI & Machine Learning',
+            subtitle: 'AI Course',
+            description: 'Complete AI & Machine Learning course. Builds on your Full Stack skills with hands-on AI projects.',
+            landingDescription: 'Complete AI & Machine Learning course.',
+            price: 5000, salePrice: 2000,
+            features: ['Complete AI & ML Course Content', 'Builds on Your Full Stack Skills', 'Hands-on AI Projects', 'Early Access to New AI Modules', 'Discord Community Access'],
+            icon: 'Bot', color: 'cyan', sortOrder: 3, isPublished: true
+        }).returning();
+
+        // Seed modules & lessons for each course
+        const courseMap: Record<string, { course: any; moduleData: any[] }> = {
+            fullstack: { course: fs, moduleData: [
+                { slug: 'phase-0', title: 'Phase 0 — Setup', description: 'Setting up your development environment and mastering Git.', lessons: [
+                    { slug: 'git-github', title: 'Git & GitHub Masterclass', duration: '15:00', youtubeId: 'vA5TTz6BXhY', free: true, notesPath: '/notes/Git & GitHub/Git & GitHub.pdf' }
+                ]},
+                { slug: 'phase-1', title: 'Phase 1 — Python & Java', description: 'Master Python from scratch and explore Java DSA.', lessons: [
+                    { slug: 'python-intro', title: 'Python Introduction', duration: '4h 26s', youtubeId: 'rfscVS0vtbw' },
+                    { slug: 'python-intermediate', title: 'Python Intermediate', duration: '5h 57m 46s', youtubeId: 'HGOBQPFzWKo' },
+                    { slug: 'python-project', title: 'Python Project: Zero to Hero', duration: '9h 19m', youtubeId: 'NpmFbWO6HPU' },
+                    { slug: 'streamlit', title: 'Streamlit Crash Course', duration: '11m', youtubeId: 'D0D4Pa22iG0' },
+                    { slug: 'dsa-java', title: 'DSA In JAVA Mastery', duration: '45:00', youtubeId: 'vLqTf2b6GZw', notesPath: '/notes/DSA In JAVA/java collection framework.pdf' }
+                ]},
+                { slug: 'phase-2', title: 'Phase 2 — Web Foundation', description: 'The foundation of the web: HTML, CSS, and modern frameworks.', lessons: [
+                    { slug: 'html', title: 'HTML Crash Course', duration: '18:00', youtubeId: 'HGTJBPNC-Gw', notesPath: '/notes/HTML_In_One_Shot/HTML Tutorial for Beginners.pdf' },
+                    { slug: 'css-video', title: 'CSS Video Tutorial', duration: '41m', youtubeId: 'yfoY53QXEnI', notesPath: '/notes/Full Stack Web Development Mastery Course In Hindi/CSS/✅ 📘 CSS Animations – Detailed Notes.pdf' },
+                    { slug: 'web-dev-project', title: 'Web Development Project', duration: '3h 22m', youtubeId: 'J_r6hBo9lO4' },
+                    { slug: 'javascript-video', title: 'JavaScript Video Tutorial', duration: '8h 4m', youtubeId: 'a-wVHL0lpb0' },
+                    { slug: 'tailwind', title: 'Tailwind CSS Mastery', duration: '22:00', youtubeId: 'lCxcTsOHrjo', notesPath: '/notes/Tailwind CSS/🎬 Tailwind CSS Mastery Course.pdf' },
+                    { slug: 'bootstrap', title: 'Bootstrap 5 Foundation', duration: '20:00', youtubeId: 'Jyvffr3aCp0', notesPath: '/notes/Bootstrap Mastery Course/🎬 Bootstrap 5 Mastery Course – Web Dev Mastery.pdf' },
+                    { slug: 'js-oops', title: 'JavaScript OOPS & Advanced', duration: '20:00', youtubeId: 'BS9v-YmG1vM', notesPath: '/notes/JavaScript_OOPS/OOPS_In_JS.pdf' }
+                ]},
+                { slug: 'phase-3', title: 'Phase 3 — React & State Management', description: 'Building modern UIs with React and Redux.', lessons: [
+                    { slug: 'react-complete', title: 'React.JS Complete Tutorial', duration: '50:00', youtubeId: 'bMknfKXIFA8', notesPath: '/notes/React.JS Complete Tutorial/Complete React.js Web Dev Mastey.pdf' },
+                    { slug: 'react-router', title: 'React Router v7 Mastery', duration: '20:00', youtubeId: '77m62v_mXis', notesPath: '/notes/React.JS Complete Tutorial/React_Router_v7_Web_Dev_Mastery.pdf' },
+                    { slug: 'react-hooks', title: 'All React Hooks In One Shot', duration: '25:00', youtubeId: 'LlvBzyy-558', notesPath: '/notes/All_React_Hooks_In_One_Shot/📘 All React Hooks 2025 – Web Dev Mastery.pdf' },
+                    { slug: 'redux-toolkit', title: 'Redux Toolkit Tutorial', duration: '30:00', youtubeId: 'EnIRy6_CC_w', notesPath: '/notes/Redux_Toolkit_In_One_Shot/Redux - Toolkit.pdf' },
+                    { slug: 'react-interview', title: 'React Interview Preparation', duration: '40:00', youtubeId: 'v80vL9m2QTM', notesPath: '/notes/React_Most_Imp_Interview_Question/1_React_Interview_Questions_Web_Dev_Mastery.pdf' }
+                ]},
+                { slug: 'phase-4', title: 'Phase 4 — Backend & Modern DB', description: 'Building robust backends with Node/Python and MongoDB.', lessons: [
+                    { slug: 'backend-development', title: 'Backend Development', duration: '4h 12m', youtubeId: 'Q-icS7yZz5k' },
+                    { slug: 'backend-projects', title: 'Backend Projects', duration: '36m', youtubeId: 'JmpDGMgRFfo' },
+                    { slug: 'mongodb-essentials', title: 'MongoDB Essentials & Cheat Sheet', duration: '30:00', youtubeId: 'c2M-rlkkT5o', notesPath: '/notes/MongoDB Cheat Sheet/MongoDB Cheat Sheet.pdf' },
+                    { slug: 'backend-mastery', title: 'Full Stack Master Course', duration: '60:00', youtubeId: 'rOpEN1JDaD0', notesPath: '/notes/Full Stack Web Development Mastery Course In Hindi/HTML/🎓 Full Stack Web Development Mastery Course_ HTML – Beginner to Pro (With Examples).pdf' }
+                ]},
+                { slug: 'phase-5', title: 'Phase 5 — C++ & Programming Foundations', description: 'Deep dive into C++ and object-oriented programming.', lessons: [
+                    { slug: 'cpp-mastery', title: 'C++ Mastery Course', duration: '45:00', youtubeId: 'vLqTf2b6GZw', notesPath: '/notes/C++ Mastery Course/Complete C++ Mastery Course Web Dev Mastery.pdf' },
+                    { slug: 'cpp-oops', title: 'C++ OOPs Concepts', duration: '25:00', youtubeId: 'JGNvVAbM-is', notesPath: '/notes/C++ OOPs/Complete_OOPS_Web_Dev_Mastery.pdf' }
+                ]}
+            ]},
+            cyber: { course: cy, moduleData: [
+                { slug: 'cyber-phase-0', title: 'Day 1–7 — Network+ Concepts', description: 'Understand networking fundamentals with CompTIA Network+ concepts.', lessons: [
+                    { slug: 'cyber-network-plus', title: "Professor Messer's N10-009 CompTIA Network+", duration: '24h', youtubeId: 'As6g6IXcVa4', free: true }
+                ]},
+                { slug: 'cyber-phase-1', title: 'Day 8–14 — Security+ Concepts', description: 'Learn core security principles with CompTIA Security+ preparation.', lessons: [
+                    { slug: 'cyber-security-plus-messer', title: "Professor Messer's SY0-701 CompTIA Security+", duration: '11h', youtubeId: 'KiEptGbnEBc' },
+                    { slug: 'cyber-security-plus-alt', title: "Pete Zerger's SY0-701 Security+", duration: '6h', youtubeId: '1E7pI7PB4KI' }
+                ]},
+                { slug: 'cyber-phase-2', title: 'Day 15–28 — Linux Fundamentals', description: 'Master the Linux command line, file system, and system administration.', lessons: [
+                    { slug: 'cyber-linux-journey', title: 'Linux Journey — Full Walkthrough', duration: '10h' },
+                    { slug: 'cyber-linux-cisco', title: 'Linux Unhatched (Cisco NetAcad)', duration: '8h' }
+                ]},
+                { slug: 'cyber-phase-3', title: 'Day 29–42 — Python for Cybersecurity', description: 'Learn Python with a focus on cybersecurity scripting and automation.', lessons: [
+                    { slug: 'cyber-python-codecademy', title: 'Learn Python (Codecademy Track)', duration: '12h' },
+                    { slug: 'cyber-python-cybermentor', title: 'Python for Ethical Hacking — TheCyberMentor', duration: '2h 50m', youtubeId: 'egg-GoT5iVk' }
+                ]},
+                { slug: 'cyber-phase-4', title: 'Day 43–56 — Traffic Analysis', description: 'Analyze network traffic with Wireshark, tcpdump, and Suricata IDS/IPS.', lessons: [
+                    { slug: 'cyber-wireshark-tutorial', title: 'Wireshark Tutorial for Beginners', duration: '3h', youtubeId: 'NjvR4LmwcMU' },
+                    { slug: 'cyber-suricata-ids', title: 'Suricata Network IDS/IPS', duration: '1h 30m', youtubeId: 'S0-vsjhPDN0' }
+                ]},
+                { slug: 'cyber-phase-5', title: 'Day 57–63 — Git & Version Control', description: 'Learn Git for collaboration, version control, and security auditing.', lessons: [
+                    { slug: 'cyber-git-basics', title: 'Git for Beginners (Codecademy)', duration: '4h' },
+                    { slug: 'cyber-git-branching', title: 'Learn Git Branching — Interactive', duration: '3h' }
+                ]},
+                { slug: 'cyber-phase-6', title: 'Day 64–70 — ELK Stack (SIEM)', description: 'Set up and use Elasticsearch, Logstash, and Kibana for log analysis and SIEM.', lessons: [
+                    { slug: 'cyber-elk-tutorial', title: 'Complete ELK Stack Tutorial', duration: '6h' }
+                ]},
+                { slug: 'cyber-phase-7', title: 'Day 71–84 — Cloud Security (AWS / Azure / GCP)', description: 'Explore cloud platforms and learn cloud security fundamentals.', lessons: [
+                    { slug: 'cyber-cloud-aws', title: 'AWS Getting Started & Security Basics', duration: '6h' },
+                    { slug: 'cyber-cloud-azure', title: 'Azure Fundamentals & Security', duration: '6h' },
+                    { slug: 'cyber-cloud-gcp', title: 'GCP Getting Started & Security', duration: '6h' }
+                ]},
+                { slug: 'cyber-phase-8', title: 'Day 85–90 — Ethical Hacking', description: 'Practice ethical hacking with Hack The Box and VulnHub challenges.', lessons: [
+                    { slug: 'cyber-hacking-pt1', title: 'Ethical Hacking in 15 Hours — Part 1 (TheCyberMentor)', duration: '8h', youtubeId: '3FNYvj2U0HM' },
+                    { slug: 'cyber-hacking-pt2', title: 'Ethical Hacking — Part 2 (TheCyberMentor)', duration: '7h', youtubeId: 'sH4JCwjybGs' }
+                ]},
+                { slug: 'cyber-phase-9', title: 'Day 91–95 — Resume & Career Prep', description: 'Build a one-page cybersecurity resume and learn where to apply.', lessons: [
+                    { slug: 'cyber-resume', title: 'Cybersecurity Resume — One Page Template', duration: '2h' },
+                    { slug: 'cyber-job-search', title: 'Where and How to Apply for Cybersecurity Jobs', duration: '2h' }
+                ]}
+            ]},
+            datascience: { course: ds, moduleData: [
+                { slug: 'ds-phase-1', title: 'Phase 1 — Introduction to Data Science', description: 'Learn the basic concepts behind data science, ethics, and early statistics.', lessons: [
+                    { slug: 'ds-defining', title: 'Defining Data Science', duration: '15:00', youtubeId: 'beZ7Mb_oz9I', free: true, notesPath: '/Data Science Course/1-Introduction/01-defining-data-science/README.md' },
+                    { slug: 'ds-ethics', title: 'Data Science Ethics', duration: '20:00', free: true, notesPath: '/Data Science Course/1-Introduction/02-ethics/README.md' },
+                    { slug: 'ds-defining-data', title: 'Defining Data', duration: '25:00', notesPath: '/Data Science Course/1-Introduction/03-defining-data/README.md' },
+                    { slug: 'ds-stats-prob', title: 'Introduction to Statistics & Probability', duration: '45:00', youtubeId: 'Z5Zy85g4Yjw', notesPath: '/Data Science Course/1-Introduction/04-stats-and-probability/README.md' }
+                ]},
+                { slug: 'ds-phase-2', title: 'Phase 2 — Working With Data', description: 'Introduction to SQL, NoSQL, Python, and data preparation techniques.', lessons: [
+                    { slug: 'ds-relational', title: 'Working with Relational Data (SQL)', duration: '40:00', notesPath: '/Data Science Course/2-Working-With-Data/05-relational-databases/README.md' },
+                    { slug: 'ds-nonrelational', title: 'Working with NoSQL Data', duration: '35:00', notesPath: '/Data Science Course/2-Working-With-Data/06-non-relational/README.md' },
+                    { slug: 'ds-python', title: 'Working with Python (Pandas)', duration: '1h 20m', notesPath: '/Data Science Course/2-Working-With-Data/07-python/README.md' },
+                    { slug: 'ds-prep', title: 'Data Preparation', duration: '50:00', notesPath: '/Data Science Course/2-Working-With-Data/08-data-preparation/README.md' }
+                ]},
+                { slug: 'ds-phase-3', title: 'Phase 3 — Data Visualization', description: 'Learn how to visualize quantities, distributions, proportions, and relationships.', lessons: [
+                    { slug: 'ds-vis-quant', title: 'Visualizing Quantities', duration: '30:00', notesPath: '/Data Science Course/3-Data-Visualization/09-visualization-quantities/README.md' },
+                    { slug: 'ds-vis-dist', title: 'Visualizing Distributions of Data', duration: '25:00', notesPath: '/Data Science Course/3-Data-Visualization/10-visualization-distributions/README.md' },
+                    { slug: 'ds-vis-prop', title: 'Visualizing Proportions', duration: '20:00', notesPath: '/Data Science Course/3-Data-Visualization/11-visualization-proportions/README.md' },
+                    { slug: 'ds-vis-rel', title: 'Visualizing Relationships', duration: '35:00', notesPath: '/Data Science Course/3-Data-Visualization/12-visualization-relationships/README.md' },
+                    { slug: 'ds-vis-meaning', title: 'Meaningful Visualizations', duration: '40:00', notesPath: '/Data Science Course/3-Data-Visualization/13-meaningful-visualizations/README.md' }
+                ]},
+                { slug: 'ds-phase-4', title: 'Phase 4 — Real-World Application', description: 'The data science lifecycle, cloud deployment, and real-world scenarios.', lessons: [
+                    { slug: 'ds-lifecycle', title: 'Introduction to Lifecycle & Analyzing', duration: '1h 10m', notesPath: '/Data Science Course/4-Data-Science-Lifecycle/README.md' },
+                    { slug: 'ds-cloud', title: 'Data Science in the Cloud', duration: '1h 45m', notesPath: '/Data Science Course/5-Data-Science-In-Cloud/README.md' },
+                    { slug: 'ds-wild', title: 'Data Science in the Wild', duration: '40:00', notesPath: '/Data Science Course/6-Data-Science-In-Wild/README.md' }
+                ]}
+            ]},
+            ai: { course: ai, moduleData: [
+                { slug: 'ai-phase-0', title: 'Phase 0 — AI Foundations', description: 'Introduction to Artificial Intelligence and Machine Learning concepts.', lessons: [
+                    { slug: 'ai-intro', title: 'Complete AI & Machine Learning Course', duration: '1h 30m', youtubeId: 'tchN4xa4pfg' }
+                ]}
+            ]}
+        };
+
+        for (const [key, data] of Object.entries(courseMap)) {
+            for (let i = 0; i < data.moduleData.length; i++) {
+                const md = data.moduleData[i];
+                const [mod] = await db.insert(modules).values({
+                    courseId: data.course.id, slug: md.slug, title: md.title,
+                    description: md.description, sortOrder: i
+                }).returning();
+
+                for (let j = 0; j < md.lessons.length; j++) {
+                    const ld = md.lessons[j];
+                    await db.insert(lessons).values({
+                        moduleId: mod.id, slug: ld.slug, title: ld.title,
+                        duration: ld.duration, youtubeId: ld.youtubeId || null,
+                        notesPath: ld.notesPath || null, free: ld.free || false,
+                        sortOrder: j
+                    });
+                }
+            }
+        }
+
+        console.log("[Seed] Successfully seeded 4 courses with modules and lessons!");
+    } catch (error) {
+        console.error("[Seed] Failed to seed courses:", error);
+    }
+}
+seedCoursesFromStaticData();
 
 export default app;
