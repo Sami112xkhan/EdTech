@@ -462,7 +462,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             try {
                 await fetch('/api/auth/purchase', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (sessionId || '') },
                     body: JSON.stringify({ email: user.email, courseId }),
                 });
             } catch (e) {

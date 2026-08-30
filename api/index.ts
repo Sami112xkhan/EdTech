@@ -197,8 +197,9 @@ app.post("/api/auth/signup", authLimiter, async (req, res) => {
             googleId: null, // Explicitly null for email users
         }).returning();
 
-        // Don't return verification code to client - it should only be sent via email
-        res.json({ user: newUser });
+        // Verification code returned for EmailJS client-side email sending
+        // TODO: Move email sending server-side and remove code from response
+        res.json({ user: newUser, verificationCode });
     } catch (error) {
         console.error("Signup error:", error);
         res.status(500).json({ error: "Signup failed" });
