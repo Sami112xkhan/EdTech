@@ -244,7 +244,7 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
 });
 
 // Admin Session Creation (for hardcoded admin login)
-app.post("/api/auth/admin-session", async (req, res) => {
+app.post("/api/auth/admin-session", authLimiter, async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: "Email required" });
     if (email !== 'admin@devmastery.com') return res.status(403).json({ error: "Not authorized" });
@@ -273,7 +273,17 @@ app.post("/api/auth/admin-session", async (req, res) => {
             isActive: true,
         }).returning();
 
-        res.json({ user: adminUser, sessionId: session.id });
+        // Map DB user to match frontend User type
+        const mappedUser = {
+            ...adminUser,
+            username: adminUser.username || 'admin',
+            purchasedCourses: adminUser.purchasedCourses || ['fullstack', 'cyber', 'datascience'],
+            completedLessons: adminUser.completedLessons || [],
+            lastLogin: adminUser.lastLoginAt?.toISOString?.() || new Date().toISOString(),
+            photoURL: adminUser.picture || undefined,
+        };
+
+        res.json({ user: mappedUser, sessionId: session.id });
     } catch (error) {
         console.error("Admin session error:", error);
         res.status(500).json({ error: "Failed to create admin session" });

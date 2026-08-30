@@ -225,14 +225,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     const data = await response.json();
                     setSessionId(data.sessionId);
                     localStorage.setItem('sessionId', data.sessionId);
-                    // Update user with DB data (has real DB id, purchased courses, etc.)
-                    const dbUser: User = {
-                        ...data.user,
-                        purchasedCourses: data.user.purchasedCourses?.length > 0 ? data.user.purchasedCourses : ['fullstack', 'cyber', 'datascience'],
-                        completedLessons: data.user.completedLessons || [],
-                    };
-                    setUser(dbUser);
-                    localStorage.setItem("user", JSON.stringify(dbUser));
+                    // Server maps DB user to frontend User type
+                    setUser(data.user);
+                    localStorage.setItem("user", JSON.stringify(data.user));
                 }
             } catch (e) {
                 console.warn("Admin session API failed, using local-only admin:", e);

@@ -32,9 +32,11 @@ import { OfferProvider } from "./context/OfferContext";
 import NavigationTracker from "./components/NavigationTracker";
 
 import { Analytics } from "@vercel/analytics/react";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 function App() {
     return (
+        <ErrorBoundary>
         <BrowserRouter>
             <AuthProvider>
                 <ThemeProvider>
@@ -90,6 +92,7 @@ function App() {
                 </ThemeProvider>
             </AuthProvider>
         </BrowserRouter>
+        </ErrorBoundary>
     );
 }
 
