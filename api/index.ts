@@ -520,6 +520,18 @@ app.get("/api/settings/offer", async (req, res) => {
 });
 
 // Admin Update Settings
+// Admin middleware helper
+const requireAdmin = async (req: any, res: any, next: any) => {
+    const sessionId = req.headers.authorization?.replace('Bearer ', '');
+    if (!sessionId) return res.status(401).json({ error: 'No session' });
+    const [session] = await db.select().from(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.isActive, true)));
+    if (!session) return res.status(401).json({ error: 'Invalid session' });
+    const [user] = await db.select().from(users).where(eq(users.id, session.userId));
+    if (!user || user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+    req.adminUser = user;
+    next();
+};
+
 app.post("/api/admin/settings/offer", requireAdmin, async (req, res) => {
     const { isActive } = req.body;
     console.log(`[API] Toggling offer to: ${isActive}`);
@@ -1104,19 +1116,7 @@ app.post("/api/codes/redeem", async (req, res) => {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // DYNAMIC COURSE MANAGEMENT — CRUD Endpoints
-// ═══════════════════════════════════════════════════════════════════════════════
 
-// Admin middleware helper
-const requireAdmin = async (req: any, res: any, next: any) => {
-    const sessionId = req.headers.authorization?.replace('Bearer ', '');
-    if (!sessionId) return res.status(401).json({ error: 'No session' });
-    const [session] = await db.select().from(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.isActive, true)));
-    if (!session) return res.status(401).json({ error: 'Invalid session' });
-    const [user] = await db.select().from(users).where(eq(users.id, session.userId));
-    if (!user || user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
-    req.adminUser = user;
-    next();
-};
 
 // ─── PUBLIC: List published courses ──────────────────────────────────────────
 app.get("/api/courses", async (req, res) => {
