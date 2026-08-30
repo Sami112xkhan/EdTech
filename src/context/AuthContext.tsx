@@ -196,8 +196,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const login = async (userData: User) => {
-        // Admin Check (Keep hardcoded for safety)
+        // Admin Check — create a real server session so admin API endpoints work
         if (userData.username === 'admin' && (userData as any).password === 'admin@12345') {
+            try {
+                const response = await fetch('/api/auth/admin-session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: 'admin@devmastery.com' }),
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    const adminUser: User = {
+                        ...data.user,
+                        purchasedCourses: data.user.purchasedCourses || ['fullstack', 'cyber', 'datascience'],
+                    };
+                    setUser(adminUser);
+                    setIsAuthenticated(true);
+                    setSessionId(data.sessionId);
+                    localStorage.setItem("user", JSON.stringify(adminUser));
+                    localStorage.setItem("sessionId", data.sessionId);
+                    return;
+                }
+            } catch (e) {
+                console.warn("Admin session API failed, using local fallback:", e);
+            }
+            // Fallback: local-only admin (API unreachable)
             const adminUser: User = {
                 id: 'admin-id',
                 name: 'Administrator',

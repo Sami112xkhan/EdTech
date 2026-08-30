@@ -243,6 +243,43 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
     }
 });
 
+// Admin Session Creation (for hardcoded admin login)
+app.post("/api/auth/admin-session", async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "Email required" });
+    if (email !== 'admin@devmastery.com') return res.status(403).json({ error: "Not authorized" });
+
+    try {
+        let [adminUser] = await db.select().from(users).where(eq(users.email, email));
+        if (!adminUser) {
+            // Create admin user in DB if not exists
+            [adminUser] = await db.insert(users).values({
+                email,
+                name: 'Administrator',
+                role: 'admin',
+                isVerified: true,
+                status: 'active',
+                googleId: 'hardcoded-admin',
+            }).returning();
+        }
+
+        // Create session
+        await db.update(sessions)
+            .set({ isActive: false })
+            .where(and(eq(sessions.userId, adminUser.id), eq(sessions.isActive, true)));
+
+        const [session] = await db.insert(sessions).values({
+            userId: adminUser.id,
+            isActive: true,
+        }).returning();
+
+        res.json({ user: adminUser, sessionId: session.id });
+    } catch (error) {
+        console.error("Admin session error:", error);
+        res.status(500).json({ error: "Failed to create admin session" });
+    }
+});
+
 // Email Verify Hook
 app.post("/api/auth/verify", authLimiter, async (req, res) => {
     const { email, code } = req.body;
