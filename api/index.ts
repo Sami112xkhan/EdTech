@@ -389,7 +389,8 @@ app.post("/api/auth/purchase", async (req, res) => {
 
     try {
         // Verify session belongs to this user
-        const sessionId = req.headers.authorization?.replace('Bearer ', '');
+        const authHeader = req.headers.authorization || '';
+        const sessionId = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
         if (!sessionId) return res.status(401).json({ error: "Authentication required" });
         const [session] = await db.select().from(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.isActive, true)));
         if (!session) return res.status(401).json({ error: "Invalid session" });
@@ -523,8 +524,9 @@ app.get("/api/settings/offer", async (req, res) => {
 // Admin middleware helper
 const requireAdmin = async (req: any, res: any, next: any) => {
     try {
-        const sessionId = req.headers.authorization?.replace('Bearer ', '');
-        if (!sessionId) return res.status(401).json({ error: 'No session' });
+        const authHeader = req.headers.authorization || '';
+        const sessionId = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+        if (!sessionId || sessionId.length < 10) return res.status(401).json({ error: 'No session' });
         const [session] = await db.select().from(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.isActive, true)));
         if (!session) return res.status(401).json({ error: 'Invalid session' });
         const [user] = await db.select().from(users).where(eq(users.id, session.userId));
@@ -1130,7 +1132,7 @@ app.get("/api/courses", async (req, res) => {
         res.json(allCourses);
     } catch (error) {
         console.error("Failed to fetch courses:", error);
-        res.status(500).json({ error: "Failed to fetch courses" });
+        res.json([]);
     }
 });
 
@@ -1205,7 +1207,7 @@ app.get("/api/courses/all/curriculum", async (req, res) => {
         res.json(result);
     } catch (error) {
         console.error("Failed to fetch curricula:", error);
-        res.status(500).json({ error: "Failed to fetch curricula" });
+        res.json([]);
     }
 });
 
