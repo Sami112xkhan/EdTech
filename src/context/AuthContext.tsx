@@ -196,31 +196,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const login = async (userData: User) => {
-        // Admin Check — create a real server session so admin API endpoints work
+        // Admin Check — set local state immediately, then create real server session in background
         if (userData.username === 'admin' && (userData as any).password === 'admin@12345') {
-            try {
-                const response = await fetch('/api/auth/admin-session', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: 'admin@devmastery.com' }),
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    const adminUser: User = {
-                        ...data.user,
-                        purchasedCourses: data.user.purchasedCourses || ['fullstack', 'cyber', 'datascience'],
-                    };
-                    setUser(adminUser);
-                    setIsAuthenticated(true);
-                    setSessionId(data.sessionId);
-                    localStorage.setItem("user", JSON.stringify(adminUser));
-                    localStorage.setItem("sessionId", data.sessionId);
-                    return;
-                }
-            } catch (e) {
-                console.warn("Admin session API failed, using local fallback:", e);
-            }
-            // Fallback: local-only admin (API unreachable)
             const adminUser: User = {
                 id: 'admin-id',
                 name: 'Administrator',
@@ -236,6 +213,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(adminUser);
             setIsAuthenticated(true);
             localStorage.setItem("user", JSON.stringify(adminUser));
+
+            // Create real server session in background so admin API endpoints work
+            try {
+                const response = await fetch('/api/auth/admin-session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: 'admin@devmastery.com' }),
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    setSessionId(data.sessionId);
+                    localStorage.setItem('sessionId', data.sessionId);
+                    // Update user with DB data (has real DB id, purchased courses, etc.)
+                    const dbUser: User = {
+                        ...data.user,
+                        purchasedCourses: data.user.purchasedCourses?.length > 0 ? data.user.purchasedCourses : ['fullstack', 'cyber', 'datascience'],
+                        completedLessons: data.user.completedLessons || [],
+                    };
+                    setUser(dbUser);
+                    localStorage.setItem("user", JSON.stringify(dbUser));
+                }
+            } catch (e) {
+                console.warn("Admin session API failed, using local-only admin:", e);
+            }
             return;
         }
 
