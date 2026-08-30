@@ -27,7 +27,7 @@ export const OfferProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         try {
             const response = await fetch('/api/admin/settings/offer', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('sessionId') || '') },
                 body: JSON.stringify({ isActive })
             });
             if (!response.ok) throw new Error('Failed to update offer');

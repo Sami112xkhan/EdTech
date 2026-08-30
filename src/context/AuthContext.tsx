@@ -473,7 +473,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const getAllUsers = async (): Promise<any[]> => {
         try {
-            const response = await fetch('/api/admin/users');
+            const response = await fetch('/api/admin/users', { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('sessionId') || '') } });
             if (response.ok) {
                 return await response.json();
             }
@@ -487,7 +487,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             await fetch(`/api/admin/users/${encodeURIComponent(email)}/status`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('sessionId') || '') },
                 body: JSON.stringify({ status: newStatus }),
             });
         } catch (error) {
@@ -499,6 +499,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             await fetch(`/api/admin/users/${encodeURIComponent(email)}`, {
                 method: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('sessionId') || '') },
             });
         } catch (error) {
             console.error('Failed to delete user via API', error);
