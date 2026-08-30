@@ -218,30 +218,27 @@ function MembersTab({ users, searchTerm, setSearchTerm, filterRole, setFilterRol
                 <div className={`divide-y ${c.divider}`}>
                     {filteredUsers.slice(0, 50).map((u: any) => (
                         <div key={u.email}>
-                            <div className={`flex items-center gap-4 px-5 py-4 transition-colors cursor-pointer ${c.hover}`} onClick={() => setExpandedUser(expandedUser === u.email ? null : u.email)}>
-                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm shrink-0 ${c.avatar}`}>
+                            <div className={`flex items-center gap-3 sm:gap-4 px-4 sm:px-5 py-3 sm:py-4 transition-colors cursor-pointer ${c.hover}`} onClick={() => setExpandedUser(expandedUser === u.email ? null : u.email)}>
+                                <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center font-black text-xs sm:text-sm shrink-0 ${c.avatar}`}>
                                     {u.name?.charAt(0).toUpperCase()}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2">
-                                        <span className={`font-bold text-sm truncate ${c.text}`}>{u.name}</span>
-                                        <span className={`w-1.5 h-1.5 rounded-full ${(u.isOnline || isOnline(u.lastSeen)) ? c.dotOnline : c.dot}`} />
+                                        <span className={`font-bold text-xs sm:text-sm truncate ${c.text}`}>{u.name}</span>
+                                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${(u.isOnline || isOnline(u.lastSeen)) ? c.dotOnline : c.dot}`} />
                                     </div>
-                                    <span className={`text-xs truncate block ${c.textMuted}`}>{u.email}</span>
+                                    <span className={`text-[10px] sm:text-xs truncate block ${c.textMuted}`}>{u.email}</span>
                                 </div>
-                                <div className="flex items-center gap-3 shrink-0">
+                                <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
                                     {u.purchasedCourses?.length > 0 && (
-                                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full uppercase ${c.badgeGreen}`}>Paid</span>
-                                    )}
-                                    {u.trialExpiresAt && u.trialExpiresAt !== 'EXPIRED' && (
-                                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full uppercase ${c.badgeAmber}`}>Trial</span>
+                                        <span className={`hidden sm:inline px-2 py-0.5 text-[10px] font-bold rounded-full uppercase ${c.badgeGreen}`}>Paid</span>
                                     )}
                                     <button onClick={e => { e.stopPropagation(); handleStatusUpdate(u.email, u.status); }}
-                                        className={`p-2 rounded-lg transition-all ${c.btnToggleIcon}`} title={u.status === 'active' ? 'Suspend' : 'Activate'}>
+                                        className={`p-1.5 sm:p-2 rounded-lg transition-all ${c.btnToggleIcon}`} title={u.status === 'active' ? 'Suspend' : 'Activate'}>
                                         {u.status === 'active' ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
                                     </button>
                                     <button onClick={e => { e.stopPropagation(); handleDelete(u.email); }}
-                                        className={`p-2 rounded-lg transition-all ${c.btnDangerIcon}`}>
+                                        className={`p-1.5 sm:p-2 rounded-lg transition-all ${c.btnDangerIcon}`}>
                                         <Trash2 className="w-4 h-4" />
                                     </button>
                                     <ChevronDown className={`w-4 h-4 ${c.textMuted} transition-transform ${expandedUser === u.email ? 'rotate-180' : ''}`} />
@@ -251,8 +248,8 @@ function MembersTab({ users, searchTerm, setSearchTerm, filterRole, setFilterRol
                             <AnimatePresence>
                                 {expandedUser === u.email && (
                                     <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
-                                        <div className={`px-5 pb-4 border-t ${c.inset}`}>
-                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-4">
+                                        <div className={`px-4 sm:px-5 pb-4 border-t ${c.inset}`}>
+                                            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 py-4">
                                                 <div>
                                                     <div className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${c.textMuted}`}>Role</div>
                                                     <div className={`text-sm font-bold capitalize ${c.text}`}>{u.role || 'student'}</div>
@@ -325,12 +322,12 @@ function FeedbackTab({ feedback, updateFeedbackStatus, deleteFeedback, replyToFe
                     <h3 className={`text-sm font-black uppercase tracking-widest mb-3 ${c.sectionHead}`}>Certificate Requests ({pendingCerts.length})</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {pendingCerts.map((u: any) => (
-                            <div key={u.email} className={`rounded-2xl border p-5 flex items-center justify-between ${c.card}`}>
+                            <div key={u.email} className={`rounded-2xl border p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${c.card}`}>
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${c.avatarAmber}`}>{u.name?.charAt(0)}</div>
+                                    <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center font-black text-xs sm:text-sm ${c.avatarAmber}`}>{u.name?.charAt(0)}</div>
                                     <div>
-                                        <div className={`font-bold text-sm ${c.text}`}>{u.name}</div>
-                                        <div className={`text-xs ${c.textMuted}`}>{u.email}</div>
+                                        <div className={`font-bold text-xs sm:text-sm ${c.text}`}>{u.name}</div>
+                                        <div className={`text-[10px] sm:text-xs ${c.textMuted}`}>{u.email}</div>
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
@@ -471,25 +468,29 @@ function CodesTab({ codes, codeType, setCodeType, generatedCode, handleGenerateC
                 </div>
                 <div className={`divide-y ${c.divider}`}>
                     {codes.slice(0, 30).map((code: any) => (
-                        <div key={code.id} className={`flex items-center gap-4 px-5 py-3 transition-colors ${c.hover}`}>
-                            <span className={`font-mono text-sm font-bold w-40 truncate ${c.text}`}>{code.code}</span>
-                            <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full uppercase ${code.type === 'lifetime' ? c.badgeGreen : code.type === '3days' ? c.badgeBlue : c.badgeAmber}`}>
-                                {code.type}
-                            </span>
-                            <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${code.isRevoked ? c.badgeRed : code.isUsed ? c.badgeGray : c.badgeGreen}`}>
-                                {code.isRevoked ? 'Revoked' : code.isUsed ? `Used by ${code.usedBy || '?'}` : 'Available'}
-                            </span>
-                            <div className="flex-1" />
-                            <div className="flex gap-2">
-                                {!code.isUsed && !code.isRevoked && (
-                                    <button onClick={() => { revokeAccessCode(code.code); toast.success('Code revoked'); }}
-                                        className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${c.btnAmber}`}>Revoke</button>
-                                )}
-                                <button onClick={() => { if (confirm('Permanently delete this code?')) { deleteAccessCode(code.code); toast.success('Code deleted'); } }}
-                                    className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${c.btnRed}`}>Delete</button>
+                        <div key={code.id} className={`px-4 sm:px-5 py-3 transition-colors ${c.hover}`}>
+                            <div className="flex items-center gap-2 sm:gap-3 mb-2">
+                                <span className={`font-mono text-xs sm:text-sm font-bold truncate min-w-0 ${c.text}`}>{code.code}</span>
+                                <span className={`shrink-0 px-2 py-0.5 text-[10px] font-bold rounded-full uppercase ${code.type === 'lifetime' ? c.badgeGreen : code.type === '3days' ? c.badgeBlue : c.badgeAmber}`}>
+                                    {code.type}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${code.isRevoked ? c.badgeRed : code.isUsed ? c.badgeGray : c.badgeGreen}`}>
+                                    {code.isRevoked ? 'Revoked' : code.isUsed ? `Used by ${code.usedBy || '?'}` : 'Available'}
+                                </span>
+                                <div className="flex-1" />
+                                <div className="flex gap-1.5">
+                                    {!code.isUsed && !code.isRevoked && (
+                                        <button onClick={() => { revokeAccessCode(code.code); toast.success('Code revoked'); }}
+                                            className={`px-3 py-1 text-[10px] sm:text-xs font-bold rounded-lg transition-all ${c.btnAmber}`}>Revoke</button>
+                                    )}
+                                    <button onClick={() => { if (confirm('Permanently delete this code?')) { deleteAccessCode(code.code); toast.success('Code deleted'); } }}
+                                        className={`px-3 py-1 text-[10px] sm:text-xs font-bold rounded-lg transition-all ${c.btnRed}`}>Delete</button>
+                                </div>
                             </div>
                         </div>
-                    ))}
+                    ))}]
                 </div>
                 {codes.length === 0 && (
                     <div className="py-16 text-center">
@@ -523,16 +524,16 @@ function ProgressTab({ users, defaultCurriculum, isRich }: any) {
 
                         return (
                             <div key={u.email}>
-                                <div className={`flex items-center gap-4 px-5 py-4 transition-colors cursor-pointer ${c.hover}`} onClick={() => setExpandedProgressUser(expandedProgressUser === u.email ? null : u.email)}>
-                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${c.avatar}`}>{u.name?.charAt(0)}</div>
+                                <div className={`flex items-center gap-3 sm:gap-4 px-4 sm:px-5 py-3 sm:py-4 transition-colors cursor-pointer ${c.hover}`} onClick={() => setExpandedProgressUser(expandedProgressUser === u.email ? null : u.email)}>
+                                    <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center font-black text-xs sm:text-sm shrink-0 ${c.avatar}`}>{u.name?.charAt(0)}</div>
                                     <div className="flex-1 min-w-0">
-                                        <div className={`font-bold text-sm ${c.text}`}>{u.name}</div>
-                                        <div className={`text-xs ${c.textMuted}`}>{u.purchasedCourses?.join(', ')}</div>
+                                        <div className={`font-bold text-xs sm:text-sm truncate ${c.text}`}>{u.name}</div>
+                                        <div className={`text-[10px] sm:text-xs truncate ${c.textMuted}`}>{u.purchasedCourses?.join(', ')}</div>
                                     </div>
-                                    <div className="w-32">
+                                    <div className="w-24 sm:w-32 shrink-0">
                                         <div className="flex items-center justify-between mb-1">
-                                            <span className={`text-xs font-bold ${c.textMuted}`}>{completed}/{totalLessons}</span>
-                                            <span className={`text-xs font-bold ${c.text}`}>{pct}%</span>
+                                            <span className={`text-[10px] sm:text-xs font-bold ${c.textMuted}`}>{completed}/{totalLessons}</span>
+                                            <span className={`text-[10px] sm:text-xs font-bold ${c.text}`}>{pct}%</span>
                                         </div>
                                         <div className={`w-full h-2 rounded-full overflow-hidden ${c.progressBg}`}>
                                             <div className={`h-full rounded-full transition-all ${pct === 100 ? c.progressFillFull : c.progressFill}`} style={{ width: `${pct}%` }} />
@@ -657,6 +658,10 @@ const AdminDashboard: React.FC = () => {
     const [sqlStats, setSqlStats] = useState<any>(null);
     const [activityLogs, setActivityLogs] = useState<any[]>([]);
     const [viewingUserActivity, setViewingUserActivity] = useState<string | null>(null);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+    // Close mobile menu when tab changes
+    const switchTab = (tab: Tab) => { setActiveTab(tab); setMobileMenuOpen(false); };
 
     useEffect(() => {
         if (!currentUser || currentUser.role !== 'admin') { navigate('/dashboard'); return; }
@@ -709,53 +714,101 @@ const AdminDashboard: React.FC = () => {
     const unreadFeedback = feedback.filter((f: any) => f.status === 'pending').length;
     const c = t(isRich);
 
+    const SidebarContent = () => (
+        <>
+            <div className={`p-5 border-b ${c.border}`}>
+                <div className="flex items-center gap-2 mb-1">
+                    <ShieldCheck className={`w-5 h-5 ${isRich ? 'text-emerald-600' : 'text-primary'}`} />
+                    <span className={`text-sm font-black ${c.text}`}>Admin Panel</span>
+                </div>
+                <p className={`text-[11px] ${c.textMuted}`}>DevMastery Control Center</p>
+            </div>
+
+            <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+                {TABS.map(tab => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
+                    const badge = tab.id === 'feedback' ? unreadFeedback : 0;
+                    return (
+                        <button key={tab.id} onClick={() => switchTab(tab.id)}
+                            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                                isActive
+                                    ? isRich ? 'bg-emerald-50 text-emerald-700 font-bold' : 'bg-primary/10 text-primary font-bold'
+                                    : isRich ? 'text-gray-500 hover:text-gray-900 hover:bg-gray-50' : 'text-muted-foreground hover:text-white hover:bg-white/5'
+                            }`}>
+                            <Icon className="w-4 h-4" />
+                            <span className="flex-1 text-left truncate">{tab.label}</span>
+                            {badge > 0 && <span className="px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full">{badge}</span>}
+                        </button>
+                    );
+                })}
+            </nav>
+
+            <div className={`p-3 border-t space-y-2 ${c.border}`}>
+                <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${isRich ? 'text-gray-500 hover:text-gray-900 hover:bg-gray-50' : 'text-muted-foreground hover:text-white hover:bg-white/5'}`}>
+                    <Eye className="w-4 h-4" /> View Site
+                </Link>
+                <button onClick={() => { logout(); navigate('/'); }}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${isRich ? 'text-red-500 hover:text-red-700 hover:bg-red-50' : 'text-red-400 hover:text-red-300 hover:bg-red-500/10'}`}>
+                    <LogOut className="w-4 h-4" /> Sign Out
+                </button>
+            </div>
+        </>
+    );
+
     return (
-        <div className={`min-h-screen flex ${c.page}`}>
-            {/* Sidebar */}
-            <aside className={`w-64 flex flex-col shrink-0 fixed h-full border-r ${c.sidebar}`}>
-                <div className={`p-5 border-b ${c.border}`}>
-                    <div className="flex items-center gap-2 mb-1">
-                        <ShieldCheck className={`w-5 h-5 ${isRich ? 'text-emerald-600' : 'text-primary'}`} />
-                        <span className={`text-sm font-black ${c.text}`}>Admin Panel</span>
-                    </div>
-                    <p className={`text-[11px] ${c.textMuted}`}>DevMastery Control Center</p>
-                </div>
-
-                <nav className="flex-1 p-3 space-y-1">
-                    {TABS.map(tab => {
-                        const Icon = tab.icon;
-                        const isActive = activeTab === tab.id;
-                        const badge = tab.id === 'feedback' ? unreadFeedback : 0;
-                        return (
-                            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                                    isActive
-                                        ? isRich ? 'bg-emerald-50 text-emerald-700 font-bold' : 'bg-primary/10 text-primary font-bold'
-                                        : isRich ? 'text-gray-500 hover:text-gray-900 hover:bg-gray-50' : 'text-muted-foreground hover:text-white hover:bg-white/5'
-                                }`}>
-                                <Icon className="w-4 h-4" />
-                                <span className="flex-1 text-left">{tab.label}</span>
-                                {badge > 0 && <span className="px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full">{badge}</span>}
-                            </button>
-                        );
-                    })}
-                </nav>
-
-                <div className={`p-3 border-t space-y-2 ${c.border}`}>
-                    <Link to="/dashboard" className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${isRich ? 'text-gray-500 hover:text-gray-900 hover:bg-gray-50' : 'text-muted-foreground hover:text-white hover:bg-white/5'}`}>
-                        <Eye className="w-4 h-4" /> View Site
-                    </Link>
-                    <button onClick={() => { logout(); navigate('/'); }}
-                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${isRich ? 'text-red-500 hover:text-red-700 hover:bg-red-50' : 'text-red-400 hover:text-red-300 hover:bg-red-500/10'}`}>
-                        <LogOut className="w-4 h-4" /> Sign Out
-                    </button>
-                </div>
+        <div className={`min-h-screen ${c.page} pb-20 lg:pb-0`}>
+            {/* Desktop Sidebar */}
+            <aside className={`hidden lg:flex w-64 flex-col shrink-0 fixed h-full border-r ${c.sidebar}`}>
+                <SidebarContent />
             </aside>
 
+            {/* Mobile Slide-Over Sidebar */}
+            <AnimatePresence>
+                {mobileMenuOpen && (
+                    <>
+                        <motion.div
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+                            onClick={() => setMobileMenuOpen(false)}
+                        />
+                        <motion.aside
+                            initial={{ x: -280 }} animate={{ x: 0 }} exit={{ x: -280 }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                            className={`fixed top-0 left-0 h-full w-72 flex flex-col z-50 lg:hidden shadow-2xl ${c.sidebar}`}
+                        >
+                            <div className={`flex items-center justify-between p-4 border-b ${c.border}`}>
+                                <span className={`text-sm font-black ${c.text}`}>Menu</span>
+                                <button onClick={() => setMobileMenuOpen(false)} className={`p-2 rounded-lg ${c.btnGhost}`}>
+                                    <XCircle className="w-5 h-5" />
+                                </button>
+                            </div>
+                            <SidebarContent />
+                        </motion.aside>
+                    </>
+                )}
+            </AnimatePresence>
+
+            {/* Mobile Top Bar */}
+            <div className={`lg:hidden sticky top-0 z-30 flex items-center gap-3 px-4 py-3 border-b backdrop-blur-xl ${c.sidebar}`}>
+                <button onClick={() => setMobileMenuOpen(true)} className={`p-2 rounded-xl ${c.hoverStrong}`}>
+                    <svg className={`w-5 h-5 ${c.text}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                </button>
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                        <ShieldCheck className={`w-4 h-4 shrink-0 ${isRich ? 'text-emerald-600' : 'text-primary'}`} />
+                        <span className={`text-sm font-black truncate ${c.text}`}>{TABS.find(t2 => t2.id === activeTab)?.label}</span>
+                    </div>
+                </div>
+                {unreadFeedback > 0 && (
+                    <span className="px-2 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full">{unreadFeedback}</span>
+                )}
+            </div>
+
             {/* Main Content */}
-            <main className={`flex-1 ml-64 p-6 ${c.page}`}>
+            <main className="lg:ml-64 p-4 sm:p-6">
                 <div className="max-w-6xl">
-                    <div className="mb-6">
+                    <div className="mb-4 sm:mb-6 hidden lg:block">
                         <h1 className={`text-2xl font-black tracking-tight ${c.text}`}>
                             {TABS.find(t2 => t2.id === activeTab)?.label}
                         </h1>
@@ -774,6 +827,36 @@ const AdminDashboard: React.FC = () => {
                     </AnimatePresence>
                 </div>
             </main>
+
+            {/* Mobile Bottom Tab Bar */}
+            <nav className={`lg:hidden fixed bottom-0 inset-x-0 z-30 border-t backdrop-blur-xl ${c.sidebar}`}>
+                <div className="flex items-center justify-around px-1 py-1.5 safe-area-bottom">
+                    {TABS.map(tab => {
+                        const Icon = tab.icon;
+                        const isActive = activeTab === tab.id;
+                        const badge = tab.id === 'feedback' ? unreadFeedback : 0;
+                        return (
+                            <button key={tab.id} onClick={() => switchTab(tab.id)}
+                                className={`relative flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl transition-all min-w-0 ${
+                                    isActive
+                                        ? isRich ? 'text-emerald-700' : 'text-primary'
+                                        : c.textMuted
+                                }`}>
+                                <Icon className="w-5 h-5" />
+                                <span className="text-[9px] font-bold truncate w-full text-center">
+                                    {tab.id === 'codes' ? 'Codes' : tab.label.length > 8 ? tab.label.slice(0, 7) + '…' : tab.label}
+                                </span>
+                                {badge > 0 && (
+                                    <span className="absolute -top-0.5 right-0 w-4 h-4 flex items-center justify-center bg-red-500 text-white text-[8px] font-bold rounded-full">{badge}</span>
+                                )}
+                                {isActive && (
+                                    <motion.div layoutId="activeTab" className={`absolute -bottom-1 w-5 h-0.5 rounded-full ${isRich ? 'bg-emerald-600' : 'bg-primary'}`} />
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
+            </nav>
         </div>
     );
 };
