@@ -33,6 +33,69 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
     { id: 'activity', label: 'Activity', icon: Activity },
 ];
 
+// Theme helper: returns theme-aware class strings
+function t(isRich: boolean) {
+    return {
+        // Surfaces
+        page: isRich ? 'bg-gray-50' : 'bg-background',
+        sidebar: isRich ? 'bg-white border-black/[0.06]' : 'bg-secondary/20 border-white/5 backdrop-blur-xl',
+        card: isRich ? 'bg-white border-black/[0.06]' : 'bg-secondary/20 border-white/5',
+        cardHover: isRich ? 'hover:shadow-lg hover:shadow-black/[0.03]' : 'hover:bg-secondary/40',
+        muted: isRich ? 'bg-gray-50' : 'bg-white/5',
+        inset: isRich ? 'bg-gray-50/50 border-black/[0.04]' : 'bg-white/5 border-white/5',
+        input: isRich ? 'bg-white border-black/[0.06] text-gray-900 placeholder:text-gray-400 focus:ring-emerald-300/40 focus:border-emerald-300' : 'bg-white/5 border-white/10 text-white placeholder:text-muted-foreground focus:ring-primary/40 focus:border-primary/40',
+        inputMuted: isRich ? 'bg-gray-100' : 'bg-white/5',
+        pill: isRich ? 'bg-gray-100' : 'bg-white/5',
+        pillActive: isRich ? 'bg-white text-gray-900 shadow-sm' : 'bg-secondary/40 text-white shadow-sm',
+        pillInactive: isRich ? 'text-gray-400 hover:text-gray-600' : 'text-muted-foreground hover:text-white',
+        divider: isRich ? 'divide-black/[0.04]' : 'divide-white/5',
+        border: isRich ? 'border-black/[0.06]' : 'border-white/5',
+        borderSubtle: isRich ? 'border-black/[0.04]' : 'border-white/[0.04]',
+        // Text
+        text: isRich ? 'text-gray-900' : 'text-white',
+        textSub: isRich ? 'text-gray-500' : 'text-muted-foreground',
+        textMuted: isRich ? 'text-gray-400' : 'text-muted-foreground',
+        textDim: isRich ? 'text-gray-300' : 'text-muted-foreground/50',
+        // Hover
+        hover: isRich ? 'hover:bg-gray-50' : 'hover:bg-white/5',
+        hoverStrong: isRich ? 'hover:bg-gray-100' : 'hover:bg-white/10',
+        // Avatars
+        avatar: isRich ? 'bg-emerald-50 text-emerald-700' : 'bg-emerald-500/10 text-emerald-400',
+        avatarAmber: isRich ? 'bg-amber-50 text-amber-700' : 'bg-amber-500/10 text-amber-400',
+        avatarRed: isRich ? 'bg-red-50 text-red-600' : 'bg-red-500/10 text-red-400',
+        avatarBlue: isRich ? 'bg-blue-50 text-blue-600' : 'bg-blue-500/10 text-blue-400',
+        // Badges
+        badgeGreen: isRich ? 'bg-emerald-50 text-emerald-700' : 'bg-emerald-500/10 text-emerald-400',
+        badgeAmber: isRich ? 'bg-amber-50 text-amber-700' : 'bg-amber-500/10 text-amber-400',
+        badgeGray: isRich ? 'bg-gray-100 text-gray-500' : 'bg-white/5 text-muted-foreground',
+        badgeRed: isRich ? 'bg-red-50 text-red-500' : 'bg-red-500/10 text-red-400',
+        badgeBlue: isRich ? 'bg-blue-50 text-blue-700' : 'bg-blue-500/10 text-blue-400',
+        // Buttons
+        btnPrimary: isRich ? 'bg-emerald-900 text-white hover:bg-emerald-800' : 'bg-primary text-white hover:bg-primary/80',
+        btnGreen: isRich ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-emerald-500 text-white hover:bg-emerald-600',
+        btnGhost: isRich ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20',
+        btnMuted: isRich ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : 'bg-white/5 text-muted-foreground hover:bg-white/10',
+        btnDangerIcon: isRich ? 'text-gray-400 hover:text-red-500 hover:bg-red-50' : 'text-muted-foreground hover:text-red-400 hover:bg-red-500/10',
+        btnToggleIcon: isRich ? 'text-gray-400 hover:text-gray-900 hover:bg-gray-100' : 'text-muted-foreground hover:text-white hover:bg-white/10',
+        btnRed: isRich ? 'text-red-500 bg-red-50 hover:bg-red-100' : 'text-red-400 bg-red-500/10 hover:bg-red-500/20',
+        btnAmber: isRich ? 'text-amber-600 bg-amber-50 hover:bg-amber-100' : 'text-amber-400 bg-amber-500/10 hover:bg-amber-500/20',
+        // Progress
+        progressBg: isRich ? 'bg-gray-100' : 'bg-white/10',
+        progressFill: isRich ? 'bg-emerald-400' : 'bg-primary',
+        progressFillFull: isRich ? 'bg-emerald-500' : 'bg-emerald-400',
+        // Misc
+        emptyIcon: isRich ? 'text-gray-300' : 'text-muted-foreground/50',
+        link: isRich ? 'text-emerald-600 hover:text-emerald-800' : 'text-emerald-400 hover:text-emerald-300',
+        sectionHead: isRich ? 'text-gray-900' : 'text-white',
+        dot: isRich ? 'bg-gray-300' : 'bg-muted-foreground/50',
+        dotOnline: 'bg-green-500',
+        replyBg: isRich ? 'bg-emerald-50 rounded-xl' : 'bg-emerald-500/10 rounded-xl',
+        replyText: isRich ? 'text-emerald-800' : 'text-emerald-300',
+        replyLabel: isRich ? 'text-emerald-600' : 'text-emerald-400',
+        codeMono: isRich ? 'text-emerald-800' : 'text-emerald-300',
+    };
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // STAT CARD
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -41,16 +104,17 @@ function StatCard({ label, value, sub, icon: Icon, color, isRich = true }: {
     label: string; value: number | string; sub?: string;
     icon: React.ElementType; color: string; isRich?: boolean;
 }) {
+    const c = t(isRich);
     return (
-        <div className={`rounded-2xl border p-5 transition-all ${isRich ? 'bg-white border-black/[0.06] hover:shadow-lg hover:shadow-black/[0.03]' : 'bg-secondary/20 border-white/5 hover:bg-secondary/40'}`}>
+        <div className={`rounded-2xl border p-5 transition-all ${c.card} ${c.cardHover}`}>
             <div className="flex items-start justify-between mb-3">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color}`}>
                     <Icon className="w-5 h-5" />
                 </div>
-                {sub && <span className={`text-[10px] font-bold uppercase tracking-wider ${isRich ? 'text-gray-400' : 'text-muted-foreground'}`}>{sub}</span>}
+                {sub && <span className={`text-[10px] font-bold uppercase tracking-wider ${c.textMuted}`}>{sub}</span>}
             </div>
-            <div className={`text-2xl font-black tracking-tight ${isRich ? 'text-gray-900' : 'text-white'}`}>{value}</div>
-            <div className={`text-xs font-medium mt-0.5 ${isRich ? 'text-gray-400' : 'text-muted-foreground'}`}>{label}</div>
+            <div className={`text-2xl font-black tracking-tight ${c.text}`}>{value}</div>
+            <div className={`text-xs font-medium mt-0.5 ${c.textMuted}`}>{label}</div>
         </div>
     );
 }
@@ -61,16 +125,12 @@ function StatCard({ label, value, sub, icon: Icon, color, isRich = true }: {
 
 function OverviewTab({ users, feedback, codes, sqlStats, isRich }: any) {
     const { isOfferActive, toggleOffer } = useOffer();
+    const c = t(isRich);
     const totalUsers = sqlStats?.totalUsers ?? users.length;
     const proUsers = sqlStats?.proMembers ?? users.filter((u: any) => u.purchasedCourses?.length > 0).length;
     const activeTrials = users.filter((u: any) => u.trialExpiresAt && u.trialExpiresAt !== 'EXPIRED').length;
     const pendingFeedback = feedback.filter((f: any) => f.status === 'pending').length;
     const pendingCerts = users.filter((u: any) => u.certificateStatus === 'pending').length;
-
-    const cardCls = isRich ? 'bg-white border-black/[0.06]' : 'bg-secondary/20 border-white/5';
-    const textPrimary = isRich ? 'text-gray-900' : 'text-white';
-    const textSecondary = isRich ? 'text-gray-400' : 'text-muted-foreground';
-    const bgMuted = isRich ? 'bg-gray-50' : 'bg-white/5';
 
     return (
         <div className="space-y-6">
@@ -81,33 +141,33 @@ function OverviewTab({ users, feedback, codes, sqlStats, isRich }: any) {
                 <StatCard label="Pending Items" value={pendingFeedback + pendingCerts} sub={`${pendingFeedback} feedback · ${pendingCerts} certs`} icon={AlertTriangle} color="bg-rose-50 text-rose-600" isRich={isRich} />
             </div>
 
-            <div className={`rounded-2xl border p-6 ${cardCls}`}>
-                <h3 className={`text-sm font-black uppercase tracking-widest mb-4 ${textPrimary}`}>Quick Actions</h3>
+            <div className={`rounded-2xl border p-6 ${c.card}`}>
+                <h3 className={`text-sm font-black uppercase tracking-widest mb-4 ${c.sectionHead}`}>Quick Actions</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <Link to="/dashboard" className={`flex items-center gap-3 p-4 rounded-xl border transition-all group ${isRich ? 'bg-gray-50 hover:bg-gray-100 border-black/[0.04]' : 'bg-white/5 hover:bg-white/10 border-white/5'}`}>
+                    <Link to="/dashboard" className={`flex items-center gap-3 p-4 rounded-xl border transition-all group ${c.muted} ${c.borderSubtle} ${c.hoverStrong}`}>
                         <Eye className={`w-5 h-5 ${isRich ? 'text-gray-400 group-hover:text-emerald-600' : 'text-muted-foreground group-hover:text-primary'} transition-colors`} />
                         <div>
-                            <div className={`text-sm font-bold ${textPrimary}`}>Preview Site</div>
-                            <div className={`text-[11px] ${textSecondary}`}>View as user</div>
+                            <div className={`text-sm font-bold ${c.text}`}>Preview Site</div>
+                            <div className={`text-[11px] ${c.textMuted}`}>View as user</div>
                         </div>
                     </Link>
-                    <button onClick={() => toggleOffer(!isOfferActive)} className={`flex items-center gap-3 p-4 rounded-xl border transition-all text-left ${isOfferActive ? (isRich ? 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100' : 'bg-primary/10 border-primary/20 hover:bg-primary/20') : (isRich ? 'bg-gray-50 border-black/[0.04] hover:bg-gray-100' : 'bg-white/5 border-white/5 hover:bg-white/10')}`}>
-                        <Zap className={`w-5 h-5 ${isOfferActive ? (isRich ? 'text-emerald-600' : 'text-primary') : (isRich ? 'text-gray-400' : 'text-muted-foreground')}`} />
+                    <button onClick={() => toggleOffer(!isOfferActive)} className={`flex items-center gap-3 p-4 rounded-xl border transition-all text-left ${isOfferActive ? (isRich ? 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100' : 'bg-primary/10 border-primary/20 hover:bg-primary/20') : `${c.muted} ${c.borderSubtle} ${c.hoverStrong}`}`}>
+                        <Zap className={`w-5 h-5 ${isOfferActive ? (isRich ? 'text-emerald-600' : 'text-primary') : c.textMuted}`} />
                         <div>
-                            <div className={`text-sm font-bold ${textPrimary}`}>Flash Offer</div>
-                            <div className={`text-[11px] font-medium ${isOfferActive ? (isRich ? 'text-emerald-600' : 'text-primary') : textSecondary}`}>{isOfferActive ? 'Active' : 'Inactive'}</div>
+                            <div className={`text-sm font-bold ${c.text}`}>Flash Offer</div>
+                            <div className={`text-[11px] font-medium ${isOfferActive ? (isRich ? 'text-emerald-600' : 'text-primary') : c.textMuted}`}>{isOfferActive ? 'Active' : 'Inactive'}</div>
                         </div>
                     </button>
                 </div>
             </div>
 
-            <div className={`rounded-2xl border p-6 ${cardCls}`}>
-                <h3 className={`text-sm font-black uppercase tracking-widest mb-4 ${textPrimary}`}>Platform Snapshot</h3>
+            <div className={`rounded-2xl border p-6 ${c.card}`}>
+                <h3 className={`text-sm font-black uppercase tracking-widest mb-4 ${c.sectionHead}`}>Platform Snapshot</h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {[{ label: 'Total Users', value: totalUsers }, { label: 'Conversion', value: `${totalUsers > 0 ? Math.round((proUsers / totalUsers) * 100) : 0}%` }, { label: 'Access Codes', value: codes.length }].map((s, i) => (
-                        <div key={i} className={`p-4 rounded-xl ${bgMuted}`}>
-                            <div className={`text-xs font-bold uppercase tracking-wider mb-1 ${textSecondary}`}>{s.label}</div>
-                            <div className={`text-lg font-black ${textPrimary}`}>{s.value}</div>
+                        <div key={i} className={`p-4 rounded-xl ${c.muted}`}>
+                            <div className={`text-xs font-bold uppercase tracking-wider mb-1 ${c.textMuted}`}>{s.label}</div>
+                            <div className={`text-lg font-black ${c.text}`}>{s.value}</div>
                         </div>
                     ))}
                 </div>
@@ -120,7 +180,8 @@ function OverviewTab({ users, feedback, codes, sqlStats, isRich }: any) {
 // MEMBERS TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function MembersTab({ users, searchTerm, setSearchTerm, filterRole, setFilterRole, expandedUser, setExpandedUser, handleStatusUpdate, handleDelete, fetchUserActivity, setActiveTab }: any) {
+function MembersTab({ users, searchTerm, setSearchTerm, filterRole, setFilterRole, expandedUser, setExpandedUser, handleStatusUpdate, handleDelete, fetchUserActivity, setActiveTab, isRich }: any) {
+    const c = t(isRich);
     const filteredUsers = useMemo(() => {
         let result = users;
         if (filterRole === 'pro') result = result.filter((u: any) => u.purchasedCourses?.length > 0);
@@ -134,18 +195,18 @@ function MembersTab({ users, searchTerm, setSearchTerm, filterRole, setFilterRol
             {/* Search & Filters */}
             <div className="flex flex-col sm:flex-row gap-3">
                 <div className="flex-1 relative">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Search className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${c.textMuted}`} />
                     <input
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
                         placeholder="Search by name or email..."
-                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-black/[0.06] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300/40 focus:border-emerald-300 transition-all"
+                        className={`w-full pl-10 pr-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all ${c.input}`}
                     />
                 </div>
-                <div className="flex gap-1.5 p-1 bg-gray-100 rounded-xl">
+                <div className={`flex gap-1.5 p-1 rounded-xl ${c.pill}`}>
                     {(['all', 'pro', 'online'] as const).map(f => (
                         <button key={f} onClick={() => setFilterRole(f)}
-                            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${filterRole === f ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
+                            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${filterRole === f ? c.pillActive : c.pillInactive}`}>
                             {f === 'all' ? 'All' : f === 'pro' ? 'Paid' : 'Online'}
                         </button>
                     ))}
@@ -153,68 +214,68 @@ function MembersTab({ users, searchTerm, setSearchTerm, filterRole, setFilterRol
             </div>
 
             {/* User List */}
-            <div className="bg-white rounded-2xl border border-black/[0.06] overflow-hidden">
-                <div className="divide-y divide-black/[0.04]">
+            <div className={`rounded-2xl border overflow-hidden ${c.card}`}>
+                <div className={`divide-y ${c.divider}`}>
                     {filteredUsers.slice(0, 50).map((u: any) => (
                         <div key={u.email}>
-                            <div className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => setExpandedUser(expandedUser === u.email ? null : u.email)}>
-                                <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center font-black text-emerald-700 text-sm shrink-0">
+                            <div className={`flex items-center gap-4 px-5 py-4 transition-colors cursor-pointer ${c.hover}`} onClick={() => setExpandedUser(expandedUser === u.email ? null : u.email)}>
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm shrink-0 ${c.avatar}`}>
                                     {u.name?.charAt(0).toUpperCase()}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2">
-                                        <span className="font-bold text-sm text-gray-900 truncate">{u.name}</span>
-                                        <span className={`w-1.5 h-1.5 rounded-full ${(u.isOnline || isOnline(u.lastSeen)) ? 'bg-green-500' : 'bg-gray-300'}`} />
+                                        <span className={`font-bold text-sm truncate ${c.text}`}>{u.name}</span>
+                                        <span className={`w-1.5 h-1.5 rounded-full ${(u.isOnline || isOnline(u.lastSeen)) ? c.dotOnline : c.dot}`} />
                                     </div>
-                                    <span className="text-xs text-gray-400 truncate block">{u.email}</span>
+                                    <span className={`text-xs truncate block ${c.textMuted}`}>{u.email}</span>
                                 </div>
                                 <div className="flex items-center gap-3 shrink-0">
                                     {u.purchasedCourses?.length > 0 && (
-                                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-full uppercase">Paid</span>
+                                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full uppercase ${c.badgeGreen}`}>Paid</span>
                                     )}
                                     {u.trialExpiresAt && u.trialExpiresAt !== 'EXPIRED' && (
-                                        <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded-full uppercase">Trial</span>
+                                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full uppercase ${c.badgeAmber}`}>Trial</span>
                                     )}
                                     <button onClick={e => { e.stopPropagation(); handleStatusUpdate(u.email, u.status); }}
-                                        className="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all" title={u.status === 'active' ? 'Suspend' : 'Activate'}>
+                                        className={`p-2 rounded-lg transition-all ${c.btnToggleIcon}`} title={u.status === 'active' ? 'Suspend' : 'Activate'}>
                                         {u.status === 'active' ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
                                     </button>
                                     <button onClick={e => { e.stopPropagation(); handleDelete(u.email); }}
-                                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
+                                        className={`p-2 rounded-lg transition-all ${c.btnDangerIcon}`}>
                                         <Trash2 className="w-4 h-4" />
                                     </button>
-                                    <ChevronDown className={`w-4 h-4 text-gray-300 transition-transform ${expandedUser === u.email ? 'rotate-180' : ''}`} />
+                                    <ChevronDown className={`w-4 h-4 ${c.textMuted} transition-transform ${expandedUser === u.email ? 'rotate-180' : ''}`} />
                                 </div>
                             </div>
 
                             <AnimatePresence>
                                 {expandedUser === u.email && (
                                     <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
-                                        <div className="px-5 pb-4 bg-gray-50/50 border-t border-black/[0.04]">
+                                        <div className={`px-5 pb-4 border-t ${c.inset}`}>
                                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-4">
                                                 <div>
-                                                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Role</div>
-                                                    <div className="text-sm font-bold text-gray-900 capitalize">{u.role || 'student'}</div>
+                                                    <div className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${c.textMuted}`}>Role</div>
+                                                    <div className={`text-sm font-bold capitalize ${c.text}`}>{u.role || 'student'}</div>
                                                 </div>
                                                 <div>
-                                                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Courses</div>
+                                                    <div className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${c.textMuted}`}>Courses</div>
                                                     <div className="flex flex-wrap gap-1">
-                                                        {u.purchasedCourses?.length > 0 ? u.purchasedCourses.map((c: string) => (
-                                                            <span key={c} className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded">{c}</span>
-                                                        )) : <span className="text-xs text-gray-400">None</span>}
+                                                        {u.purchasedCourses?.length > 0 ? u.purchasedCourses.map((course: string) => (
+                                                            <span key={course} className={`px-2 py-0.5 text-[10px] font-bold rounded ${c.badgeGreen}`}>{course}</span>
+                                                        )) : <span className={`text-xs ${c.textMuted}`}>None</span>}
                                                     </div>
                                                 </div>
                                                 <div>
-                                                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">XP / Level</div>
-                                                    <div className="text-sm font-bold text-gray-900">{u.xp || 0} XP · LVL {u.level || 1}</div>
+                                                    <div className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${c.textMuted}`}>XP / Level</div>
+                                                    <div className={`text-sm font-bold ${c.text}`}>{u.xp || 0} XP · LVL {u.level || 1}</div>
                                                 </div>
                                                 <div>
-                                                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Certificate</div>
-                                                    <div className="text-sm font-bold text-gray-900 capitalize">{u.certificateStatus || 'locked'}</div>
+                                                    <div className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${c.textMuted}`}>Certificate</div>
+                                                    <div className={`text-sm font-bold capitalize ${c.text}`}>{u.certificateStatus || 'locked'}</div>
                                                 </div>
                                             </div>
                                             <button onClick={() => { fetchUserActivity(u.id); setActiveTab('activity'); }}
-                                                className="text-xs font-bold text-emerald-600 hover:text-emerald-800 transition-colors">
+                                                className={`text-xs font-bold transition-colors ${c.link}`}>
                                                 View Activity History →
                                             </button>
                                         </div>
@@ -226,8 +287,8 @@ function MembersTab({ users, searchTerm, setSearchTerm, filterRole, setFilterRol
                 </div>
                 {filteredUsers.length === 0 && (
                     <div className="py-16 text-center">
-                        <Users className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                        <p className="text-sm text-gray-400">No users found</p>
+                        <Users className={`w-10 h-10 mx-auto mb-3 ${c.emptyIcon}`} />
+                        <p className={`text-sm ${c.textMuted}`}>No users found</p>
                     </div>
                 )}
             </div>
@@ -239,7 +300,8 @@ function MembersTab({ users, searchTerm, setSearchTerm, filterRole, setFilterRol
 // FEEDBACK TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function FeedbackTab({ feedback, updateFeedbackStatus, deleteFeedback, replyToFeedback, users, getAllUsers, approveCertificate, rejectCertificate }: any) {
+function FeedbackTab({ feedback, updateFeedbackStatus, deleteFeedback, replyToFeedback, users, getAllUsers, approveCertificate, rejectCertificate, isRich }: any) {
+    const c = t(isRich);
     const [replyingTo, setReplyingTo] = useState<string | null>(null);
     const [replyText, setReplyText] = useState('');
 
@@ -260,22 +322,22 @@ function FeedbackTab({ feedback, updateFeedbackStatus, deleteFeedback, replyToFe
             {/* Certificate Requests */}
             {pendingCerts.length > 0 && (
                 <div>
-                    <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-3">Certificate Requests ({pendingCerts.length})</h3>
+                    <h3 className={`text-sm font-black uppercase tracking-widest mb-3 ${c.sectionHead}`}>Certificate Requests ({pendingCerts.length})</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {pendingCerts.map((u: any) => (
-                            <div key={u.email} className="bg-white rounded-2xl border border-black/[0.06] p-5 flex items-center justify-between">
+                            <div key={u.email} className={`rounded-2xl border p-5 flex items-center justify-between ${c.card}`}>
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center font-black text-amber-700 text-sm">{u.name?.charAt(0)}</div>
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${c.avatarAmber}`}>{u.name?.charAt(0)}</div>
                                     <div>
-                                        <div className="font-bold text-sm text-gray-900">{u.name}</div>
-                                        <div className="text-xs text-gray-400">{u.email}</div>
+                                        <div className={`font-bold text-sm ${c.text}`}>{u.name}</div>
+                                        <div className={`text-xs ${c.textMuted}`}>{u.email}</div>
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
                                     <button onClick={async () => { await approveCertificate(u.email); toast.success('Certificate approved'); }}
-                                        className="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 transition-all">Approve</button>
+                                        className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${c.btnGreen}`}>Approve</button>
                                     <button onClick={async () => { await rejectCertificate(u.email); toast.success('Certificate rejected'); }}
-                                        className="px-4 py-2 bg-gray-100 text-gray-600 text-xs font-bold rounded-lg hover:bg-gray-200 transition-all">Reject</button>
+                                        className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${c.btnMuted}`}>Reject</button>
                                 </div>
                             </div>
                         ))}
@@ -286,27 +348,27 @@ function FeedbackTab({ feedback, updateFeedbackStatus, deleteFeedback, replyToFe
             {/* Appeal Requests */}
             {requestItems.length > 0 && (
                 <div>
-                    <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-3">Account Appeals ({requestItems.length})</h3>
+                    <h3 className={`text-sm font-black uppercase tracking-widest mb-3 ${c.sectionHead}`}>Account Appeals ({requestItems.length})</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {requestItems.map((item: any) => (
-                            <div key={item.id} className="bg-white rounded-2xl border border-black/[0.06] p-5">
+                            <div key={item.id} className={`rounded-2xl border p-5 ${c.card}`}>
                                 <div className="flex items-center gap-3 mb-3">
-                                    <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center font-black text-red-600 text-sm">{item.userName?.charAt(0)}</div>
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${c.avatarRed}`}>{item.userName?.charAt(0)}</div>
                                     <div className="flex-1">
-                                        <div className="font-bold text-sm text-gray-900">{item.userName}</div>
-                                        <div className="text-xs text-gray-400">{item.userId}</div>
+                                        <div className={`font-bold text-sm ${c.text}`}>{item.userName}</div>
+                                        <div className={`text-xs ${c.textMuted}`}>{item.userId}</div>
                                     </div>
-                                    <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded-full">Appeal</span>
+                                    <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${c.badgeAmber}`}>Appeal</span>
                                 </div>
-                                <p className="text-sm text-gray-600 mb-4 italic">"{item.content}"</p>
+                                <p className={`text-sm italic mb-4 ${isRich ? 'text-gray-600' : 'text-muted-foreground'}`}>"{item.content}"</p>
                                 <div className="flex gap-2">
                                     <button onClick={async () => {
                                         await fetch(`/api/admin/users/${encodeURIComponent(item.userId)}/status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'active' }) });
                                         await updateFeedbackStatus(item.id, 'implemented');
                                         toast.success('User unblocked');
-                                    }} className="flex-1 py-2.5 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 transition-all">Unblock</button>
+                                    }} className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all ${c.btnGreen}`}>Unblock</button>
                                     <button onClick={async () => { await updateFeedbackStatus(item.id, 'ignored'); toast.success('Appeal dismissed'); }}
-                                        className="flex-1 py-2.5 bg-gray-100 text-gray-600 text-xs font-bold rounded-lg hover:bg-gray-200 transition-all">Dismiss</button>
+                                        className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all ${c.btnMuted}`}>Dismiss</button>
                                 </div>
                             </div>
                         ))}
@@ -316,51 +378,51 @@ function FeedbackTab({ feedback, updateFeedbackStatus, deleteFeedback, replyToFe
 
             {/* Feedback Items */}
             <div>
-                <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-3">User Feedback</h3>
+                <h3 className={`text-sm font-black uppercase tracking-widest mb-3 ${c.sectionHead}`}>User Feedback</h3>
                 {feedbackItems.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {feedbackItems.map((item: any) => (
-                            <div key={item.id} className="bg-white rounded-2xl border border-black/[0.06] p-5">
+                            <div key={item.id} className={`rounded-2xl border p-5 ${c.card}`}>
                                 <div className="flex items-center gap-3 mb-3">
-                                    <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center font-black text-blue-600 text-sm">{item.userName?.charAt(0)}</div>
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${c.avatarBlue}`}>{item.userName?.charAt(0)}</div>
                                     <div className="flex-1">
-                                        <div className="font-bold text-sm text-gray-900">{item.userName}</div>
-                                        <div className="text-xs text-gray-400">{new Date(item.createdAt).toLocaleDateString()}</div>
+                                        <div className={`font-bold text-sm ${c.text}`}>{item.userName}</div>
+                                        <div className={`text-xs ${c.textMuted}`}>{new Date(item.createdAt).toLocaleDateString()}</div>
                                     </div>
-                                    <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${item.status === 'implemented' ? 'bg-emerald-50 text-emerald-700' : item.status === 'ignored' ? 'bg-gray-100 text-gray-500' : 'bg-amber-50 text-amber-700'}`}>
+                                    <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${item.status === 'implemented' ? c.badgeGreen : item.status === 'ignored' ? c.badgeGray : c.badgeAmber}`}>
                                         {item.status}
                                     </span>
                                 </div>
-                                <p className="text-sm text-gray-600 mb-3">"{item.content}"</p>
+                                <p className={`text-sm mb-3 ${isRich ? 'text-gray-600' : 'text-muted-foreground'}`}>"{item.content}"</p>
 
                                 {item.reply && (
-                                    <div className="p-3 bg-emerald-50 rounded-xl mb-3">
-                                        <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-1">Reply</div>
-                                        <p className="text-xs text-emerald-800">{item.reply}</p>
+                                    <div className={`p-3 rounded-xl mb-3 ${c.replyBg}`}>
+                                        <div className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${c.replyLabel}`}>Reply</div>
+                                        <p className={`text-xs ${c.replyText}`}>{item.reply}</p>
                                     </div>
                                 )}
 
                                 {replyingTo === item.id ? (
                                     <div className="flex gap-2">
                                         <input value={replyText} onChange={e => setReplyText(e.target.value)} placeholder="Type your reply..."
-                                            className="flex-1 px-3 py-2 bg-gray-50 border border-black/[0.06] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300/40"
+                                            className={`flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 ${c.input}`}
                                             onKeyDown={e => e.key === 'Enter' && handleReply(item.id)} />
-                                        <button onClick={() => handleReply(item.id)} className="p-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"><Send className="w-4 h-4" /></button>
+                                        <button onClick={() => handleReply(item.id)} className={`p-2 rounded-lg ${c.btnGreen}`}><Send className="w-4 h-4" /></button>
                                     </div>
                                 ) : (
                                     <div className="flex gap-2">
-                                        <button onClick={() => updateFeedbackStatus(item.id, 'implemented')} className="flex-1 py-2 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-lg hover:bg-emerald-100 transition-all">Implement</button>
-                                        <button onClick={() => { setReplyingTo(item.id); setReplyText(''); }} className="flex-1 py-2 bg-gray-50 text-gray-600 text-xs font-bold rounded-lg hover:bg-gray-100 transition-all">Reply</button>
-                                        <button onClick={() => deleteFeedback(item.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 className="w-4 h-4" /></button>
+                                        <button onClick={() => updateFeedbackStatus(item.id, 'implemented')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${c.btnGhost}`}>Implement</button>
+                                        <button onClick={() => { setReplyingTo(item.id); setReplyText(''); }} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${c.btnMuted}`}>Reply</button>
+                                        <button onClick={() => deleteFeedback(item.id)} className={`p-2 rounded-lg transition-all ${c.btnDangerIcon}`}><Trash2 className="w-4 h-4" /></button>
                                     </div>
                                 )}
                             </div>
                         ))}
                     </div>
                 ) : (
-                    <div className="bg-white rounded-2xl border border-black/[0.06] py-16 text-center">
-                        <MessageSquare className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                        <p className="text-sm text-gray-400">No feedback yet</p>
+                    <div className={`rounded-2xl border py-16 text-center ${c.card}`}>
+                        <MessageSquare className={`w-10 h-10 mx-auto mb-3 ${c.emptyIcon}`} />
+                        <p className={`text-sm ${c.textMuted}`}>No feedback yet</p>
                     </div>
                 )}
             </div>
@@ -373,65 +435,66 @@ function FeedbackTab({ feedback, updateFeedbackStatus, deleteFeedback, replyToFe
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function CodesTab({ codes, codeType, setCodeType, generatedCode, handleGenerateCode, revokeAccessCode, deleteAccessCode, isRich }: any) {
+    const c = t(isRich);
     return (
         <div className="space-y-6">
             {/* Generator */}
-            <div className="bg-white rounded-2xl border border-black/[0.06] p-6">
-                <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-4">Generate Access Code</h3>
+            <div className={`rounded-2xl border p-6 ${c.card}`}>
+                <h3 className={`text-sm font-black uppercase tracking-widest mb-4 ${c.sectionHead}`}>Generate Access Code</h3>
                 <div className="flex flex-col sm:flex-row gap-3">
-                    <div className="flex gap-1.5 p-1 bg-gray-100 rounded-xl">
-                        {(['3days', '5mins'] as const).map(t => (
-                            <button key={t} onClick={() => setCodeType(t)}
-                                className={`px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${codeType === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
-                                {t === '3days' ? '3 Day Trial' : '5 Min Preview'}
+                    <div className={`flex gap-1.5 p-1 rounded-xl ${c.pill}`}>
+                        {(['3days', '5mins'] as const).map(t2 => (
+                            <button key={t2} onClick={() => setCodeType(t2)}
+                                className={`px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${codeType === t2 ? c.pillActive : c.pillInactive}`}>
+                                {t2 === '3days' ? '3 Day Trial' : '5 Min Preview'}
                             </button>
                         ))}
                     </div>
                     <button onClick={handleGenerateCode}
-                        className="px-6 py-2.5 bg-emerald-900 text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-emerald-800 transition-all">
+                        className={`px-6 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl transition-all ${c.btnPrimary}`}>
                         Generate
                     </button>
                 </div>
                 {generatedCode && (
-                    <div className="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3">
-                        <span className="font-mono text-lg font-black text-emerald-800">{generatedCode}</span>
+                    <div className={`mt-4 p-4 rounded-xl flex items-center gap-3 ${isRich ? 'bg-emerald-50 border border-emerald-200' : 'bg-emerald-500/10 border border-emerald-500/20'}`}>
+                        <span className={`font-mono text-lg font-black ${c.codeMono}`}>{generatedCode}</span>
                         <button onClick={() => { navigator.clipboard.writeText(generatedCode); toast.success('Copied!'); }}
-                            className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 transition-all">Copy</button>
+                            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${c.btnGreen}`}>Copy</button>
                     </div>
                 )}
             </div>
 
             {/* Codes List */}
-            <div className="bg-white rounded-2xl border border-black/[0.06] overflow-hidden">
-                <div className="px-5 py-4 border-b border-black/[0.04]">
-                    <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">All Codes ({codes.length})</h3>
+            <div className={`rounded-2xl border overflow-hidden ${c.card}`}>
+                <div className={`px-5 py-4 border-b ${c.border}`}>
+                    <h3 className={`text-sm font-black uppercase tracking-widest ${c.sectionHead}`}>All Codes ({codes.length})</h3>
                 </div>
-                <div className="divide-y divide-black/[0.04]">
+                <div className={`divide-y ${c.divider}`}>
                     {codes.slice(0, 30).map((code: any) => (
-                        <div key={code.id} className="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors">
-                            <span className="font-mono text-sm font-bold text-gray-900 w-40 truncate">{code.code}</span>
-                            <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full uppercase ${code.type === 'lifetime' ? 'bg-emerald-50 text-emerald-700' : code.type === '3days' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>
+                        <div key={code.id} className={`flex items-center gap-4 px-5 py-3 transition-colors ${c.hover}`}>
+                            <span className={`font-mono text-sm font-bold w-40 truncate ${c.text}`}>{code.code}</span>
+                            <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full uppercase ${code.type === 'lifetime' ? c.badgeGreen : code.type === '3days' ? c.badgeBlue : c.badgeAmber}`}>
                                 {code.type}
                             </span>
-                            <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${code.isUsed ? 'bg-gray-100 text-gray-500' : code.isRevoked ? 'bg-red-50 text-red-500' : 'bg-emerald-50 text-emerald-600'}`}>
+                            <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${code.isRevoked ? c.badgeRed : code.isUsed ? c.badgeGray : c.badgeGreen}`}>
                                 {code.isRevoked ? 'Revoked' : code.isUsed ? `Used by ${code.usedBy || '?'}` : 'Available'}
                             </span>
                             <div className="flex-1" />
                             <div className="flex gap-2">
                                 {!code.isUsed && !code.isRevoked && (
                                     <button onClick={() => { revokeAccessCode(code.code); toast.success('Code revoked'); }}
-                                        className="px-3 py-1 text-xs font-bold text-amber-600 bg-amber-50 rounded-lg hover:bg-amber-100 transition-all">Revoke</button>
+                                        className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${c.btnAmber}`}>Revoke</button>
                                 )}
                                 <button onClick={() => { if (confirm('Permanently delete this code?')) { deleteAccessCode(code.code); toast.success('Code deleted'); } }}
-                                    className="px-3 py-1 text-xs font-bold text-red-500 bg-red-50 rounded-lg hover:bg-red-100 transition-all">Delete</button>
+                                    className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${c.btnRed}`}>Delete</button>
                             </div>
                         </div>
                     ))}
                 </div>
                 {codes.length === 0 && (
                     <div className="py-16 text-center">
-                        <CreditCard className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                        <p className="text-sm text-gray-400">No codes generated yet</p>
+                        <CreditCard className={`w-10 h-10 mx-auto mb-3 ${c.emptyIcon}`} />
+                        <p className={`text-sm ${c.textMuted}`}>No codes generated yet</p>
                     </div>
                 )}
             </div>
@@ -443,15 +506,16 @@ function CodesTab({ codes, codeType, setCodeType, generatedCode, handleGenerateC
 // PROGRESS TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function ProgressTab({ users, defaultCurriculum }: any) {
+function ProgressTab({ users, defaultCurriculum, isRich }: any) {
+    const c = t(isRich);
     const [expandedProgressUser, setExpandedProgressUser] = useState<string | null>(null);
     const paidUsers = users.filter((u: any) => u.purchasedCourses?.length > 0);
 
     return (
         <div className="space-y-4">
-            <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">Student Progress ({paidUsers.length})</h3>
-            <div className="bg-white rounded-2xl border border-black/[0.06] overflow-hidden">
-                <div className="divide-y divide-black/[0.04]">
+            <h3 className={`text-sm font-black uppercase tracking-widest ${c.sectionHead}`}>Student Progress ({paidUsers.length})</h3>
+            <div className={`rounded-2xl border overflow-hidden ${c.card}`}>
+                <div className={`divide-y ${c.divider}`}>
                     {paidUsers.map((u: any) => {
                         const totalLessons = defaultCurriculum.reduce((acc: number, m: any) => acc + m.lessons.length, 0);
                         const completed = u.completedLessons?.length || 0;
@@ -459,41 +523,41 @@ function ProgressTab({ users, defaultCurriculum }: any) {
 
                         return (
                             <div key={u.email}>
-                                <div className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => setExpandedProgressUser(expandedProgressUser === u.email ? null : u.email)}>
-                                    <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center font-black text-emerald-700 text-sm">{u.name?.charAt(0)}</div>
+                                <div className={`flex items-center gap-4 px-5 py-4 transition-colors cursor-pointer ${c.hover}`} onClick={() => setExpandedProgressUser(expandedProgressUser === u.email ? null : u.email)}>
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${c.avatar}`}>{u.name?.charAt(0)}</div>
                                     <div className="flex-1 min-w-0">
-                                        <div className="font-bold text-sm text-gray-900">{u.name}</div>
-                                        <div className="text-xs text-gray-400">{u.purchasedCourses?.join(', ')}</div>
+                                        <div className={`font-bold text-sm ${c.text}`}>{u.name}</div>
+                                        <div className={`text-xs ${c.textMuted}`}>{u.purchasedCourses?.join(', ')}</div>
                                     </div>
                                     <div className="w-32">
                                         <div className="flex items-center justify-between mb-1">
-                                            <span className="text-xs font-bold text-gray-500">{completed}/{totalLessons}</span>
-                                            <span className="text-xs font-bold text-gray-900">{pct}%</span>
+                                            <span className={`text-xs font-bold ${c.textMuted}`}>{completed}/{totalLessons}</span>
+                                            <span className={`text-xs font-bold ${c.text}`}>{pct}%</span>
                                         </div>
-                                        <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                                            <div className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-emerald-500' : 'bg-emerald-400'}`} style={{ width: `${pct}%` }} />
+                                        <div className={`w-full h-2 rounded-full overflow-hidden ${c.progressBg}`}>
+                                            <div className={`h-full rounded-full transition-all ${pct === 100 ? c.progressFillFull : c.progressFill}`} style={{ width: `${pct}%` }} />
                                         </div>
                                     </div>
-                                    <ChevronDown className={`w-4 h-4 text-gray-300 transition-transform ${expandedProgressUser === u.email ? 'rotate-180' : ''}`} />
+                                    <ChevronDown className={`w-4 h-4 ${c.textMuted} transition-transform ${expandedProgressUser === u.email ? 'rotate-180' : ''}`} />
                                 </div>
 
                                 <AnimatePresence>
                                     {expandedProgressUser === u.email && (
                                         <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
-                                            <div className="px-5 pb-4 bg-gray-50/50 border-t border-black/[0.04]">
+                                            <div className={`px-5 pb-4 border-t ${c.inset}`}>
                                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 py-4">
                                                     {defaultCurriculum.map((m: any) => {
                                                         const mDone = m.lessons.filter((l: any) => u.completedLessons?.includes(l.id)).length;
                                                         const mTotal = m.lessons.length;
                                                         const mPct = mTotal > 0 ? Math.round((mDone / mTotal) * 100) : 0;
                                                         return (
-                                                            <div key={m.id} className="p-3 bg-white rounded-xl border border-black/[0.04]">
+                                                            <div key={m.id} className={`p-3 rounded-xl border ${c.muted} ${c.borderSubtle}`}>
                                                                 <div className="flex items-center justify-between mb-2">
-                                                                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider truncate">{m.title.split('—')[0]}</span>
-                                                                    <span className="text-[10px] font-bold text-gray-900">{mDone}/{mTotal}</span>
+                                                                    <span className={`text-[10px] font-bold uppercase tracking-wider truncate ${c.textMuted}`}>{m.title.split('—')[0]}</span>
+                                                                    <span className={`text-[10px] font-bold ${c.text}`}>{mDone}/{mTotal}</span>
                                                                 </div>
-                                                                <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                                                    <div className={`h-full rounded-full ${mPct === 100 ? 'bg-emerald-500' : 'bg-emerald-400'}`} style={{ width: `${mPct}%` }} />
+                                                                <div className={`w-full h-1.5 rounded-full overflow-hidden ${c.progressBg}`}>
+                                                                    <div className={`h-full rounded-full ${mPct === 100 ? c.progressFillFull : c.progressFill}`} style={{ width: `${mPct}%` }} />
                                                                 </div>
                                                             </div>
                                                         );
@@ -509,8 +573,8 @@ function ProgressTab({ users, defaultCurriculum }: any) {
                 </div>
                 {paidUsers.length === 0 && (
                     <div className="py-16 text-center">
-                        <BarChart3 className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                        <p className="text-sm text-gray-400">No paid students yet</p>
+                        <BarChart3 className={`w-10 h-10 mx-auto mb-3 ${c.emptyIcon}`} />
+                        <p className={`text-sm ${c.textMuted}`}>No paid students yet</p>
                     </div>
                 )}
             </div>
@@ -522,7 +586,8 @@ function ProgressTab({ users, defaultCurriculum }: any) {
 // ACTIVITY TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function ActivityTab({ activityLogs, viewingUserActivity, setViewingUserActivity }: any) {
+function ActivityTab({ activityLogs, viewingUserActivity, setViewingUserActivity, isRich }: any) {
+    const c = t(isRich);
     const logs = viewingUserActivity ? (activityLogs || []) : activityLogs;
     const groupedLogs: Record<string, any[]> = {};
     logs.forEach((log: any) => {
@@ -534,20 +599,20 @@ function ActivityTab({ activityLogs, viewingUserActivity, setViewingUserActivity
     return (
         <div className="space-y-4">
             {viewingUserActivity && (
-                <button onClick={() => setViewingUserActivity(null)} className="text-xs font-bold text-emerald-600 hover:text-emerald-800 transition-colors">← Back to all activity</button>
+                <button onClick={() => setViewingUserActivity(null)} className={`text-xs font-bold transition-colors ${c.link}`}>← Back to all activity</button>
             )}
-            <div className="bg-white rounded-2xl border border-black/[0.06] overflow-hidden">
-                <div className="divide-y divide-black/[0.04]">
+            <div className={`rounded-2xl border overflow-hidden ${c.card}`}>
+                <div className={`divide-y ${c.divider}`}>
                     {Object.entries(groupedLogs).slice(0, 30).map(([email, items]) => (
                         <div key={email} className="px-5 py-4">
-                            <div className="font-bold text-sm text-gray-900 mb-2">{email}</div>
+                            <div className={`font-bold text-sm mb-2 ${c.text}`}>{email}</div>
                             <div className="space-y-1">
                                 {items.slice(0, 5).map((log: any, i: number) => (
-                                    <div key={i} className="flex items-center gap-3 text-xs text-gray-500">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-gray-300 shrink-0" />
+                                    <div key={i} className={`flex items-center gap-3 text-xs ${c.textMuted}`}>
+                                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${c.dot}`} />
                                         <span className="font-medium">{log.type}</span>
                                         <span className="truncate">{log.description || log.path}</span>
-                                        <span className="ml-auto text-gray-400 shrink-0">{log.createdAt ? new Date(log.createdAt).toLocaleTimeString() : ''}</span>
+                                        <span className={`ml-auto shrink-0 ${c.textMuted}`}>{log.createdAt ? new Date(log.createdAt).toLocaleTimeString() : ''}</span>
                                     </div>
                                 ))}
                             </div>
@@ -556,8 +621,8 @@ function ActivityTab({ activityLogs, viewingUserActivity, setViewingUserActivity
                 </div>
                 {Object.keys(groupedLogs).length === 0 && (
                     <div className="py-16 text-center">
-                        <Activity className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                        <p className="text-sm text-gray-400">No activity yet</p>
+                        <Activity className={`w-10 h-10 mx-auto mb-3 ${c.emptyIcon}`} />
+                        <p className={`text-sm ${c.textMuted}`}>No activity yet</p>
                     </div>
                 )}
             </div>
@@ -642,17 +707,18 @@ const AdminDashboard: React.FC = () => {
     };
 
     const unreadFeedback = feedback.filter((f: any) => f.status === 'pending').length;
+    const c = t(isRich);
 
     return (
-        <div className={`min-h-screen flex ${isRich ? 'bg-gray-50' : 'bg-background'}`}>
+        <div className={`min-h-screen flex ${c.page}`}>
             {/* Sidebar */}
-            <aside className={`w-64 flex flex-col shrink-0 fixed h-full border-r ${isRich ? 'bg-white border-black/[0.06]' : 'bg-secondary/20 border-white/5 backdrop-blur-xl'}`}>
-                <div className={`p-5 border-b ${isRich ? 'border-black/[0.06]' : 'border-white/5'}`}>
+            <aside className={`w-64 flex flex-col shrink-0 fixed h-full border-r ${c.sidebar}`}>
+                <div className={`p-5 border-b ${c.border}`}>
                     <div className="flex items-center gap-2 mb-1">
                         <ShieldCheck className={`w-5 h-5 ${isRich ? 'text-emerald-600' : 'text-primary'}`} />
-                        <span className={`text-sm font-black ${isRich ? 'text-gray-900' : 'text-white'}`}>Admin Panel</span>
+                        <span className={`text-sm font-black ${c.text}`}>Admin Panel</span>
                     </div>
-                    <p className={`text-[11px] ${isRich ? 'text-gray-400' : 'text-muted-foreground'}`}>DevMastery Control Center</p>
+                    <p className={`text-[11px] ${c.textMuted}`}>DevMastery Control Center</p>
                 </div>
 
                 <nav className="flex-1 p-3 space-y-1">
@@ -675,7 +741,7 @@ const AdminDashboard: React.FC = () => {
                     })}
                 </nav>
 
-                <div className={`p-3 border-t space-y-2 ${isRich ? 'border-black/[0.06]' : 'border-white/5'}`}>
+                <div className={`p-3 border-t space-y-2 ${c.border}`}>
                     <Link to="/dashboard" className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${isRich ? 'text-gray-500 hover:text-gray-900 hover:bg-gray-50' : 'text-muted-foreground hover:text-white hover:bg-white/5'}`}>
                         <Eye className="w-4 h-4" /> View Site
                     </Link>
@@ -687,23 +753,23 @@ const AdminDashboard: React.FC = () => {
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 ml-64 p-6">
+            <main className={`flex-1 ml-64 p-6 ${c.page}`}>
                 <div className="max-w-6xl">
                     <div className="mb-6">
-                        <h1 className={`text-2xl font-black tracking-tight ${isRich ? 'text-gray-900' : 'text-white'}`}>
-                            {TABS.find(t => t.id === activeTab)?.label}
+                        <h1 className={`text-2xl font-black tracking-tight ${c.text}`}>
+                            {TABS.find(t2 => t2.id === activeTab)?.label}
                         </h1>
                     </div>
 
                     <AnimatePresence mode="wait">
                         <motion.div key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
                             {activeTab === 'overview' && <OverviewTab users={users} feedback={feedback} codes={codes} sqlStats={sqlStats} isRich={isRich} />}
-                            {activeTab === 'members' && <MembersTab users={users} searchTerm={searchTerm} setSearchTerm={setSearchTerm} filterRole={filterRole} setFilterRole={setFilterRole} expandedUser={expandedUser} setExpandedUser={setExpandedUser} handleStatusUpdate={handleStatusUpdate} handleDelete={handleDelete} fetchUserActivity={fetchUserActivity} setActiveTab={setActiveTab} />}
+                            {activeTab === 'members' && <MembersTab users={users} searchTerm={searchTerm} setSearchTerm={setSearchTerm} filterRole={filterRole} setFilterRole={setFilterRole} expandedUser={expandedUser} setExpandedUser={setExpandedUser} handleStatusUpdate={handleStatusUpdate} handleDelete={handleDelete} fetchUserActivity={fetchUserActivity} setActiveTab={setActiveTab} isRich={isRich} />}
                             {activeTab === 'courses' && <CourseManager />}
-                            {activeTab === 'feedback' && <FeedbackTab feedback={feedback} updateFeedbackStatus={updateFeedbackStatus} deleteFeedback={deleteFeedback} replyToFeedback={replyToFeedback} users={users} getAllUsers={getAllUsers} approveCertificate={approveCertificate} rejectCertificate={rejectCertificate} />}
+                            {activeTab === 'feedback' && <FeedbackTab feedback={feedback} updateFeedbackStatus={updateFeedbackStatus} deleteFeedback={deleteFeedback} replyToFeedback={replyToFeedback} users={users} getAllUsers={getAllUsers} approveCertificate={approveCertificate} rejectCertificate={rejectCertificate} isRich={isRich} />}
                             {activeTab === 'codes' && <CodesTab codes={codes} codeType={codeType} setCodeType={setCodeType} generatedCode={generatedCode} handleGenerateCode={handleGenerateCode} revokeAccessCode={revokeAccessCode} deleteAccessCode={deleteAccessCode} isRich={isRich} />}
-                            {activeTab === 'progress' && <ProgressTab users={users} defaultCurriculum={defaultCurriculum} />}
-                            {activeTab === 'activity' && <ActivityTab activityLogs={activityLogs} viewingUserActivity={viewingUserActivity} setViewingUserActivity={setViewingUserActivity} />}
+                            {activeTab === 'progress' && <ProgressTab users={users} defaultCurriculum={defaultCurriculum} isRich={isRich} />}
+                            {activeTab === 'activity' && <ActivityTab activityLogs={activityLogs} viewingUserActivity={viewingUserActivity} setViewingUserActivity={setViewingUserActivity} isRich={isRich} />}
                         </motion.div>
                     </AnimatePresence>
                 </div>
