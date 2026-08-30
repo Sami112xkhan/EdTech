@@ -349,7 +349,7 @@ const DashboardLayout: React.FC = () => {
 
                 {/* Trial Countdown Indicator */}
                 {
-                    user?.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED' && (
+                    user?.role !== 'admin' && user?.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED' && (
                         <TrialCountdown expiry={user.trialExpiresAt} />
                     )
                 }
@@ -360,7 +360,7 @@ const DashboardLayout: React.FC = () => {
 
                 {/* Trial Expired Overlay */}
                 {
-                    (user?.trialExpiresAt === 'EXPIRED' || (user?.trialExpiresAt && new Date(user.trialExpiresAt) <= new Date())) && (
+                    user?.role !== 'admin' && (user?.trialExpiresAt === 'EXPIRED' || (user?.trialExpiresAt && new Date(user.trialExpiresAt) <= new Date())) && (
                         <div className={`fixed inset-0 z-[100] flex items-center justify-center p-6 ${isRich ? "bg-black/40 backdrop-blur-sm" : "bg-black/80 backdrop-blur-xl"}`}>
                             <motion.div
                                 initial={{ scale: 0.9, opacity: 0 }}

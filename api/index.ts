@@ -144,6 +144,7 @@ app.get("/api/auth/me", async (req, res) => {
                 ? user.purchasedCourses
                 : ['fullstack', 'cyber', 'datascience'],
             completedLessons: user.completedLessons || [],
+            trialExpiresAt: undefined, // Admin never has trial restrictions
         } : user;
 
         res.json({ user: mappedUser, sessionId: session.id });
@@ -304,6 +305,7 @@ app.post("/api/auth/admin-session", authLimiter, async (req, res) => {
                 ? adminUser.purchasedCourses
                 : ['fullstack', 'cyber', 'datascience'],
             completedLessons: adminUser.completedLessons || [],
+            trialExpiresAt: undefined, // Admin never has trial restrictions
             lastLogin: adminUser.lastLoginAt?.toISOString?.() || new Date().toISOString(),
             photoURL: adminUser.picture || undefined,
         };
@@ -531,6 +533,7 @@ app.post("/api/auth/heartbeat", async (req, res) => {
                 ? user.purchasedCourses
                 : ['fullstack', 'cyber', 'datascience'],
             completedLessons: user.completedLessons || [],
+            trialExpiresAt: undefined, // Admin never has trial restrictions
         } : user;
 
         res.json({ success: true, user: mappedUser });

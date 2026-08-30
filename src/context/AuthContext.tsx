@@ -235,6 +235,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                             purchasedCourses: (serverUser.purchasedCourses && serverUser.purchasedCourses.length > 0)
                                 ? serverUser.purchasedCourses
                                 : ['fullstack', 'cyber', 'datascience'],
+                            trialExpiresAt: undefined, // Admin never has trial restrictions
                         };
                         localStorage.setItem("user", JSON.stringify(mergedUser));
                         return mergedUser;
@@ -718,6 +719,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const location = useLocation();
 
     const checkTrialExpiry = useCallback(() => {
+        // Admin users never have trial restrictions
+        if (user && user.role === 'admin') {
+            // Clear any stale trial data for admin
+            if (user.trialExpiresAt) {
+                const clearedUser = { ...user, trialExpiresAt: undefined };
+                setUser(clearedUser);
+                localStorage.setItem("user", JSON.stringify(clearedUser));
+            }
+            return false;
+        }
         if (user && user.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED') {
             const now = new Date();
             const expiry = new Date(user.trialExpiresAt);
@@ -764,6 +775,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         const incomingUser = data.user;
                         if (incomingUser.email === 'admin@devmastery.com') {
                             incomingUser.role = 'admin';
+                            incomingUser.trialExpiresAt = undefined; // Admin never has trial restrictions
                             if (!incomingUser.purchasedCourses || incomingUser.purchasedCourses.length === 0) {
                                 incomingUser.purchasedCourses = ['fullstack', 'cyber', 'datascience'];
                             }
