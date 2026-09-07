@@ -873,23 +873,18 @@ app.delete("/api/admin/users/:email", requireAdmin, async (req, res) => {
 
 // ── Certificate Management ─────────────────────────────────────────────
 
-// User requests certificate (course-aware)
+// User requests certificate
 app.post("/api/certificate/request", async (req, res) => {
     const { email, courseId } = req.body;
     if (!email) return res.status(400).json({ error: "Email required" });
 
     try {
-        const [existing] = await db.select().from(users).where(eq(users.email, email));
-        if (!existing) return res.status(404).json({ error: "User not found" });
-
-        const certifiedCourses = (existing.certifiedCourses as Record<string, { status: string; issueDate?: string }> || {});
-        certifiedCourses[courseId || 'fullstack'] = { status: 'pending' };
-
         const [updated] = await db.update(users)
-            .set({ certificateStatus: "pending", certifiedCourses })
+            .set({ certificateStatus: "pending" })
             .where(eq(users.email, email))
             .returning();
 
+        if (!updated) return res.status(404).json({ error: "User not found" });
         res.json(updated);
     } catch (error) {
         console.error("Certificate request error:", error);
@@ -897,28 +892,20 @@ app.post("/api/certificate/request", async (req, res) => {
     }
 });
 
-// Admin approves certificate (course-aware)
+// Admin approves certificate
 app.post("/api/admin/certificate/:email/approve", requireAdmin, async (req, res) => {
     const { email } = req.params;
-    const { courseId } = req.body || {};
 
     try {
-        const [existing] = await db.select().from(users).where(eq(users.email, email));
-        if (!existing) return res.status(404).json({ error: "User not found" });
-
-        const certifiedCourses = (existing.certifiedCourses as Record<string, { status: string; issueDate?: string }> || {});
-        const targetCourse = courseId || 'fullstack';
-        certifiedCourses[targetCourse] = { status: 'approved', issueDate: new Date().toISOString() };
-
         const [updated] = await db.update(users)
             .set({
                 certificateStatus: "approved",
                 certificateIssueDate: new Date(),
-                certifiedCourses,
             })
             .where(eq(users.email, email))
             .returning();
 
+        if (!updated) return res.status(404).json({ error: "User not found" });
         res.json(updated);
     } catch (error) {
         console.error("Certificate approve error:", error);
@@ -926,24 +913,17 @@ app.post("/api/admin/certificate/:email/approve", requireAdmin, async (req, res)
     }
 });
 
-// Admin rejects certificate (course-aware)
+// Admin rejects certificate
 app.post("/api/admin/certificate/:email/reject", requireAdmin, async (req, res) => {
     const { email } = req.params;
-    const { courseId } = req.body || {};
 
     try {
-        const [existing] = await db.select().from(users).where(eq(users.email, email));
-        if (!existing) return res.status(404).json({ error: "User not found" });
-
-        const certifiedCourses = (existing.certifiedCourses as Record<string, { status: string; issueDate?: string }> || {});
-        const targetCourse = courseId || 'fullstack';
-        delete certifiedCourses[targetCourse];
-
         const [updated] = await db.update(users)
-            .set({ certificateStatus: "eligible", certifiedCourses })
+            .set({ certificateStatus: "eligible" })
             .where(eq(users.email, email))
             .returning();
 
+        if (!updated) return res.status(404).json({ error: "User not found" });
         res.json(updated);
     } catch (error) {
         console.error("Certificate reject error:", error);
