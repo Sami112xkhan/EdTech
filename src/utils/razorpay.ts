@@ -17,7 +17,8 @@ export const initializePayment = async (
     amount: number,
     user: { name: string; email: string; contact?: string },
     onSuccess: (response: any) => void,
-    onFailure?: (error: any) => void
+    onFailure?: (error: any) => void,
+    description?: string
 ) => {
     const res = await loadRazorpayScript();
 
@@ -26,13 +27,16 @@ export const initializePayment = async (
         return;
     }
 
+    // Ensure amount is a valid positive number (in INR)
+    const validAmount = (typeof amount === 'number' && amount > 0 && !isNaN(amount)) ? amount : 0;
+
     const options = {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-        amount: amount * 100, // Amount is in currency subunits. Default currency is INR. Hence, 50000 refers to 50000 paise
+        amount: validAmount * 100, // Amount is in currency subunits. Default currency is INR. Hence, 50000 refers to 50000 paise
         currency: "INR",
         name: "DevMastery Academy",
-        description: "Full Stack Mastery Course",
-        image: "https://devmastery.space/logo.png", // Ensure this path is correct or use a public URL
+        description: description || "DevMastery Course",
+        image: "https://devmastery.space/logo.png",
         prefill: {
             name: user.name,
             email: user.email,
@@ -42,22 +46,12 @@ export const initializePayment = async (
             color: "#3b82f6"
         },
         handler: function (response: any) {
-            // alert(response.razorpay_payment_id);
-            // alert(response.razorpay_order_id);
-            // alert(response.razorpay_signature)
             onSuccess(response);
         }
     };
 
     const paymentObject = new (window as any).Razorpay(options);
     paymentObject.on('payment.failed', function (response: any) {
-        // alert(response.error.code);
-        // alert(response.error.description);
-        // alert(response.error.source);
-        // alert(response.error.step);
-        // alert(response.error.reason);
-        // alert(response.error.metadata.order_id);
-        // alert(response.error.metadata.payment_id);
         if (onFailure) onFailure(response.error);
     });
     paymentObject.open();

@@ -100,7 +100,7 @@ const Checkout: React.FC = () => {
     }
 
     await initializePayment(
-      currentCourse.salePrice,
+      currentCourse.salePrice || currentCourse.price,
       {
         name: user.name,
         email: user.email,
@@ -113,7 +113,8 @@ const Checkout: React.FC = () => {
       (error) => {
         console.error("Payment Failed:", error);
         alert("Payment Failed. Please try again.");
-      }
+      },
+      currentCourse.title
     );
   };
 
@@ -187,7 +188,7 @@ const Checkout: React.FC = () => {
                         <div className={`font-medium text-[15px] transition-colors ${selectedCourse === key ? 'text-emerald-800' : 'text-gray-900'}`}>
                           {course.title}
                         </div>
-                        <div className="text-sm text-gray-400 font-medium">₹{course.salePrice.toLocaleString()}</div>
+                        <div className="text-sm text-gray-400 font-medium">₹{(course.salePrice || course.price || 0).toLocaleString()}</div>
                       </button>
                     ))}
                   </div>
@@ -215,7 +216,7 @@ const Checkout: React.FC = () => {
                 </div>
               )}
               <div className={`space-y-3 pt-1 transition-all duration-500 ${!currentCourse ? 'opacity-30 pointer-events-none blur-[2px]' : 'opacity-100'}`}>
-                {((currentCourse ? currentCourse.features : courseDetails.fullstack.features) || []).map((item: string, i: number) => (
+                {((currentCourse ? currentCourse.features : courseDetails.fullstack?.features) || []).map((item: string, i: number) => (
                   <div key={i} className="flex items-center gap-3">
                     <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
@@ -253,7 +254,7 @@ const Checkout: React.FC = () => {
                   <p className="text-[13px] text-gray-400 mt-1.5">One-time payment · Lifetime access</p>
                 </div>
                 <div className="text-right">
-                  <div className="text-2xl font-bold tracking-[-0.03em] text-gray-900">₹{currentCourse ? currentCourse.salePrice.toLocaleString() : "—"}</div>
+                  <div className="text-2xl font-bold tracking-[-0.03em] text-gray-900">₹{currentCourse ? (currentCourse.salePrice || currentCourse.price || 0).toLocaleString() : "—"}</div>
                   <div className="text-sm text-gray-400 line-through decoration-gray-300 mt-0.5">₹{currentCourse ? currentCourse.price.toLocaleString() : "—"}</div>
                 </div>
               </div>
@@ -267,7 +268,7 @@ const Checkout: React.FC = () => {
                 className="w-full py-4 rounded-2xl bg-emerald-900 hover:bg-emerald-800 text-white font-bold text-[15px] tracking-[-0.01em] shadow-lg shadow-emerald-900/15 transition-all hover:scale-[1.01] flex items-center justify-center gap-2"
               >
                 <CreditCard className="w-5 h-5" />
-                Pay Now — ₹{currentCourse ? currentCourse.salePrice.toLocaleString() : "0"}
+                Pay Now — ₹{currentCourse ? (currentCourse.salePrice || currentCourse.price || 0).toLocaleString() : "0"}
               </button>
 
               <div className="text-center mt-8">

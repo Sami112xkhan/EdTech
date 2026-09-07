@@ -414,16 +414,37 @@ app.post("/api/auth/profile", async (req, res) => {
     }
 });
 
-// Lesson Completion Hook
+// Lesson Completion Hook — server-side ownership validated
 app.post("/api/progress/lesson", async (req, res) => {
     const { email, lessonId } = req.body;
     if (!email || !lessonId) return res.status(400).json({ error: "Email and Lesson ID required" });
 
     try {
-        // Fetch current lessons
-        let [user] = await db.select().from(users).where(eq(users.email, email));
+        // Verify session belongs to this user
+        const authHeader = req.headers.authorization || '';
+        const sessionId = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+        if (!sessionId) return res.status(401).json({ error: "Authentication required" });
+        const [session] = await db.select().from(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.isActive, true)));
+        if (!session) return res.status(401).json({ error: "Invalid session" });
+        const [sessionUser] = await db.select().from(users).where(eq(users.id, session.userId));
+        if (!sessionUser || sessionUser.email !== email) return res.status(403).json({ error: "Cannot update another user's progress" });
 
+        // Fetch current user
+        let [user] = await db.select().from(users).where(eq(users.email, email));
         if (!user) return res.status(404).json({ error: "User not found" });
+
+        // Server-side ownership check: verify lesson belongs to a purchased course
+        if (user.role !== 'admin') {
+            const [lessonRow] = await db.select().from(lessons).where(eq(lessons.slug, lessonId));
+            if (!lessonRow) return res.status(404).json({ error: "Lesson not found" });
+            const [moduleRow] = await db.select().from(modules).where(eq(modules.id, lessonRow.moduleId));
+            if (!moduleRow) return res.status(404).json({ error: "Module not found" });
+            const [courseRow] = await db.select().from(courses).where(eq(courses.id, moduleRow.courseId));
+            if (!courseRow) return res.status(404).json({ error: "Course not found" });
+            if (!user.purchasedCourses?.includes(courseRow.slug)) {
+                return res.status(403).json({ error: "You have not purchased this course" });
+            }
+        }
 
         const completedLessons = user.completedLessons || [];
         if (!completedLessons.includes(lessonId)) {
@@ -1241,11 +1262,27 @@ app.get("/api/courses", async (req, res) => {
     }
 });
 
-// ─── PUBLIC: Get course with modules and lessons ─────────────────────────────
+// ─── Get course with modules and lessons (redacts video IDs for non-purchased) ─
 app.get("/api/courses/:slug", async (req, res) => {
     try {
         const [course] = await db.select().from(courses).where(eq(courses.slug, req.params.slug));
         if (!course) return res.status(404).json({ error: "Course not found" });
+
+        // Optional session auth to check purchase status
+        let hasAccess = false;
+        const authHeader = req.headers.authorization || '';
+        const sessionId = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+        if (sessionId) {
+            try {
+                const [session] = await db.select().from(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.isActive, true)));
+                if (session) {
+                    const [sessionUser] = await db.select().from(users).where(eq(users.id, session.userId));
+                    if (sessionUser) {
+                        hasAccess = sessionUser.role === 'admin' || (sessionUser.purchasedCourses || []).includes(course.slug);
+                    }
+                }
+            } catch { /* not logged in */ }
+        }
 
         const courseModules = await db.select().from(modules)
             .where(eq(modules.courseId, course.id))
@@ -1267,7 +1304,11 @@ app.get("/api/courses/:slug", async (req, res) => {
 
         const modulesWithLessons = courseModules.map(m => ({
             ...m,
-            lessons: lessonsByModule[m.id] || []
+            lessons: (lessonsByModule[m.id] || []).map(l => ({
+                ...l,
+                youtubeId: hasAccess ? l.youtubeId : null,
+                notesPath: hasAccess ? l.notesPath : null,
+            }))
         }));
 
         res.json({ ...course, modules: modulesWithLessons });
@@ -1277,9 +1318,29 @@ app.get("/api/courses/:slug", async (req, res) => {
     }
 });
 
-// ─── PUBLIC: Get all published courses with modules+lessons (for curriculum) ──
+// ─── Get all published courses with modules+lessons (for curriculum) ────────
+// Authenticated users get full data (video IDs) for purchased courses only.
+// Unauthenticated or non-purchased courses: video IDs are redacted.
 app.get("/api/courses/all/curriculum", async (req, res) => {
     try {
+        // Optional session auth — identify the user if logged in
+        let purchasedCourses: string[] = [];
+        let isAdmin = false;
+        const authHeader = req.headers.authorization || '';
+        const sessionId = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+        if (sessionId) {
+            try {
+                const [session] = await db.select().from(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.isActive, true)));
+                if (session) {
+                    const [sessionUser] = await db.select().from(users).where(eq(users.id, session.userId));
+                    if (sessionUser) {
+                        purchasedCourses = sessionUser.purchasedCourses || [];
+                        isAdmin = sessionUser.role === 'admin';
+                    }
+                }
+            } catch { /* not logged in, continue as guest */ }
+        }
+
         const allCourses = await db.select().from(courses)
             .where(eq(courses.isPublished, true))
             .orderBy(asc(courses.sortOrder));
@@ -1303,9 +1364,19 @@ app.get("/api/courses/all/curriculum", async (req, res) => {
                 lessonsByModule[l.moduleId].push(l);
             });
 
+            // Server-side access control: redact video IDs for non-purchased courses
+            const hasAccess = isAdmin || purchasedCourses.includes(course.slug);
+
             result.push({
                 ...course,
-                modules: courseModules.map(m => ({ ...m, lessons: lessonsByModule[m.id] || [] }))
+                modules: courseModules.map(m => ({
+                    ...m,
+                    lessons: (lessonsByModule[m.id] || []).map(l => ({
+                        ...l,
+                        youtubeId: hasAccess ? l.youtubeId : null,
+                        notesPath: hasAccess ? l.notesPath : null,
+                    }))
+                }))
             });
         }
 
