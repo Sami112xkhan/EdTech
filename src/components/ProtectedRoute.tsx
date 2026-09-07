@@ -28,9 +28,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ requirePayment = false 
     if (requirePayment && user?.role !== 'admin') {
         const now = new Date();
 
-        // Strict Enforcement: If user HAS a trialExpiresAt and it is EXPIRED, 
-        // they must be redirected, unless they have made a permanent purchase 
-        // (which now clears trialExpiresAt in AuthContext).
+        const hasPurchased = user?.purchasedCourses && user.purchasedCourses.length > 0;
+
+        // If user has purchased courses, they always get access regardless of trial
+        if (hasPurchased) {
+            return <Outlet />;
+        }
+
         const isTrialExpired = user?.trialExpiresAt === 'EXPIRED' ||
             (user?.trialExpiresAt && new Date(user.trialExpiresAt) <= now);
 
@@ -42,7 +46,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ requirePayment = false 
             user.trialExpiresAt !== 'EXPIRED' &&
             new Date(user.trialExpiresAt) > now;
 
-        if (user?.purchasedCourses.length === 0 && !hasActiveTrial) {
+        if (!hasActiveTrial) {
             return <Navigate to="/checkout" replace />;
         }
     }
