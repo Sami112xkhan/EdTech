@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import type { Module } from "../data/curriculum";
 import { useAllCurricula, type CourseWithModules, type ModuleData } from "../hooks/useCourses";
 import { getPhasesStatus } from "../utils/progress";
-import { PlayCircle, Award, Clock, Lock, FileText, Download, Search, BookOpen, Shield, Bot } from "lucide-react";
+import { PlayCircle, Award, Clock, Lock, FileText, Download, Search, BookOpen, Shield, Bot, Cloud } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import GlassSurface from "../components/GlassSurface";
 import { useActiveCourse } from "../hooks/useActiveCourse";
@@ -77,35 +77,60 @@ const CurriculumPage: React.FC = () => {
                     cyber: <Shield className="w-3.5 h-3.5" />,
                     datascience: <Award className="w-3.5 h-3.5" />,
                     ai: <Bot className="w-3.5 h-3.5" />,
+                    cloudcomputing: <Cloud className="w-3.5 h-3.5" />,
                 };
                 const tabCourses = curricula.length > 0 ? curricula : [
                     { slug: 'fullstack', title: 'Full Stack' } as any,
                     { slug: 'cyber', title: 'Cybersecurity' } as any,
                     { slug: 'datascience', title: 'Data Science' } as any,
                     { slug: 'ai', title: 'AI Course' } as any,
+                    { slug: 'cloudcomputing', title: 'Cloud Computing' } as any,
                 ];
+                // Short pill labels — strip extra words to keep pills compact
+                const pillLabel = (slug: string, title: string) => {
+                    const shortNames: Record<string, string> = {
+                        fullstack: isOfferActive ? 'Full Stack + AI' : 'Full Stack',
+                        cyber: 'Cyber Security',
+                        datascience: 'Data Science',
+                        ai: 'AI & ML',
+                        cloudcomputing: 'Cloud Computing',
+                    };
+                    return shortNames[slug] || title;
+                };
                 return (
-                    <div className="flex justify-center mb-2 overflow-x-auto scrollbar-hide">
+                    <div className="mb-2 overflow-x-auto scrollbar-hide">
                         {isRich ? (
-                            <div className="flex p-1 rounded-full bg-gray-100 border border-black/[0.06] w-full md:w-auto">
+                            <div className="flex p-1 rounded-full bg-gray-100 border border-black/[0.06] w-fit mx-auto">
                                 {tabCourses.map(c => (
                                     <button
                                         key={c.slug}
                                         onClick={() => { setActiveCourse(c.slug as any); setActivePhaseId(null); }}
-                                        className={`relative flex-1 md:flex-none px-2 md:px-8 py-3 md:py-2.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap min-w-0 md:min-w-[160px] ${activeCourse === c.slug ? (isRich ? 'bg-emerald-900 text-white' : 'text-white') : (isRich ? 'text-gray-400 hover:text-gray-900' : 'text-white/40 hover:text-white')}`}
+                                        className={`relative flex-shrink-0 px-3 md:px-5 lg:px-6 py-2.5 rounded-full text-[10px] md:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeCourse === c.slug ? 'bg-emerald-900 text-white shadow-lg shadow-emerald-900/15' : 'text-gray-400 hover:text-gray-900'}`}
                                     >
                                         <span className="flex items-center justify-center gap-1.5">
                                             {courseIconMap[c.slug] || <BookOpen className="w-3.5 h-3.5" />}
-                                            {c.slug === 'fullstack' && isOfferActive ? 'Full Stack + AI' : c.title}
+                                            {pillLabel(c.slug, c.title)}
                                         </span>
                                     </button>
                                 ))}
                             </div>
                         ) : (
-                            <GlassSurface borderRadius={50} borderWidth={0.5} opacity={0.4} blur={10} className="p-1 w-full md:w-auto">
-                                <div className="flex w-full md:w-auto">
+                            <GlassSurface borderRadius={50} borderWidth={0.5} opacity={0.4} blur={10} className="p-1 w-fit mx-auto">
+                                <div className="flex">
                                     {tabCourses.map(c => (
-                                        <button key={c.slug} onClick={() => { setActiveCourse(c.slug as any); setActivePhaseId(null); }} className={`relative flex-1 md:flex-none px-4 md:px-8 py-3 md:py-2.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all text-center min-w-[120px] md:min-w-[160px] ${activeCourse === c.slug ? 'text-white' : 'text-white/40 hover:text-white'}`}>{activeCourse === c.slug && <motion.div layoutId="curriculum-active-pill" className="absolute inset-0 bg-white/20 backdrop-blur-2xl rounded-full border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)] z-0" />}<span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">{courseIconMap[c.slug] || <BookOpen className="w-3.5 h-3.5" />}{c.slug === 'fullstack' && isOfferActive ? 'Full Stack + AI' : c.title}</span></button>
+                                        <button
+                                            key={c.slug}
+                                            onClick={() => { setActiveCourse(c.slug as any); setActivePhaseId(null); }}
+                                            className={`relative flex-shrink-0 px-3 md:px-5 lg:px-6 py-2.5 rounded-full text-[10px] md:text-xs font-black uppercase tracking-widest transition-all text-center whitespace-nowrap ${activeCourse === c.slug ? 'text-white' : 'text-white/40 hover:text-white'}`}
+                                        >
+                                            {activeCourse === c.slug && (
+                                                <motion.div layoutId="curriculum-active-pill" className="absolute inset-0 bg-white/20 backdrop-blur-2xl rounded-full border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)] z-0" />
+                                            )}
+                                            <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
+                                                {courseIconMap[c.slug] || <BookOpen className="w-3.5 h-3.5" />}
+                                                {pillLabel(c.slug, c.title)}
+                                            </span>
+                                        </button>
                                     ))}
                                 </div>
                             </GlassSurface>

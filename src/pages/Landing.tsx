@@ -82,6 +82,7 @@ const Landing: React.FC = () => {
     if (!courseInfo['fullstack']) courseInfo['fullstack'] = { title: 'Master the Modern Stack', sub: "From 'Hello World' to deployed SaaS application." };
     if (!courseInfo['cyber']) courseInfo['cyber'] = { title: 'Master Cybersecurity in 90 Days', sub: 'From networking fundamentals to ethical hacking -- your complete cybersecurity journey.' };
     if (!courseInfo['datascience']) courseInfo['datascience'] = { title: 'Data Science for Beginners', sub: 'Learn the concepts behind data science, visualization, and real-world deployment.' };
+    if (!courseInfo['cloudcomputing']) courseInfo['cloudcomputing'] = { title: 'Master Cloud Computing', sub: 'From cloud fundamentals to Azure & GCP deployment — architecture, virtualization, OpenStack, and more.' };
 
     // Build course tabs from published DB courses
     const courseTabs = dbCourses
@@ -93,7 +94,8 @@ const Landing: React.FC = () => {
         courseTabs.push(
             { id: 'fullstack' as const, label: 'Full Stack' },
             { id: 'cyber' as const, label: 'Cyber Security' },
-            { id: 'datascience' as const, label: 'Data Science' }
+            { id: 'datascience' as const, label: 'Data Science' },
+            { id: 'cloudcomputing' as const, label: 'Cloud Computing' }
         );
     }
 
@@ -209,7 +211,7 @@ const Landing: React.FC = () => {
 
                     <Reveal delay={0.2}>
                         <p className="text-[17px] text-gray-400 max-w-[520px] leading-relaxed mb-10">
-                            Master Full Stack, Data Science, or Cybersecurity with expert curriculum and AI mentorship. From beginner to job-ready.
+                            Master Full Stack, Data Science, Cybersecurity, or Cloud Computing with expert curriculum and AI mentorship. From beginner to job-ready.
                         </p>
                     </Reveal>
 
@@ -232,7 +234,7 @@ const Landing: React.FC = () => {
             {/* ══════ MARQUEE ══════ */}
             <Marquee
                 items={[
-                    'Full Stack Development', 'Cyber Security', 'Data Science',
+                    'Full Stack Development', 'Cyber Security', 'Data Science', 'Cloud Computing',
                     'AI Mentorship', 'Lifetime Access', 'Real-World Projects',
                     '500+ Students', '100+ Video Lessons', 'Verified Certificate',
                     'Active Community', 'Structured Curriculum', 'Job-Ready Skills',
@@ -281,8 +283,9 @@ const Landing: React.FC = () => {
             <Marquee
                 items={[
                     'Frontend & Backend', 'Ethical Hacking', 'Machine Learning',
-                    'Python & Data', 'Cloud Architecture', 'CI/CD Pipelines',
+                    'Python & Data', 'Cloud Architecture', 'Cloud Computing',
                     'Portfolio Projects', 'AI Code Review', 'Lifetime Updates',
+                    'Azure & GCP', 'OpenStack', 'MapReduce',
                 ]}
                 speed={40}
                 reverse
@@ -296,7 +299,7 @@ const Landing: React.FC = () => {
                     </Reveal>
                     <Reveal delay={0.05}>
                         <h2 className="text-[clamp(28px,5vw,44px)] font-bold leading-[1.05] tracking-[-0.03em] mb-4 text-gray-900">
-                            Three paths. One goal.
+                            Four paths. One goal.
                         </h2>
                     </Reveal>
                     <Reveal delay={0.1}>
@@ -310,6 +313,7 @@ const Landing: React.FC = () => {
                             { id: '1', slug: 'fullstack', title: 'Full Stack + AI', subtitle: 'Web Development', description: 'Master frontend, backend, databases, and deploy real applications. Includes the complete AI & Machine Learning course.', features: ['Frontend & Backend Deep Dive', 'AI & ML Included', '5+ Real Projects', 'Lifetime Access'], price: 15000, salePrice: 10000, sortOrder: 0 },
                             { id: '2', slug: 'cyber', title: 'Cyber Security', subtitle: '90 Day Program', description: 'Ethical hacking, penetration testing, network security, and defensive strategies used by industry professionals.', features: ['Ethical Hacking Workshops', 'Linux & Networking', 'Penetration Testing Labs', 'Certificate'], price: 8000, salePrice: 5000, sortOrder: 1 },
                             { id: '3', slug: 'datascience', title: 'Data Science', subtitle: 'Analytics & ML', description: 'Python, statistics, data visualization, machine learning, and real-world data projects from scratch.', features: ['ML & Math Foundation', 'Python & Data Wrangling', 'Advanced Visualization', 'Certificate'], price: 12000, salePrice: 8000, sortOrder: 2 },
+                            { id: '4', slug: 'cloudcomputing', title: 'Cloud Computing', subtitle: 'NPTEL Cloud Computing', description: 'Master cloud computing from fundamentals to platform deployment — covering architecture, virtualization, XML & web services, MapReduce, OpenStack, Azure, and GCP.', features: ['25+ Video Lessons', 'Cloud Architecture & Deployment', 'Azure & GCP Hands-On', 'OpenStack & MapReduce', 'Certificate of Completion'], price: 11500, salePrice: null, sortOrder: 3 },
                         ] as CourseData[]).sort((a, b) => a.sortOrder - b.sortOrder).map((course, i) => (
                             <Reveal key={course.id || i} delay={i * 0.08}>
                                 <div className="numbered-row py-10 border-t border-black/[0.06] group cursor-default px-3 -mx-3">
@@ -475,7 +479,7 @@ const Landing: React.FC = () => {
                 items={[
                     'Structured Curriculum', 'Real-World Projects', 'AI Mentorship',
                     'Lifetime Access', 'Verified Certificate', 'Active Community',
-                    'Full Stack', 'Cyber Security', 'Data Science',
+                    'Full Stack', 'Cyber Security', 'Data Science', 'Cloud Computing',
                 ]}
                 speed={30}
             />

@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, boolean, integer } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, boolean, integer, json } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 export const users = pgTable("users", {
@@ -23,6 +23,7 @@ export const users = pgTable("users", {
     trialExpiresAt: timestamp("trial_expires_at"),
     certificateStatus: text("certificate_status").default("locked").notNull(), // 'locked','eligible','pending','approved'
     certificateIssueDate: timestamp("certificate_issue_date"),
+    certifiedCourses: json("certified_courses"), // Per-course certificate tracking: { fullstack: { status: 'approved', issueDate: '...' } }
     emailNotifs: boolean("email_notifs").default(true).notNull(),
     pushNotifs: boolean("push_notifs").default(true).notNull(),
     courseUpdates: boolean("course_updates").default(true).notNull(),

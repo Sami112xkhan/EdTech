@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { curriculum } from "../data/curriculum";
 import { cybersecurityCurriculum } from "../data/cybersecurityCurriculum";
 import { dataScienceCurriculum } from "../data/dataScienceCurriculum";
+import { cloudComputingCurriculum } from "../data/cloudComputingCurriculum";
 import { isPhaseComplete } from "../utils/progress";
 
 interface AuthContextType {
@@ -32,9 +33,9 @@ interface AuthContextType {
     addXp: (amount: number) => void;
     updateProfile: (updates: Partial<User>) => Promise<void>;
     // Certificate System
-    requestCertificate: () => Promise<void>;
-    approveCertificate: (email: string) => Promise<void>;
-    rejectCertificate: (email: string) => Promise<void>;
+    requestCertificate: (courseId?: string) => Promise<void>;
+    approveCertificate: (email: string, courseId?: string) => Promise<void>;
+    rejectCertificate: (email: string, courseId?: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -203,7 +204,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 name: 'Administrator',
                 username: 'admin',
                 email: 'admin@devmastery.com',
-                purchasedCourses: ['fullstack', 'cyber', 'datascience'],
+                purchasedCourses: ['fullstack', 'cyber', 'datascience', 'cloudcomputing'],
                 role: 'admin',
                 status: 'active',
                 isVerified: true,
@@ -234,7 +235,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                             role: 'admin',
                             purchasedCourses: (serverUser.purchasedCourses && serverUser.purchasedCourses.length > 0)
                                 ? serverUser.purchasedCourses
-                                : ['fullstack', 'cyber', 'datascience'],
+                                : ['fullstack', 'cyber', 'datascience', 'cloudcomputing'],
                             trialExpiresAt: undefined, // Admin never has trial restrictions
                         };
                         localStorage.setItem("user", JSON.stringify(mergedUser));
@@ -581,6 +582,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 { slug: 'fullstack', modules: curriculum },
                 { slug: 'cyber', modules: cybersecurityCurriculum },
                 { slug: 'datascience', modules: dataScienceCurriculum },
+                { slug: 'cloudcomputing', modules: cloudComputingCurriculum },
             ];
             allCurriculums.forEach(({ modules }) => {
                 modules.forEach((mod, index) => {
@@ -665,10 +667,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
-    const requestCertificate = async () => {
+    const requestCertificate = async (courseId: string = 'fullstack') => {
         if (!user) return;
 
-        const updatedUser = { ...user, certificateStatus: 'pending' as const };
+        const certifiedCourses = { ...(user.certifiedCourses || {}), [courseId]: { status: 'pending' as const } };
+        const updatedUser = { ...user, certificateStatus: 'pending' as const, certifiedCourses };
         setUser(updatedUser);
         localStorage.setItem("user", JSON.stringify(updatedUser));
 
@@ -677,7 +680,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             await fetch('/api/certificate/request', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: user.email }),
+                body: JSON.stringify({ email: user.email, courseId }),
             });
         } catch (error) {
             console.warn('Failed to sync certificate request to API', error);
@@ -686,30 +689,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         alert("Certificate requested! Please wait for admin approval.");
     };
 
-    const approveCertificate = async (email: string) => {
+    const approveCertificate = async (email: string, courseId: string = 'fullstack') => {
         // Sync with API
         try {
             await fetch(`/api/admin/certificate/${encodeURIComponent(email)}/approve`, {
                 method: 'POST',
-                headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('sessionId') || '') },
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('sessionId') || '') },
+                body: JSON.stringify({ courseId }),
             });
         } catch (error) {
             console.warn('Failed to sync certificate approval to API', error);
         }
 
         if (user && user.email === email) {
-            const updatedUser = { ...user, certificateStatus: 'approved' as const, certificateIssueDate: new Date().toISOString() };
+            const certifiedCourses = { ...(user.certifiedCourses || {}), [courseId]: { status: 'approved' as const, issueDate: new Date().toISOString() } };
+            const updatedUser = { ...user, certificateStatus: 'approved' as const, certificateIssueDate: new Date().toISOString(), certifiedCourses };
             setUser(updatedUser);
             localStorage.setItem("user", JSON.stringify(updatedUser));
         }
     };
 
-    const rejectCertificate = async (email: string) => {
+    const rejectCertificate = async (email: string, courseId: string = 'fullstack') => {
         // Sync with API
         try {
             await fetch(`/api/admin/certificate/${encodeURIComponent(email)}/reject`, {
                 method: 'POST',
-                headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('sessionId') || '') },
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('sessionId') || '') },
+                body: JSON.stringify({ courseId }),
             });
         } catch (error) {
             console.error('Failed to sync certificate rejection to API', error);
@@ -777,7 +783,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                             incomingUser.role = 'admin';
                             incomingUser.trialExpiresAt = undefined; // Admin never has trial restrictions
                             if (!incomingUser.purchasedCourses || incomingUser.purchasedCourses.length === 0) {
-                                incomingUser.purchasedCourses = ['fullstack', 'cyber', 'datascience'];
+                                incomingUser.purchasedCourses = ['fullstack', 'cyber', 'datascience', 'cloudcomputing'];
                             }
                         }
                         setUser(incomingUser);

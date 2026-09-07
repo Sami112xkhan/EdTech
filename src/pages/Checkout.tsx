@@ -166,7 +166,7 @@ const Checkout: React.FC = () => {
                         if (key === 'ai_upgrade') {
                           if (!isOfferActive) return false;
                           if (isTrialUser) return false;
-                          const hasAnyCourse = purchased.includes('fullstack') || purchased.includes('cyber') || purchased.includes('datascience');
+                          const hasAnyCourse = purchased.includes('fullstack') || purchased.includes('cyber') || purchased.includes('datascience') || purchased.includes('cloudcomputing');
                           return hasAnyCourse && !purchased.includes('ai');
                         }
                         return true;

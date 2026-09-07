@@ -4,7 +4,7 @@ import { useSearchParams, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getPhasesStatus } from "../utils/progress";
 import { useAllCurricula } from "../hooks/useCourses";
-import { PlayCircle, Award, Clock, Lock, ShieldAlert, Flame, Download, BookOpen, Shield, Bot, Zap, ArrowRight } from "lucide-react";
+import { PlayCircle, Award, Clock, Lock, ShieldAlert, Flame, Download, BookOpen, Shield, Bot, Zap, ArrowRight, Cloud } from "lucide-react";
 import { jsPDF } from "jspdf";
 import type { Module } from "../data/curriculum";
 import type { CourseWithModules } from "../hooks/useCourses";
@@ -47,12 +47,24 @@ const Dashboard: React.FC = () => {
     }));
 
     // AI upgrade logic: user has any course but not ai
-    const hasAnyCourse = user?.purchasedCourses.includes('fullstack') || user?.purchasedCourses.includes('cyber') || user?.purchasedCourses.includes('datascience');
+    const hasAnyCourse = user?.purchasedCourses.includes('fullstack') || user?.purchasedCourses.includes('cyber') || user?.purchasedCourses.includes('datascience') || user?.purchasedCourses.includes('cloudcomputing');
     const hasAI = user?.purchasedCourses.includes('ai');
     const showAIUpgrade = user?.role !== 'admin' && isOfferActive && activeCourse === 'ai' && hasAnyCourse && !hasAI;
 
-    const generateCertificate = () => {
+    const generateCertificate = (courseId?: string) => {
         if (!user) return;
+        const targetCourse = courseId || activeCourse;
+
+        // Course display names
+        const courseNames: Record<string, string> = {
+            fullstack: 'Full Stack Developer Architecture',
+            cyber: 'Cyber Security Specialist',
+            datascience: 'Data Science & Analytics',
+            ai: 'AI & Machine Learning',
+            cloudcomputing: 'Cloud Computing Architecture',
+        };
+        const courseDisplayName = courseNames[targetCourse] || 'Premium Course';
+
         const doc = new jsPDF({
             orientation: 'landscape',
             unit: 'px',
@@ -132,7 +144,7 @@ const Dashboard: React.FC = () => {
 
         doc.setFontSize(35);
         doc.setFont("helvetica", "bold");
-        doc.text("Full Stack Developer Architecture", contentX, 510, { align: 'center' });
+        doc.text(courseDisplayName, contentX, 510, { align: 'center' });
 
         // 4. Gold Badge (Top Right)
         doc.setFillColor(gold[0], gold[1], gold[2]);
@@ -170,10 +182,11 @@ const Dashboard: React.FC = () => {
         doc.text("DEVMASTERY ACADEMY", 775, sigY + 20, { align: 'center' });
         doc.text("OFFICIAL CERTIFICATION", 775, sigY + 35, { align: 'center' });
 
-        const date = user.certificateIssueDate ? new Date(user.certificateIssueDate).toLocaleDateString() : new Date().toLocaleDateString();
+        const issueDate = user.certifiedCourses?.[targetCourse]?.issueDate || user.certificateIssueDate;
+        const date = issueDate ? new Date(issueDate).toLocaleDateString() : new Date().toLocaleDateString();
         doc.text(`Issued: ${date}`, contentX, 750, { align: 'center' });
 
-        doc.save(`${user.name.split(' ')[0]}_Certificate_Premium.pdf`);
+        doc.save(`${user.name.split(' ')[0]}_Certificate_${courseDisplayName.replace(/\s+/g, '_')}.pdf`);
     };
 
     // Handle scroll for /curriculum route
@@ -349,13 +362,30 @@ const Dashboard: React.FC = () => {
                                     <motion.div
                                         layoutId="dashboard-active-pill"
                                         {...swipeDragProps}
-                                        onDragEnd={makeSwipeHandler('ai', 'cyber')}
+                                        onDragEnd={makeSwipeHandler('cloudcomputing', 'cyber')}
                                         className={`absolute inset-0 rounded-full cursor-grab active:cursor-grabbing z-0 ${isRich ? "bg-white border border-black/[0.06] shadow-sm" : "bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)]"}`}
                                     />
                                 )}
                                 <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
                                     <Award className="w-3.5 h-3.5" />
                                     Data Science
+                                </span>
+                            </button>
+                            <button
+                                onClick={() => setActiveCourse('cloudcomputing')}
+                                className={`relative flex-1 md:flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeCourse === 'cloudcomputing' ? isRich ? 'text-emerald-800' : 'text-white' : isRich ? 'text-gray-400 hover:text-gray-900' : 'text-white/40 hover:text-white'}`}
+                            >
+                                {activeCourse === 'cloudcomputing' && (
+                                    <motion.div
+                                        layoutId="dashboard-active-pill"
+                                        {...swipeDragProps}
+                                        onDragEnd={makeSwipeHandler('ai', 'datascience')}
+                                        className={`absolute inset-0 rounded-full cursor-grab active:cursor-grabbing z-0 ${isRich ? "bg-white border border-black/[0.06] shadow-sm" : "bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)]"}`}
+                                    />
+                                )}
+                                <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
+                                    <Cloud className="w-3.5 h-3.5" />
+                                    Cloud Computing
                                 </span>
                             </button>
                             <button
@@ -366,7 +396,7 @@ const Dashboard: React.FC = () => {
                                     <motion.div
                                         layoutId="dashboard-active-pill"
                                         {...swipeDragProps}
-                                        onDragEnd={makeSwipeHandler(null, 'datascience')}
+                                        onDragEnd={makeSwipeHandler(null, 'cloudcomputing')}
                                         className={`absolute inset-0 rounded-full cursor-grab active:cursor-grabbing z-0 ${isRich ? "bg-white border border-black/[0.06] shadow-sm" : "bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)]"}`}
                                     />
                                 )}
@@ -422,13 +452,30 @@ const Dashboard: React.FC = () => {
                                     <motion.div
                                         layoutId="dashboard-active-pill"
                                         {...swipeDragProps}
-                                        onDragEnd={makeSwipeHandler('ai', 'cyber')}
+                                        onDragEnd={makeSwipeHandler('cloudcomputing', 'cyber')}
                                         className="absolute inset-0 rounded-full cursor-grab active:cursor-grabbing z-0 bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)]"
                                     />
                                 )}
                                 <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
                                     <Award className="w-3.5 h-3.5" />
                                     Data Science
+                                </span>
+                            </button>
+                            <button
+                                onClick={() => setActiveCourse('cloudcomputing')}
+                                className={`relative flex-1 md:flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeCourse === 'cloudcomputing' ? 'text-white' : 'text-white/40 hover:text-white'}`}
+                            >
+                                {activeCourse === 'cloudcomputing' && (
+                                    <motion.div
+                                        layoutId="dashboard-active-pill"
+                                        {...swipeDragProps}
+                                        onDragEnd={makeSwipeHandler('ai', 'datascience')}
+                                        className="absolute inset-0 rounded-full cursor-grab active:cursor-grabbing z-0 bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)]"
+                                    />
+                                )}
+                                <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
+                                    <Cloud className="w-3.5 h-3.5" />
+                                    Cloud Computing
                                 </span>
                             </button>
                             <button
@@ -439,7 +486,7 @@ const Dashboard: React.FC = () => {
                                     <motion.div
                                         layoutId="dashboard-active-pill"
                                         {...swipeDragProps}
-                                        onDragEnd={makeSwipeHandler(null, 'datascience')}
+                                        onDragEnd={makeSwipeHandler(null, 'cloudcomputing')}
                                         className="absolute inset-0 rounded-full cursor-grab active:cursor-grabbing z-0 bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)]"
                                     />
                                 )}
@@ -602,16 +649,16 @@ const Dashboard: React.FC = () => {
                                     <div className="px-5 py-4">
                                         <div className="text-[11px] text-gray-400 uppercase tracking-widest font-bold mb-1">Certificate</div>
                                         <div>
-                                            {user?.certificateStatus === 'approved' ? (
-                                                <button onClick={generateCertificate} className="text-xs font-bold text-primary hover:underline">
+                                            {user?.certifiedCourses?.[activeCourse]?.status === 'approved' ? (
+                                                <button onClick={() => generateCertificate(activeCourse)} className="text-xs font-bold text-primary hover:underline">
                                                     Download
                                                 </button>
-                                            ) : user?.certificateStatus === 'pending' ? (
+                                            ) : user?.certifiedCourses?.[activeCourse]?.status === 'pending' || user?.certificateStatus === 'pending' ? (
                                                 <div className="text-xs font-bold text-gray-400">
                                                     Pending
                                                 </div>
                                             ) : progress === 100 ? (
-                                                <button onClick={requestCertificate} className="text-xs font-bold text-primary hover:underline">
+                                                <button onClick={() => requestCertificate(activeCourse)} className="text-xs font-bold text-primary hover:underline">
                                                     Request
                                                 </button>
                                             ) : (
@@ -657,16 +704,16 @@ const Dashboard: React.FC = () => {
                                                 <>
                                                     <div className="text-sm text-muted-foreground mb-1 relative z-10">Certificate</div>
                                                     <div className="relative z-10">
-                                                        {user?.certificateStatus === 'approved' ? (
-                                                            <button onClick={generateCertificate} className="flex items-center gap-2 px-3 py-1.5 bg-primary/20 hover:bg-primary/30 text-primary rounded-lg text-xs font-bold transition-all border border-primary/20 pointer-events-auto">
+                                                        {user?.certifiedCourses?.[activeCourse]?.status === 'approved' ? (
+                                                            <button onClick={() => generateCertificate(activeCourse)} className="flex items-center gap-2 px-3 py-1.5 bg-primary/20 hover:bg-primary/30 text-primary rounded-lg text-xs font-bold transition-all border border-primary/20 pointer-events-auto">
                                                                 <Download className="w-3 h-3" /> Download
                                                             </button>
-                                                        ) : user?.certificateStatus === 'pending' ? (
+                                                        ) : user?.certifiedCourses?.[activeCourse]?.status === 'pending' || user?.certificateStatus === 'pending' ? (
                                                             <div className="flex items-center gap-2 text-yellow-400 font-bold text-sm animate-pulse">
                                                                 <Clock className="w-4 h-4" /> Pending
                                                             </div>
                                                         ) : progress === 100 ? (
-                                                            <button onClick={requestCertificate} className="flex items-center gap-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold transition-all border border-white/10 pointer-events-auto">
+                                                            <button onClick={() => requestCertificate(activeCourse)} className="flex items-center gap-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold transition-all border border-white/10 pointer-events-auto">
                                                                 <Award className="w-3 h-3" /> Request
                                                             </button>
                                                         ) : (

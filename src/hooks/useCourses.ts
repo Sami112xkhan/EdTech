@@ -3,6 +3,7 @@ import { curriculum } from '../data/curriculum';
 import { cybersecurityCurriculum } from '../data/cybersecurityCurriculum';
 import { dataScienceCurriculum } from '../data/dataScienceCurriculum';
 import { aiCurriculum } from '../data/aiCurriculum';
+import { cloudComputingCurriculum } from '../data/cloudComputingCurriculum';
 
 // ── Types matching the DB schema ──────────────────────────────────────────────
 
@@ -145,6 +146,17 @@ const STATIC_COURSES: CourseWithModules[] = [
         badge: null, icon: 'Bot', color: 'cyan', sortOrder: 3, isPublished: true,
         createdAt: '', updatedAt: '',
         modules: staticModulesToCourseModules(aiCurriculum as any, 'static-ai'),
+    },
+    {
+        id: 'static-cloudcomputing', slug: 'cloudcomputing', title: 'Cloud Computing',
+        subtitle: 'NPTEL Cloud Computing',
+        description: 'Master cloud computing from fundamentals to platform deployment — covering architecture, virtualization, XML & web services, MapReduce, OpenStack, Azure, and GCP.',
+        landingDescription: 'From cloud fundamentals to Azure & GCP deployment.',
+        price: 11500, salePrice: null,
+        features: ['25+ Video Lessons', 'Cloud Architecture & Deployment', 'Azure & GCP Hands-On', 'OpenStack & MapReduce', 'Certificate of Completion', 'Discord Community Access'],
+        badge: null, icon: 'Cloud', color: 'sky', sortOrder: 4, isPublished: true,
+        createdAt: '', updatedAt: '',
+        modules: staticModulesToCourseModules(cloudComputingCurriculum as any, 'static-cloudcomputing'),
     },
 ];
 

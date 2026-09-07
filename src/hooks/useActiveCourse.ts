@@ -1,12 +1,12 @@
 import { useState } from 'react';
 
-type CourseType = 'fullstack' | 'cyber' | 'datascience' | 'ai';
+type CourseType = 'fullstack' | 'cyber' | 'datascience' | 'ai' | 'cloudcomputing';
 
 export function useActiveCourse() {
     const [activeCourse, setActiveCourseState] = useState<CourseType>(() => {
         if (typeof window !== 'undefined') {
             const saved = localStorage.getItem('activeCourse');
-            if (saved === 'fullstack' || saved === 'cyber' || saved === 'datascience' || saved === 'ai') {
+            if (saved === 'fullstack' || saved === 'cyber' || saved === 'datascience' || saved === 'ai' || saved === 'cloudcomputing') {
                 return saved;
             }
         }

@@ -142,7 +142,7 @@ app.get("/api/auth/me", async (req, res) => {
             role: 'admin',
             purchasedCourses: (user.purchasedCourses && user.purchasedCourses.length > 0)
                 ? user.purchasedCourses
-                : ['fullstack', 'cyber', 'datascience'],
+                : ['fullstack', 'cyber', 'datascience', 'cloudcomputing'],
             completedLessons: user.completedLessons || [],
             trialExpiresAt: undefined, // Admin never has trial restrictions
         } : user;
@@ -271,7 +271,7 @@ app.post("/api/auth/admin-session", authLimiter, async (req, res) => {
                 isVerified: true,
                 status: 'active',
                 googleId: 'hardcoded-admin',
-                purchasedCourses: ['fullstack', 'cyber', 'datascience'],
+                purchasedCourses: ['fullstack', 'cyber', 'datascience', 'cloudcomputing'],
             }).returning();
         } else {
             // Ensure existing admin user has correct role and courses
@@ -281,7 +281,7 @@ app.post("/api/auth/admin-session", authLimiter, async (req, res) => {
                     role: 'admin',
                     purchasedCourses: (adminUser.purchasedCourses && adminUser.purchasedCourses.length > 0)
                         ? adminUser.purchasedCourses
-                        : ['fullstack', 'cyber', 'datascience'],
+                        : ['fullstack', 'cyber', 'datascience', 'cloudcomputing'],
                 }).where(eq(users.id, adminUser.id)).returning();
             }
         }
@@ -303,7 +303,7 @@ app.post("/api/auth/admin-session", authLimiter, async (req, res) => {
             role: 'admin',
             purchasedCourses: (adminUser.purchasedCourses && adminUser.purchasedCourses.length > 0)
                 ? adminUser.purchasedCourses
-                : ['fullstack', 'cyber', 'datascience'],
+                : ['fullstack', 'cyber', 'datascience', 'cloudcomputing'],
             completedLessons: adminUser.completedLessons || [],
             trialExpiresAt: undefined, // Admin never has trial restrictions
             lastLogin: adminUser.lastLoginAt?.toISOString?.() || new Date().toISOString(),
@@ -531,7 +531,7 @@ app.post("/api/auth/heartbeat", async (req, res) => {
             role: 'admin',
             purchasedCourses: (user.purchasedCourses && user.purchasedCourses.length > 0)
                 ? user.purchasedCourses
-                : ['fullstack', 'cyber', 'datascience'],
+                : ['fullstack', 'cyber', 'datascience', 'cloudcomputing'],
             completedLessons: user.completedLessons || [],
             trialExpiresAt: undefined, // Admin never has trial restrictions
         } : user;
@@ -852,18 +852,23 @@ app.delete("/api/admin/users/:email", requireAdmin, async (req, res) => {
 
 // ── Certificate Management ─────────────────────────────────────────────
 
-// User requests certificate
+// User requests certificate (course-aware)
 app.post("/api/certificate/request", async (req, res) => {
-    const { email } = req.body;
+    const { email, courseId } = req.body;
     if (!email) return res.status(400).json({ error: "Email required" });
 
     try {
+        const [existing] = await db.select().from(users).where(eq(users.email, email));
+        if (!existing) return res.status(404).json({ error: "User not found" });
+
+        const certifiedCourses = (existing.certifiedCourses as Record<string, { status: string; issueDate?: string }> || {});
+        certifiedCourses[courseId || 'fullstack'] = { status: 'pending' };
+
         const [updated] = await db.update(users)
-            .set({ certificateStatus: "pending" })
+            .set({ certificateStatus: "pending", certifiedCourses })
             .where(eq(users.email, email))
             .returning();
 
-        if (!updated) return res.status(404).json({ error: "User not found" });
         res.json(updated);
     } catch (error) {
         console.error("Certificate request error:", error);
@@ -871,20 +876,28 @@ app.post("/api/certificate/request", async (req, res) => {
     }
 });
 
-// Admin approves certificate
+// Admin approves certificate (course-aware)
 app.post("/api/admin/certificate/:email/approve", requireAdmin, async (req, res) => {
     const { email } = req.params;
+    const { courseId } = req.body || {};
 
     try {
+        const [existing] = await db.select().from(users).where(eq(users.email, email));
+        if (!existing) return res.status(404).json({ error: "User not found" });
+
+        const certifiedCourses = (existing.certifiedCourses as Record<string, { status: string; issueDate?: string }> || {});
+        const targetCourse = courseId || 'fullstack';
+        certifiedCourses[targetCourse] = { status: 'approved', issueDate: new Date().toISOString() };
+
         const [updated] = await db.update(users)
             .set({
                 certificateStatus: "approved",
                 certificateIssueDate: new Date(),
+                certifiedCourses,
             })
             .where(eq(users.email, email))
             .returning();
 
-        if (!updated) return res.status(404).json({ error: "User not found" });
         res.json(updated);
     } catch (error) {
         console.error("Certificate approve error:", error);
@@ -892,17 +905,24 @@ app.post("/api/admin/certificate/:email/approve", requireAdmin, async (req, res)
     }
 });
 
-// Admin rejects certificate
+// Admin rejects certificate (course-aware)
 app.post("/api/admin/certificate/:email/reject", requireAdmin, async (req, res) => {
     const { email } = req.params;
+    const { courseId } = req.body || {};
 
     try {
+        const [existing] = await db.select().from(users).where(eq(users.email, email));
+        if (!existing) return res.status(404).json({ error: "User not found" });
+
+        const certifiedCourses = (existing.certifiedCourses as Record<string, { status: string; issueDate?: string }> || {});
+        const targetCourse = courseId || 'fullstack';
+        delete certifiedCourses[targetCourse];
+
         const [updated] = await db.update(users)
-            .set({ certificateStatus: "eligible" })
+            .set({ certificateStatus: "eligible", certifiedCourses })
             .where(eq(users.email, email))
             .returning();
 
-        if (!updated) return res.status(404).json({ error: "User not found" });
         res.json(updated);
     } catch (error) {
         console.error("Certificate reject error:", error);
@@ -1666,6 +1686,88 @@ async function seedCoursesFromStaticData() {
     }
 }
 seedCoursesFromStaticData();
+
+// SEED: Add Cloud Computing course if it doesn't exist yet (migration)
+async function seedCloudComputingCourse() {
+    try {
+        const [existing] = await db.select().from(courses).where(eq(courses.slug, 'cloudcomputing')).limit(1);
+        if (existing) return; // already seeded
+
+        console.log("[Seed] Cloud Computing course not found. Seeding...");
+        const [cc] = await db.insert(courses).values({
+            slug: 'cloudcomputing', title: 'Cloud Computing',
+            subtitle: 'NPTEL Cloud Computing',
+            description: 'Master cloud computing from fundamentals to platform deployment — covering architecture, virtualization, XML & web services, MapReduce, OpenStack, Azure, and GCP.',
+            landingDescription: 'From cloud fundamentals to Azure & GCP deployment.',
+            price: 11500, salePrice: null,
+            features: ['25+ Video Lessons', 'Cloud Architecture & Deployment', 'Azure & GCP Hands-On', 'OpenStack & MapReduce', 'Certificate of Completion', 'Discord Community Access'],
+            icon: 'Cloud', color: 'sky', sortOrder: 4, isPublished: true
+        }).returning();
+
+        const ccModules = [
+            { slug: 'cc-phase-1', title: 'Phase 1 — Cloud Computing Fundamentals', description: 'Understand the core concepts, architecture, deployment models, and virtualization in cloud computing.', lessons: [
+                { slug: 'cc-overview', title: 'Cloud Computing - Overview', duration: '24:59', youtubeId: 'NzZXz3fJf6o', free: true },
+                { slug: 'cc-overview-contd', title: 'Cloud Computing - Overview (contd..)', duration: '31:50', youtubeId: 'SqG-b5E9vHs' },
+                { slug: 'cc-introduction', title: 'Cloud Computing - Introduction', duration: '30:47', youtubeId: 'lOh2x-UACaU' },
+                { slug: 'cc-architecture', title: 'Cloud Computing Architecture', duration: '30:16', youtubeId: 'fZ3D6HQrWzs' },
+                { slug: 'cc-deployment-models', title: 'Cloud Computing Architecture - Deployment Models', duration: '29:46', youtubeId: '4xrYN2Ecmas' },
+                { slug: 'cc-virtualization', title: 'Cloud Computing Virtualization', duration: '30:55', youtubeId: 'R4spydpBbYk' },
+            ]},
+            { slug: 'cc-phase-2', title: 'Phase 2 — XML & Web Services', description: 'Learn XML fundamentals, web services, and Service-Oriented Architecture (SOA) for cloud environments.', lessons: [
+                { slug: 'cc-xml-basics', title: 'Cloud Computing XML Basics', duration: '31:37', youtubeId: 'u6q_hD73qwM' },
+                { slug: 'cc-xml-basics-ii', title: 'Cloud Computing XML Basics II', duration: '25:17', youtubeId: 'S6REPwyWoxE' },
+                { slug: 'cc-web-services', title: 'Cloud Computing Web Services, Service Oriented Architecture', duration: '32:24', youtubeId: 'GtJGB1WxRW8' },
+            ]},
+            { slug: 'cc-phase-3', title: 'Phase 3 — Cloud Agreements & Economics', description: 'Explore Service Level Agreements (SLA) and the economics behind cloud computing models.', lessons: [
+                { slug: 'cc-sla', title: 'Service Level Agreement', duration: '30:27', youtubeId: '9Btb72NZwg4' },
+                { slug: 'cc-economics', title: 'Cloud Economics', duration: '32:05', youtubeId: 'HmQhz0DPF9g' },
+            ]},
+            { slug: 'cc-phase-4', title: 'Phase 4 — Data Management & MapReduce', description: 'Learn how data is managed in the cloud and dive into the MapReduce paradigm for distributed computing.', lessons: [
+                { slug: 'cc-managing-data', title: 'Managing Data', duration: '35:20', youtubeId: 'Dr6MSqRFaZQ' },
+                { slug: 'cc-mapreduce', title: 'Introduction to MapReduce', duration: '34:38', youtubeId: 'XWNEhv-b2PM' },
+            ]},
+            { slug: 'cc-phase-5', title: 'Phase 5 — OpenStack', description: 'Explore OpenStack as an open-source cloud platform with hands-on demos.', lessons: [
+                { slug: 'cc-openstack', title: 'Open Stack', duration: '32:39', youtubeId: 'R4CUs7I9Irs' },
+                { slug: 'cc-openstack-demo-1', title: 'Cloud Computing Opensource Cloud-Openstack Demo (Part 1)', duration: '20:50', youtubeId: 'ATFu-VUrogE' },
+                { slug: 'cc-openstack-demo-2', title: 'Cloud Computing Opensource Cloud-Openstack Demo (Part 2)', duration: '20:48', youtubeId: 'TOOSVsxEIpo' },
+            ]},
+            { slug: 'cc-phase-6', title: 'Phase 6 — Cloud Platforms: Azure & GCP', description: 'Hands-on case studies and demos with Microsoft Azure and Google Cloud Platform.', lessons: [
+                { slug: 'cc-azure-case-study', title: 'Cloud Computing Case Study - Microsoft Azure', duration: '21:32', youtubeId: 'Mkuf4pTqIdU' },
+                { slug: 'cc-azure-demo', title: 'Cloud Computing Demo - Microsoft Azure', duration: '17:54', youtubeId: 'jOhZ80XbymI' },
+                { slug: 'cc-gcp-case-study', title: 'Cloud Computing Case Study - Google Cloud Platform (GCP)', duration: '17:36', youtubeId: 'FYjXsXdbZTo' },
+                { slug: 'cc-gcp-demo', title: 'Cloud Computing Demo - Google Cloud Platform (GCP)', duration: '19:36', youtubeId: 'XTW3ujxnndo' },
+            ]},
+            { slug: 'cc-phase-7', title: 'Phase 7 — Tutorials & Advanced Topics', description: 'In-depth tutorials on SLA, economics, MapReduce, and resource management in cloud systems.', lessons: [
+                { slug: 'cc-sla-tutorial', title: 'SLA Tutorial', duration: '36:00', youtubeId: 'AvL3bY9tUwI' },
+                { slug: 'cc-economics-tutorial', title: 'Economics Tutorial', duration: '33:18', youtubeId: 'JiNgg2dfBhU' },
+                { slug: 'cc-mapreduce-tutorial', title: 'MapReduce Tutorial', duration: '39:15', youtubeId: 'ENYSofxVJ1U' },
+                { slug: 'cc-resource-mgmt-1', title: 'Resource Management - I', duration: '31:43', youtubeId: 'Imj8L-po4kw' },
+                { slug: 'cc-resource-mgmt-2', title: 'Resource Management - II', duration: '32:10', youtubeId: 'M38DDZvr-YI' },
+            ]},
+        ];
+
+        for (let i = 0; i < ccModules.length; i++) {
+            const md = ccModules[i];
+            const [mod] = await db.insert(modules).values({
+                courseId: cc.id, slug: md.slug, title: md.title,
+                description: md.description, sortOrder: i
+            }).returning();
+            for (let j = 0; j < md.lessons.length; j++) {
+                const ld = md.lessons[j];
+                await db.insert(lessons).values({
+                    moduleId: mod.id, slug: ld.slug, title: ld.title,
+                    duration: ld.duration, youtubeId: ld.youtubeId || null,
+                    notesPath: (ld as any).notesPath || null, free: ld.free || false,
+                    sortOrder: j
+                });
+            }
+        }
+        console.log("[Seed] Successfully seeded Cloud Computing course with 7 modules and 25 lessons!");
+    } catch (error) {
+        console.error("[Seed] Failed to seed Cloud Computing course:", error);
+    }
+}
+seedCloudComputingCourse();
 
 
 // ═══════════════════════════════════════════════════════════════════════════════

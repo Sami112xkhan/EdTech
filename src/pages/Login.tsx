@@ -76,7 +76,7 @@ const Login: React.FC = () => {
                 name: "User", // Placeholder name
                 username: data.identifier,
                 email: data.identifier,
-                purchasedCourses: isPremium ? ['fullstack', 'cyber', 'datascience'] : [], // Grant premium if code valid
+                purchasedCourses: isPremium ? ['fullstack', 'cyber', 'datascience', 'cloudcomputing'] : [], // Grant premium if code valid
                 role: 'student',
                 unlockedBy: unlockedBy, // Track how they got premium
                 password: data.password
@@ -93,7 +93,7 @@ const Login: React.FC = () => {
 
             if (existingUserIndex >= 0) {
                 if (isPremium) {
-                    storedUsers[existingUserIndex].purchasedCourses = ['fullstack', 'cyber', 'datascience'];
+                    storedUsers[existingUserIndex].purchasedCourses = ['fullstack', 'cyber', 'datascience', 'cloudcomputing'];
                     storedUsers[existingUserIndex].unlockedBy = unlockedBy;
                     localStorage.setItem('users', JSON.stringify(storedUsers));
                 }
@@ -106,7 +106,7 @@ const Login: React.FC = () => {
                     username: data.identifier,
                     password: data.password, // Required for admin check in AuthContext
                     isVerified: true,
-                    purchasedCourses: isPremium || (existingUserIndex >= 0 && storedUsers[existingUserIndex].purchasedCourses?.length > 0) ? ['fullstack', 'cyber', 'datascience'] : [],
+                    purchasedCourses: isPremium || (existingUserIndex >= 0 && storedUsers[existingUserIndex].purchasedCourses?.length > 0) ? ['fullstack', 'cyber', 'datascience', 'cloudcomputing'] : [],
                     unlockedBy: unlockedBy,
                     completedLessons: [],
                     status: 'active',

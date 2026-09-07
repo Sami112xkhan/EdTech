@@ -55,7 +55,7 @@ const Hero: React.FC = () => {
                     transition={{ duration: 0.7, delay: 0.5, ease: [0.23, 1, 0.32, 1] }}
                     className="text-[clamp(18px,2.5vw,28px)] font-light leading-[1.4] text-[#86868b] max-w-[720px] mx-auto mb-14"
                 >
-                    Master Full Stack Web Development, Data Science, or Cybersecurity.
+                    Master Full Stack Web Development, Data Science, Cybersecurity, or Cloud Computing.
                     Build real-world portfolios with Lifetime access and AI Mentorship.
                 </motion.p>
 
@@ -93,6 +93,12 @@ const Hero: React.FC = () => {
                             className="px-6 py-3 rounded-full border border-[#2997ff]/40 text-[#2997ff] text-[17px] font-normal leading-none hover:bg-[#2997ff]/10 active:scale-[0.98] transition-all"
                         >
                             Cyber Security -- Rs.5,000
+                        </Link>
+                        <Link
+                            to="/checkout?course=cloudcomputing"
+                            className="px-6 py-3 rounded-full border border-[#2997ff]/40 text-[#2997ff] text-[17px] font-normal leading-none hover:bg-[#2997ff]/10 active:scale-[0.98] transition-all"
+                        >
+                            Cloud Computing -- Rs.11,500
                         </Link>
                     </div>
 

@@ -23,6 +23,7 @@ export interface User {
     // Certificate
     certificateStatus?: 'locked' | 'eligible' | 'pending' | 'approved';
     certificateIssueDate?: string;
+    certifiedCourses?: Record<string, { status: 'pending' | 'approved'; issueDate?: string }>;
     lastSeen?: string; // ISO string
     usedCodes?: string[]; // Track static codes used
 
