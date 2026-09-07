@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { CheckCircle2, ShieldCheck, CreditCard, Lock, ChevronDown } from "lucide-react";
+import { CheckCircle2, ShieldCheck, CreditCard, Lock, ChevronDown, ArrowLeft } from "lucide-react";
 import Navbar from "../components/Navbar";
 
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -125,9 +125,10 @@ const Checkout: React.FC = () => {
       {/* Back link */}
       <Link
         to="/"
-        className="fixed top-6 left-6 z-[60] flex items-center gap-2 px-5 py-2.5 bg-white/60 backdrop-blur-xl border border-black/[0.06] rounded-full text-gray-500 hover:text-gray-900 hover:bg-white transition-all text-xs font-medium"
+        className="fixed top-4 left-4 md:top-6 md:left-6 z-[60] flex items-center gap-1.5 px-3 py-2 md:px-4 md:py-2.5 bg-white/70 backdrop-blur-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.05] rounded-xl text-gray-500 hover:text-gray-900 hover:bg-white hover:shadow-[0_4px_20px_rgba(0,0,0,0.1)] transition-all duration-200 text-[13px] font-medium group"
       >
-        Back to Home
+        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform duration-200" />
+        <span className="hidden sm:inline">Back to Home</span>
       </Link>
 
       <div className="flex items-center justify-center p-4 pt-28 min-h-[100dvh]">
