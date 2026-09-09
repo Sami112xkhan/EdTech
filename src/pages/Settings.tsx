@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
+import { useCourses } from '../hooks/useCourses';
 
 // ─── Toggle Switch ───
 const Toggle: React.FC<{
@@ -147,6 +148,12 @@ const Settings: React.FC = () => {
             return val !== null ? JSON.parse(val) : fallback;
         } catch { return fallback; }
     };
+
+    const { courses: dbCourses } = useCourses();
+    const totalPaid = (user?.purchasedCourses || []).reduce((sum, slug) => {
+        const course = dbCourses.find(c => c.slug === slug);
+        return sum + (course?.salePrice || course?.price || 0);
+    }, 0);
 
     // Appearance (Global Theme Context)
     const { 
@@ -492,7 +499,7 @@ const Settings: React.FC = () => {
                         </div>
                     </div>
                     {(user?.purchasedCourses?.length || 0) > 0 && !(user?.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED') && (
-                        <div className="text-2xl font-bold text-white">₹10,000</div>
+                        <div className="text-2xl font-bold text-white">₹{totalPaid.toLocaleString()}</div>
                     )}
                 </div>
 
