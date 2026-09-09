@@ -4,7 +4,8 @@ import { useSearchParams, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getPhasesStatus } from "../utils/progress";
 import { useAllCurricula } from "../hooks/useCourses";
-import { PlayCircle, Award, Clock, Lock, ShieldAlert, Flame, Download, BookOpen, Shield, Bot, Zap, ArrowRight, Cloud } from "lucide-react";
+import { PlayCircle, Award, Clock, Lock, ShieldAlert, Flame, Download, BookOpen, Shield, Bot, Zap, ArrowRight, Cloud, ShoppingCart, Check, X, CreditCard } from "lucide-react";
+import { initializePayment } from "../utils/razorpay";
 import { jsPDF } from "jspdf";
 import type { Module } from "../data/curriculum";
 import type { CourseWithModules } from "../hooks/useCourses";
@@ -29,6 +30,8 @@ const Dashboard: React.FC = () => {
     const [accessCode, setAccessCode] = React.useState("");
     const [isRedeeming, setIsRedeeming] = React.useState(false);
     const [activeCourse, setActiveCourse] = useActiveCourse();
+    const [showInlineCheckout, setShowInlineCheckout] = React.useState(false);
+    const [checkoutLoading, setCheckoutLoading] = React.useState(false);
 
     const { curricula } = useAllCurricula();
     const activeCourseObj = curricula.find(c => c.slug === activeCourse);
@@ -50,6 +53,33 @@ const Dashboard: React.FC = () => {
     const hasAnyCourse = user?.purchasedCourses.includes('fullstack') || user?.purchasedCourses.includes('cyber') || user?.purchasedCourses.includes('datascience') || user?.purchasedCourses.includes('cloudcomputing');
     const hasAI = user?.purchasedCourses.includes('ai');
     const showAIUpgrade = user?.role !== 'admin' && isOfferActive && activeCourse === 'ai' && hasAnyCourse && !hasAI;
+
+    // Determine if user has any purchased course (vs trial-only or no access)
+    const userHasAnyPurchasedCourse = (user?.purchasedCourses?.length || 0) > 0;
+    const currentCourseData = curricula.find(c => c.slug === activeCourse);
+
+    const handleInlinePayment = async () => {
+        if (!currentCourseData || !user) return;
+        setCheckoutLoading(true);
+        const price = currentCourseData.salePrice || currentCourseData.price;
+        const validPrice = (typeof price === 'number' && price > 0 && !isNaN(price)) ? price : 0;
+        await initializePayment(
+            validPrice,
+            { name: user.name || 'Student', email: user.email },
+            async (response) => {
+                console.log('Payment Success:', response);
+                await completePurchase(activeCourse);
+                setShowInlineCheckout(false);
+                setCheckoutLoading(false);
+            },
+            (error) => {
+                console.error('Payment Failed:', error);
+                setCheckoutLoading(false);
+                alert('Payment failed. Please try again.');
+            },
+            `${currentCourseData.title} Course`
+        );
+    };
 
     const generateCertificate = (courseId?: string) => {
         if (!user) return;
@@ -569,6 +599,76 @@ const Dashboard: React.FC = () => {
                 )}
 
                 {(isExpired || (!user?.purchasedCourses.includes(activeCourse) && user?.role !== 'admin')) && !showAIUpgrade ? (
+                    showInlineCheckout && currentCourseData ? (
+                        /* ── Inline Checkout Panel ── */
+                        <div className={`p-5 md:p-7 rounded-[2rem] border relative overflow-hidden ${isRich ? "bg-white border-black/[0.06]" : "bg-white/[0.04] border-white/10 backdrop-blur-xl"}`}>
+                            <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />
+                            <div className="flex items-center justify-between mb-5">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-emerald-500/15 flex items-center justify-center border border-emerald-500/20">
+                                        <CreditCard className="w-5 h-5 text-emerald-500" />
+                                    </div>
+                                    <div>
+                                        <h3 className={`text-base font-black uppercase tracking-tight ${isRich ? "text-gray-900" : "text-white"}`}>Complete Purchase</h3>
+                                        <p className="text-[11px] text-muted-foreground">Secure checkout powered by Razorpay</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setShowInlineCheckout(false)}
+                                    className={`p-2 rounded-xl transition-colors ${isRich ? "hover:bg-black/5 text-gray-400 hover:text-gray-700" : "hover:bg-white/10 text-gray-500 hover:text-white"}`}
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+
+                            <div className="flex flex-col md:flex-row gap-5">
+                                {/* Course Info */}
+                                <div className="flex-1 space-y-4">
+                                    <div className={`p-4 rounded-xl border ${isRich ? "bg-gray-50 border-black/[0.04]" : "bg-white/[0.03] border-white/[0.06]"}`}>
+                                        <h4 className={`text-sm font-black uppercase tracking-wide ${isRich ? "text-gray-900" : "text-white"}`}>{currentCourseData.title}</h4>
+                                        {currentCourseData.subtitle && (
+                                            <p className="text-[11px] text-muted-foreground mt-1">{currentCourseData.subtitle}</p>
+                                        )}
+                                    </div>
+                                    {currentCourseData.features && currentCourseData.features.length > 0 && (
+                                        <div className="space-y-2">
+                                            {currentCourseData.features.map((f, i) => (
+                                                <div key={i} className="flex items-center gap-2.5">
+                                                    <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                                    <span className={`text-xs ${isRich ? "text-gray-600" : "text-gray-400"}`}>{f}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Price + Pay Button */}
+                                <div className="md:w-56 flex flex-col items-center justify-center gap-4">
+                                    <div className="text-center">
+                                        <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Total</p>
+                                        <div className="flex items-baseline gap-2 justify-center mt-1">
+                                            {currentCourseData.salePrice && currentCourseData.salePrice < currentCourseData.price && (
+                                                <span className={`text-sm line-through ${isRich ? "text-gray-400" : "text-gray-600"}`}>₹{currentCourseData.price.toLocaleString()}</span>
+                                            )}
+                                            <span className={`text-2xl font-black ${isRich ? "text-gray-900" : "text-white"}`}>₹{(currentCourseData.salePrice || currentCourseData.price).toLocaleString()}</span>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={handleInlinePayment}
+                                        disabled={checkoutLoading}
+                                        className="w-full px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black uppercase tracking-widest text-xs rounded-xl flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-emerald-600/20"
+                                    >
+                                        {checkoutLoading ? (
+                                            <span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Processing...</span>
+                                        ) : (
+                                            <>Pay ₹{(currentCourseData.salePrice || currentCourseData.price).toLocaleString()} <ArrowRight className="w-3.5 h-3.5" /></>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                    /* ── Access Locked Banner ── */
                     <div className="bg-red-500/5 border border-red-500/20 p-4 md:p-6 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-red-500/40 to-transparent" />
                         <div className="flex items-center gap-5 relative z-10">
@@ -577,13 +677,31 @@ const Dashboard: React.FC = () => {
                             </div>
                             <div>
                                 <h3 className={`text-xl font-black uppercase tracking-tight ${isRich ? "text-gray-900" : "text-white"}`}>Access Locked</h3>
-                                <p className="text-xs text-muted-foreground font-medium mt-1">{activeCourse === 'ai' ? (isOfferActive ? 'Get the Full Stack + AI Bundle to unlock this course.' : 'Get the Full Stack Web Dev course to unlock.') : 'Trial period expired. Restore access to continue your journey.'}</p>
+                                <p className="text-xs text-muted-foreground font-medium mt-1">
+                                    {activeCourse === 'ai'
+                                        ? (isOfferActive ? 'Get the Full Stack + AI Bundle to unlock this course.' : 'Get the Full Stack Web Dev course to unlock.')
+                                        : userHasAnyPurchasedCourse
+                                            ? `You don't own this course yet. Purchase ${currentCourseData?.title || activeCourse} to unlock all lessons.`
+                                            : 'Trial period expired. Purchase this course to continue your journey.'
+                                    }
+                                </p>
                             </div>
                         </div>
-                        <Link to={activeCourse === 'ai' ? "/checkout?course=fullstack" : `/checkout?course=${activeCourse}`} className="w-full md:w-auto px-8 py-4 bg-white text-black font-black uppercase tracking-widest text-xs rounded-2xl flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-white/5">
-                            {activeCourse === 'ai' ? (isOfferActive ? 'Get Bundle — ₹10,000' : 'Get Full Stack — ₹8,000') : 'Upgrade Now'}
-                        </Link>
+                        {activeCourse === 'ai' ? (
+                            <Link to="/checkout?course=ai_upgrade" className="w-full md:w-auto px-8 py-4 bg-white text-black font-black uppercase tracking-widest text-xs rounded-2xl flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-white/5">
+                                {isOfferActive ? 'Get Bundle — ₹10,000' : 'Get Full Stack — ₹8,000'}
+                            </Link>
+                        ) : (
+                            <button
+                                onClick={() => setShowInlineCheckout(true)}
+                                className="w-full md:w-auto px-8 py-4 bg-white text-black font-black uppercase tracking-widest text-xs rounded-2xl flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-white/5"
+                            >
+                                <ShoppingCart className="w-4 h-4" />
+                                Buy Now — ₹{(currentCourseData?.salePrice || currentCourseData?.price || 0).toLocaleString()}
+                            </button>
+                        )}
                     </div>
+                    )
                 ) : showAIUpgrade ? null : (
                     <div className="space-y-6">
                         {/* Continue Learning */}
