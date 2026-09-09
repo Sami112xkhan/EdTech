@@ -24,17 +24,37 @@ const Toggle: React.FC<{
 }> = ({ enabled, onChange, label, description, icon }) => {
     const { theme } = useTheme();
     const isRich = theme === 'rich';
+    const [justChanged, setJustChanged] = React.useState(false);
+    const handleChange = () => {
+        onChange(!enabled);
+        setJustChanged(true);
+        setTimeout(() => setJustChanged(false), 1500);
+    };
     return (
     <div className="flex items-center justify-between py-3.5">
         <div className="flex items-center gap-3 flex-1 min-w-0">
             {icon && <div className="text-muted-foreground shrink-0">{icon}</div>}
             <div className="min-w-0">
-                <p className={`text-sm font-medium ${isRich ? "text-gray-900" : "text-white"}`}>{label}</p>
+                <div className="flex items-center gap-2">
+                    <p className={`text-sm font-medium ${isRich ? "text-gray-900" : "text-white"}`}>{label}</p>
+                    <AnimatePresence>
+                        {justChanged && (
+                            <motion.span
+                                initial={{ opacity: 0, x: -8 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: 8 }}
+                                className="text-[10px] font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full"
+                            >
+                                Synced ✓
+                            </motion.span>
+                        )}
+                    </AnimatePresence>
+                </div>
                 {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
             </div>
         </div>
         <button
-            onClick={() => onChange(!enabled)}
+            onClick={handleChange}
             className={`relative w-11 h-6 rounded-full transition-all duration-300 shrink-0 ml-4 ${enabled ? 'bg-primary shadow-lg shadow-primary/30' : 'bg-white/10'}`}
         >
             <motion.div
@@ -140,6 +160,7 @@ const Settings: React.FC = () => {
     const [name, setName] = useState(user?.name || "");
     const [username, setUsername] = useState(user?.username || "");
     const [isSaving, setIsSaving] = useState(false);
+    const [showSubDetails, setShowSubDetails] = useState(false);
 
     // ─── Load / Save helpers ───
     const loadPref = <T,>(key: string, fallback: T): T => {
@@ -459,49 +480,87 @@ const Settings: React.FC = () => {
                     />
                 </SettingsSection>
 
-                {/* ─── Subscription ─── */}
-                <div className={`p-6 flex flex-col sm:flex-row ${isRich ? "bg-white border border-black/[0.06] rounded-xl" : "bg-secondary/30 border border-white/5 rounded-xl"} items-center justify-between gap-4 relative overflow-hidden"`}>
-                    <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${user?.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED'
-                            ? 'bg-amber-500/20 text-amber-400'
-                            : (user?.purchasedCourses?.length || 0) > 0
-                                ? 'bg-green-500/20 text-green-400'
-                                : 'bg-white/10 text-white/40'
-                            }`}>
-                            <CreditCard className="w-6 h-6" />
+                {/* ─── Subscription (Expandable) ─── */}
+                {(() => {
+                    const hasPurchased = (user?.purchasedCourses?.length || 0) > 0;
+                    const isTrial = user?.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED';
+                    const isExpired = user?.trialExpiresAt === 'EXPIRED';
+                    return (
+                        <div className={`${isRich ? "bg-white border border-black/[0.06] rounded-xl" : "bg-secondary/30 border border-white/5 rounded-xl"} relative overflow-hidden transition-all duration-300`}>
+                            {/* Header — always visible, clickable if has courses */}
+                            <button
+                                onClick={() => hasPurchased && setShowSubDetails(!showSubDetails)}
+                                className={`w-full p-6 flex flex-col sm:flex-row items-center justify-between gap-4 ${hasPurchased ? 'cursor-pointer' : 'cursor-default'}`}
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isTrial ? 'bg-amber-500/20 text-amber-400' : hasPurchased ? 'bg-green-500/20 text-green-400' : 'bg-white/10 text-white/40'}`}>
+                                        <CreditCard className="w-6 h-6" />
+                                    </div>
+                                    <div className="text-left">
+                                        <h3 className="font-semibold text-white">
+                                            {isExpired ? "Trial Expired" : isTrial ? "Trial Access" : hasPurchased ? "Lifetime Access" : "Free Plan"}
+                                        </h3>
+                                        <p className={`text-sm font-medium ${isExpired ? 'text-red-400' : isTrial ? 'text-amber-400' : hasPurchased ? 'text-green-400' : 'text-zinc-500'}`}>
+                                            {isExpired ? "Access limited. Upgrade to continue." : isTrial ? "Limited Time Access \u2022 All Features" : hasPurchased ? `Active \u2022 ${(user?.purchasedCourses?.length || 0)} course${(user?.purchasedCourses?.length || 0) > 1 ? 's' : ''} purchased` : "Upgrade to unlock all courses"}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    {hasPurchased && !isTrial && (
+                                        <span className="text-2xl font-bold text-white">\u20B9{totalPaid.toLocaleString()}</span>
+                                    )}
+                                    {hasPurchased && (
+                                        <ChevronDown className={`w-5 h-5 text-white/40 transition-transform duration-300 ${showSubDetails ? 'rotate-180' : ''}`} />
+                                    )}
+                                </div>
+                            </button>
+
+                            {/* Expandable Course Breakdown */}
+                            <AnimatePresence>
+                                {showSubDetails && hasPurchased && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.3, ease: 'easeInOut' }}
+                                        className="overflow-hidden"
+                                    >
+                                        <div className={`px-6 pb-5 pt-0 space-y-3 ${isRich ? 'border-t border-black/[0.04]' : 'border-t border-white/5'}`}>
+                                            <div className="pt-4 flex items-center gap-2">
+                                                <GraduationCap className="w-4 h-4 text-green-400" />
+                                                <span className="text-xs font-bold uppercase tracking-widest text-white/50">Your Courses</span>
+                                            </div>
+                                            {(user?.purchasedCourses || []).map(slug => {
+                                                const course = dbCourses.find(c => c.slug === slug);
+                                                const price = course?.salePrice || course?.price || 0;
+                                                return (
+                                                    <div key={slug} className={`flex items-center justify-between py-3 px-4 rounded-xl ${isRich ? 'bg-gray-50' : 'bg-white/[0.03]'}`}>
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-lg bg-green-500/15 flex items-center justify-center">
+                                                                <Check className="w-4 h-4 text-green-500" />
+                                                            </div>
+                                                            <div>
+                                                                <p className={`text-sm font-semibold ${isRich ? 'text-gray-900' : 'text-white'}`}>{course?.title || slug}</p>
+                                                                <p className="text-[11px] text-white/40">Lifetime Access</p>
+                                                            </div>
+                                                        </div>
+                                                        <span className={`text-sm font-bold ${isRich ? 'text-gray-700' : 'text-white/70'}`}>
+                                                            \u20B9{price.toLocaleString()}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })}
+                                            <div className="flex items-center justify-between pt-2 px-4">
+                                                <span className="text-xs font-bold uppercase tracking-widest text-white/40">Total Investment</span>
+                                                <span className="text-lg font-black text-green-400">\u20B9{totalPaid.toLocaleString()}</span>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
-                        <div>
-                            <h3 className="font-semibold text-white">
-                                {user?.trialExpiresAt === 'EXPIRED'
-                                    ? "Trial Expired"
-                                    : (user?.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED')
-                                        ? "Trial Access"
-                                        : (user?.purchasedCourses?.length || 0) > 0
-                                            ? "Lifetime Access"
-                                            : "Free Plan"}
-                            </h3>
-                            <p className={`text-sm font-medium ${user?.trialExpiresAt === 'EXPIRED'
-                                    ? 'text-red-400'
-                                    : (user?.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED')
-                                        ? 'text-amber-400'
-                                        : (user?.purchasedCourses?.length || 0) > 0
-                                            ? 'text-green-400'
-                                            : 'text-zinc-500'
-                                }`}>
-                                {user?.trialExpiresAt === 'EXPIRED'
-                                    ? "Access limited. Upgrade to continue."
-                                    : (user?.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED')
-                                        ? "Limited Time Access • All Features"
-                                        : (user?.purchasedCourses?.length || 0) > 0
-                                            ? "Active • Paid via Razorpay"
-                                            : "Upgrade to unlock all courses"}
-                            </p>
-                        </div>
-                    </div>
-                    {(user?.purchasedCourses?.length || 0) > 0 && !(user?.trialExpiresAt && user.trialExpiresAt !== 'EXPIRED') && (
-                        <div className="text-2xl font-bold text-white">₹{totalPaid.toLocaleString()}</div>
-                    )}
-                </div>
+                    );
+                })()}
 
                 {/* ─── Data & Storage ─── */}
                 <SettingsSection title="Data & Storage" icon={<Download className="w-5 h-5" />}>

@@ -138,6 +138,15 @@ const CoursePlayer: React.FC = () => {
             await markLessonComplete(lessonId);
             await addXp(20);
 
+            // Fire browser notification if enabled
+            const pushEnabled = localStorage.getItem('settings_pushNotifs') === 'true';
+            if (pushEnabled && Notification.permission === 'granted') {
+                new Notification('🎉 Lesson Complete!', {
+                    body: `+20 XP earned. Keep up the momentum!`,
+                    icon: '/favicon.ico',
+                });
+            }
+
             // Auto-navigate logic
             if (nextLesson) {
                 // Next lesson in current module
