@@ -9,6 +9,7 @@ import bcrypt from "bcryptjs";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -761,6 +762,118 @@ app.get("/api/admin/activity", requireAdmin, async (req, res) => {
         res.status(500).json({ error: "Failed to fetch activity logs" });
     }
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// COURSE UPDATE NOTIFICATIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const NOTIFICATIONS_FILE = path.join(__dirname, '..', 'server', 'notifications.json');
+
+function readNotifications() {
+    try {
+        if (!fs.existsSync(NOTIFICATIONS_FILE)) return [];
+        return JSON.parse(fs.readFileSync(NOTIFICATIONS_FILE, 'utf-8'));
+    } catch { return []; }
+}
+
+function writeNotifications(data: any[]) {
+    fs.writeFileSync(NOTIFICATIONS_FILE, JSON.stringify(data, null, 2));
+}
+
+// Admin: Send a notification
+app.post("/api/admin/notifications", requireAdmin, async (req, res) => {
+    const { title, message, courseId, targetCourse } = req.body;
+    if (!title || !message) return res.status(400).json({ error: "Title and message required" });
+
+    const notification = {
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        title,
+        message,
+        courseId: courseId || null,         // specific course slug or null for all
+        targetCourse: targetCourse || null, // which course's students to target
+        sentBy: req.body.adminEmail || 'admin',
+        createdAt: new Date().toISOString(),
+        readBy: [],
+    };
+
+    const notifications = readNotifications();
+    notifications.unshift(notification);
+    writeNotifications(notifications);
+
+    res.json({ success: true, notification });
+});
+
+// Admin: Get all notifications
+app.get("/api/admin/notifications", requireAdmin, async (req, res) => {
+    const notifications = readNotifications();
+    res.json(notifications);
+});
+
+// Admin: Delete a notification
+app.delete("/api/admin/notifications/:id", requireAdmin, async (req, res) => {
+    const { id } = req.params;
+    const notifications = readNotifications().filter((n: any) => n.id !== id);
+    writeNotifications(notifications);
+    res.json({ success: true });
+});
+
+// User: Get notifications relevant to them (based on purchased courses)
+app.get("/api/notifications", async (req, res) => {
+    const sessionId = req.headers.authorization?.split(" ")[1];
+    if (!sessionId) return res.json([]);
+
+    try {
+        const [session] = await db.select().from(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.isActive, true)));
+        if (!session) return res.json([]);
+
+        const [user] = await db.select().from(users).where(eq(users.id, session.userId));
+        if (!user) return res.json([]);
+
+        const notifications = readNotifications();
+        const purchased = user.purchasedCourses || [];
+
+        // Filter: show notifications that target all courses or target a course the user owns
+        const relevant = notifications.filter((n: any) => {
+            if (!n.targetCourse) return true; // broadcast to all
+            return purchased.includes(n.targetCourse);
+        });
+
+        res.json(relevant.map((n: any) => ({
+            ...n,
+            read: n.readBy?.includes(user.email) || false,
+        })));
+    } catch {
+        res.json([]);
+    }
+});
+
+// User: Mark notification as read
+app.post("/api/notifications/:id/read", async (req, res) => {
+    const sessionId = req.headers.authorization?.split(" ")[1];
+    if (!sessionId) return res.status(401).json({ error: "No session" });
+
+    try {
+        const [session] = await db.select().from(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.isActive, true)));
+        if (!session) return res.status(401).json({ error: "Invalid session" });
+
+        const [user] = await db.select().from(users).where(eq(users.id, session.userId));
+        if (!user) return res.status(401).json({ error: "User not found" });
+
+        const { id } = req.params;
+        const notifications = readNotifications();
+        const notification = notifications.find((n: any) => n.id === id);
+        if (notification && !notification.readBy?.includes(user.email)) {
+            if (!notification.readBy) notification.readBy = [];
+            notification.readBy.push(user.email);
+            writeNotifications(notifications);
+        }
+        res.json({ success: true });
+    } catch {
+        res.status(500).json({ error: "Failed" });
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
 
 // Specific user activity history
 app.get("/api/admin/users/:userId/activity", requireAdmin, async (req, res) => {

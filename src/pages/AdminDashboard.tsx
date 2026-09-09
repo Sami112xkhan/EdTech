@@ -8,7 +8,7 @@ import {
     Trash2, Search, CheckCircle, XCircle, Reply, Award, MessageSquare,
     LogOut, Clock, Users, Zap, TrendingUp, ShieldCheck, ShieldAlert,
     ChevronRight, ChevronDown, AlertTriangle, Eye, User as UserIcon,
-    BookOpen, BarChart3, Settings, CreditCard, Activity, Send
+    BookOpen, BarChart3, Settings, CreditCard, Activity, Send, Bell
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate, Link } from 'react-router-dom';
@@ -21,13 +21,14 @@ const isOnline = (lastSeen?: string) => {
     return new Date().getTime() - new Date(lastSeen).getTime() < 5 * 60 * 1000;
 };
 
-type Tab = 'overview' | 'members' | 'courses' | 'feedback' | 'codes' | 'progress' | 'activity';
+type Tab = 'overview' | 'members' | 'courses' | 'feedback' | 'codes' | 'progress' | 'activity' | 'notifications';
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
     { id: 'members', label: 'Members', icon: Users },
     { id: 'courses', label: 'Courses', icon: BookOpen },
     { id: 'feedback', label: 'Feedback', icon: MessageSquare },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'codes', label: 'Access Codes', icon: CreditCard },
     { id: 'progress', label: 'Progress', icon: Award },
     { id: 'activity', label: 'Activity', icon: Activity },
@@ -504,6 +505,168 @@ function CodesTab({ codes, codeType, setCodeType, generatedCode, handleGenerateC
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// NOTIFICATIONS TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function NotificationsTab({ isRich }: { isRich: boolean }) {
+    const c = t(isRich);
+    const [notifications, setNotifications] = useState<any[]>([]);
+    const [title, setTitle] = useState('');
+    const [message, setMessage] = useState('');
+    const [targetCourse, setTargetCourse] = useState('');
+    const [sending, setSending] = useState(false);
+    const [loading, setLoading] = useState(true);
+
+    const COURSE_OPTIONS = [
+        { value: '', label: 'All Users (Broadcast)' },
+        { value: 'fullstack', label: 'Full Stack Web Dev' },
+        { value: 'cyber', label: 'Cyber Security' },
+        { value: 'datascience', label: 'Data Science' },
+        { value: 'cloudcomputing', label: 'Cloud Computing' },
+        { value: 'ai', label: 'AI Course' },
+    ];
+
+    useEffect(() => {
+        fetch('/api/admin/notifications', { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('sessionId') || '') } })
+            .then(r => r.json())
+            .then(d => { setNotifications(d); setLoading(false); })
+            .catch(() => setLoading(false));
+    }, []);
+
+    const handleSend = async () => {
+        if (!title.trim() || !message.trim()) {
+            toast.error('Title and message are required');
+            return;
+        }
+        setSending(true);
+        try {
+            const res = await fetch('/api/admin/notifications', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('sessionId') || '') },
+                body: JSON.stringify({ title, message, targetCourse: targetCourse || null, adminEmail: 'admin' }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setNotifications(prev => [data.notification, ...prev]);
+                setTitle('');
+                setMessage('');
+                setTargetCourse('');
+                toast.success('Notification sent!');
+            }
+        } catch {
+            toast.error('Failed to send notification');
+        }
+        setSending(false);
+    };
+
+    const handleDelete = async (id: string) => {
+        try {
+            await fetch(`/api/admin/notifications/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('sessionId') || '') } });
+            setNotifications(prev => prev.filter(n => n.id !== id));
+            toast.success('Notification deleted');
+        } catch {
+            toast.error('Failed to delete');
+        }
+    };
+
+    return (
+        <div className="space-y-6">
+            {/* Compose */}
+            <div className={`rounded-2xl border p-6 space-y-4 ${c.card}`}>
+                <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                        <Send className="w-5 h-5 text-blue-500" />
+                    </div>
+                    <div>
+                        <h3 className={`text-sm font-black uppercase tracking-widest ${c.text}`}>Send Course Update Alert</h3>
+                        <p className="text-xs text-muted-foreground">Notify users about new content, features, or important updates</p>
+                    </div>
+                </div>
+
+                <div className="space-y-3">
+                    <div>
+                        <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1 block">Title</label>
+                        <input
+                            value={title}
+                            onChange={e => setTitle(e.target.value)}
+                            placeholder="e.g. New Cloud Computing Module Added!"
+                            className={`w-full px-4 py-2.5 rounded-xl text-sm font-medium border transition-all ${isRich ? 'bg-gray-50 border-black/[0.06] text-gray-900 placeholder:text-gray-400 focus:border-blue-400' : 'bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-primary/50'}`}
+                        />
+                    </div>
+                    <div>
+                        <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1 block">Message</label>
+                        <textarea
+                            value={message}
+                            onChange={e => setMessage(e.target.value)}
+                            placeholder="Describe the update..."
+                            rows={3}
+                            className={`w-full px-4 py-2.5 rounded-xl text-sm font-medium border transition-all resize-none ${isRich ? 'bg-gray-50 border-black/[0.06] text-gray-900 placeholder:text-gray-400 focus:border-blue-400' : 'bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-primary/50'}`}
+                        />
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                        <div className="flex-1">
+                            <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1 block">Target Audience</label>
+                            <select
+                                value={targetCourse}
+                                onChange={e => setTargetCourse(e.target.value)}
+                                className={`w-full px-4 py-2.5 rounded-xl text-sm font-medium border transition-all ${isRich ? 'bg-gray-50 border-black/[0.06] text-gray-900' : 'bg-white/5 border-white/10 text-white'}`}
+                            >
+                                {COURSE_OPTIONS.map(opt => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="flex items-end">
+                            <button
+                                onClick={handleSend}
+                                disabled={sending || !title.trim() || !message.trim()}
+                                className="w-full sm:w-auto px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl flex items-center justify-center gap-2 transition-all"
+                            >
+                                {sending ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send className="w-4 h-4" />}
+                                {sending ? 'Sending...' : 'Send Alert'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Sent Notifications */}
+            <div>
+                <h3 className={`text-sm font-black uppercase tracking-widest mb-3 ${c.sectionHead}`}>Sent Notifications</h3>
+                {loading ? (
+                    <p className="text-sm text-muted-foreground">Loading...</p>
+                ) : notifications.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No notifications sent yet.</p>
+                ) : (
+                    <div className="space-y-2">
+                        {notifications.map(n => (
+                            <div key={n.id} className={`rounded-xl border p-4 flex items-start justify-between gap-4 ${c.card}`}>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                        <h4 className={`text-sm font-bold ${c.text}`}>{n.title}</h4>
+                                        {n.targetCourse && (
+                                            <span className="px-2 py-0.5 bg-blue-500/10 text-blue-500 text-[10px] font-bold uppercase rounded-full">{n.targetCourse}</span>
+                                        )}
+                                        {!n.targetCourse && (
+                                            <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 text-[10px] font-bold uppercase rounded-full">All</span>
+                                        )}
+                                    </div>
+                                    <p className={`text-xs mt-1 ${isRich ? 'text-gray-500' : 'text-white/50'}`}>{n.message}</p>
+                                    <p className="text-[10px] text-muted-foreground mt-2">Sent {new Date(n.createdAt).toLocaleString()}</p>
+                                </div>
+                                <button onClick={() => handleDelete(n.id)} className="p-2 rounded-lg hover:bg-red-500/10 text-red-400 transition-colors shrink-0">
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // PROGRESS TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -820,6 +983,7 @@ const AdminDashboard: React.FC = () => {
                             {activeTab === 'members' && <MembersTab users={users} searchTerm={searchTerm} setSearchTerm={setSearchTerm} filterRole={filterRole} setFilterRole={setFilterRole} expandedUser={expandedUser} setExpandedUser={setExpandedUser} handleStatusUpdate={handleStatusUpdate} handleDelete={handleDelete} fetchUserActivity={fetchUserActivity} setActiveTab={setActiveTab} isRich={isRich} />}
                             {activeTab === 'courses' && <CourseManager />}
                             {activeTab === 'feedback' && <FeedbackTab feedback={feedback} updateFeedbackStatus={updateFeedbackStatus} deleteFeedback={deleteFeedback} replyToFeedback={replyToFeedback} users={users} getAllUsers={getAllUsers} approveCertificate={approveCertificate} rejectCertificate={rejectCertificate} isRich={isRich} />}
+                            {activeTab === 'notifications' && <NotificationsTab isRich={isRich} />}
                             {activeTab === 'codes' && <CodesTab codes={codes} codeType={codeType} setCodeType={setCodeType} generatedCode={generatedCode} handleGenerateCode={handleGenerateCode} revokeAccessCode={revokeAccessCode} deleteAccessCode={deleteAccessCode} isRich={isRich} />}
                             {activeTab === 'progress' && <ProgressTab users={users} defaultCurriculum={defaultCurriculum} isRich={isRich} />}
                             {activeTab === 'activity' && <ActivityTab activityLogs={activityLogs} viewingUserActivity={viewingUserActivity} setViewingUserActivity={setViewingUserActivity} isRich={isRich} />}
