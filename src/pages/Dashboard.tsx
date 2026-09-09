@@ -32,6 +32,7 @@ const Dashboard: React.FC = () => {
     const [activeCourse, setActiveCourse] = useActiveCourse();
     const [showInlineCheckout, setShowInlineCheckout] = React.useState(false);
     const [checkoutLoading, setCheckoutLoading] = React.useState(false);
+    const [checkoutCancelled, setCheckoutCancelled] = React.useState(false);
 
     const { curricula } = useAllCurricula();
     const activeCourseObj = curricula.find(c => c.slug === activeCourse);
@@ -77,7 +78,13 @@ const Dashboard: React.FC = () => {
                 setCheckoutLoading(false);
                 alert('Payment failed. Please try again.');
             },
-            `${currentCourseData.title} Course`
+            `${currentCourseData.title} Course`,
+            () => {
+                // Modal dismissed without paying
+                setCheckoutLoading(false);
+                setCheckoutCancelled(true);
+                setTimeout(() => setCheckoutCancelled(false), 3000);
+            }
         );
     };
 
@@ -626,9 +633,6 @@ const Dashboard: React.FC = () => {
                                 <div className="flex-1 space-y-4">
                                     <div className={`p-4 rounded-xl border ${isRich ? "bg-gray-50 border-black/[0.04]" : "bg-white/[0.03] border-white/[0.06]"}`}>
                                         <h4 className={`text-sm font-black uppercase tracking-wide ${isRich ? "text-gray-900" : "text-white"}`}>{currentCourseData.title}</h4>
-                                        {currentCourseData.subtitle && (
-                                            <p className="text-[11px] text-muted-foreground mt-1">{currentCourseData.subtitle}</p>
-                                        )}
                                     </div>
                                     {currentCourseData.features && currentCourseData.features.length > 0 && (
                                         <div className="space-y-2">
@@ -660,6 +664,8 @@ const Dashboard: React.FC = () => {
                                     >
                                         {checkoutLoading ? (
                                             <span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Processing...</span>
+                                        ) : checkoutCancelled ? (
+                                            <span className="flex items-center gap-2"><X className="w-3.5 h-3.5" /> Payment Cancelled — Tap to Retry</span>
                                         ) : (
                                             <>Pay ₹{(currentCourseData.salePrice || currentCourseData.price).toLocaleString()} <ArrowRight className="w-3.5 h-3.5" /></>
                                         )}

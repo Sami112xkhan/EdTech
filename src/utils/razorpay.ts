@@ -18,7 +18,8 @@ export const initializePayment = async (
     user: { name: string; email: string; contact?: string },
     onSuccess: (response: any) => void,
     onFailure?: (error: any) => void,
-    description?: string
+    description?: string,
+    onDismiss?: () => void
 ) => {
     const res = await loadRazorpayScript();
 
@@ -47,6 +48,11 @@ export const initializePayment = async (
         },
         handler: function (response: any) {
             onSuccess(response);
+        },
+        modal: {
+            ondismiss: function () {
+                if (onDismiss) onDismiss();
+            }
         }
     };
 
