@@ -9,6 +9,7 @@ import { cybersecurityCurriculum } from "../data/cybersecurityCurriculum";
 import { dataScienceCurriculum } from "../data/dataScienceCurriculum";
 import { cloudComputingCurriculum } from "../data/cloudComputingCurriculum";
 import { isPhaseComplete } from "../utils/progress";
+import { pushNotification, soundXpGain, soundLevelUp, soundStreakMilestone, soundLessonComplete, soundAchievement, soundEnrollment } from "../utils/notifications";
 
 interface AuthContextType {
     user: User | null;
@@ -490,6 +491,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(updatedUser);
             localStorage.setItem("user", JSON.stringify(updatedUser));
 
+            soundEnrollment();
+            pushNotification('🎓 Enrollment Complete!', `Welcome to the ${courseId} course. Start learning now!`, 'enrollment');
+
             // Sync Purchase to SQL
             try {
                 await fetch('/api/auth/purchase', {
@@ -620,8 +624,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     description: "Keep going to unlock new perks!",
                     duration: 5000
                 });
+                soundLevelUp();
+                pushNotification('⬆️ Level Up!', `You are now Level ${newLevel}. Keep going!`, 'level-up');
             } else {
                 toast.success(`+${amount} XP Gained!`);
+                soundXpGain();
             }
 
             const updatedUser = { ...prev, xp: newXp, level: newLevel };
@@ -706,6 +713,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const updatedUser = { ...user, certificateStatus: 'approved' as const, certificateIssueDate: new Date().toISOString(), certifiedCourses };
             setUser(updatedUser);
             localStorage.setItem("user", JSON.stringify(updatedUser));
+            soundAchievement();
+            pushNotification('🏆 Certificate Approved!', `Your ${courseId} certificate is ready to download.`, 'certificate-approved');
         }
     };
 

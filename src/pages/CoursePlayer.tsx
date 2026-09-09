@@ -11,6 +11,7 @@ import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { useTheme } from "../context/ThemeContext";
+import { soundLessonComplete, pushNotification } from "../utils/notifications";
 
 const CoursePlayer: React.FC = () => {
     const { user, markLessonComplete, addXp } = useAuth();
@@ -138,14 +139,9 @@ const CoursePlayer: React.FC = () => {
             await markLessonComplete(lessonId);
             await addXp(20);
 
-            // Fire browser notification if enabled
-            const pushEnabled = localStorage.getItem('settings_pushNotifs') === 'true';
-            if (pushEnabled && Notification.permission === 'granted') {
-                new Notification('🎉 Lesson Complete!', {
-                    body: `+20 XP earned. Keep up the momentum!`,
-                    icon: '/favicon.ico',
-                });
-            }
+            // Sound + notification feedback
+            soundLessonComplete();
+            pushNotification('🎉 Lesson Complete!', '+20 XP earned. Keep up the momentum!', 'lesson-complete');
 
             // Auto-navigate logic
             if (nextLesson) {
