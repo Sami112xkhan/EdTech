@@ -247,7 +247,7 @@ const Dashboard: React.FC = () => {
         e.preventDefault();
         if (!accessCode) return;
         setIsRedeeming(true);
-        const result = await redeemCode(accessCode);
+        const result = await redeemCode(accessCode, activeCourse);
         alert(result.message);
         if (result.success) setAccessCode("");
         setIsRedeeming(false);
