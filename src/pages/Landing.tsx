@@ -11,6 +11,7 @@ import { useCourses, useAllCurricula, type CourseData, type CourseWithModules } 
 import ElasticMesh from '../components/ElasticMesh';
 import GradualBlur from '../components/GradualBlur';
 import SylvaBackground from '../components/SylvaBackground';
+import Noise from '../components/Noise';
 
 const Reveal: React.FC<{ children: React.ReactNode; className?: string; delay?: number }> = ({ children, className = '', delay = 0 }) => {
     const ref = useRef<HTMLDivElement>(null);
@@ -55,6 +56,13 @@ const Landing: React.FC = () => {
     const { isOfferActive } = useOffer();
     const [activeCourse, setActiveCourse] = useActiveCourse();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [scrolled, setScrolled] = useState(false);
+
+    useEffect(() => {
+        const onScroll = () => setScrolled(window.scrollY > 40);
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+    }, []);
 
     useEffect(() => {
         if (isAuthenticated && user) {
@@ -104,6 +112,17 @@ const Landing: React.FC = () => {
         <>
         <div className="min-h-screen bg-[#f8f9f6] text-gray-900" style={{ fontFamily: "'SF Pro Display', system-ui, -apple-system, sans-serif" }}>
 
+            {/* ══════ NOISE OVERLAY ══════ */}
+            <div className="fixed inset-0 z-[100] pointer-events-none">
+                <Noise
+                    patternSize={110}
+                    patternScaleX={4.4}
+                    patternScaleY={3}
+                    patternRefreshInterval={2}
+                    patternAlpha={10}
+                />
+            </div>
+
             <style>{`
                 @keyframes marquee {
                     from { transform: translateX(0); }
@@ -125,8 +144,8 @@ const Landing: React.FC = () => {
             `}</style>
 
             {/* ══════ NAV ══════ */}
-            <nav className="fixed top-0 left-0 right-0 z-50" style={{ background: 'rgba(248, 249, 246, 0.6)', backdropFilter: 'blur(16px)' }}>
-                <div className="max-w-[1200px] mx-auto px-6 h-14 flex items-center justify-between border-b border-black/[0.06]">
+            <nav className="fixed top-0 left-0 right-0 z-50 transition-all duration-300" style={{ background: scrolled ? 'rgba(248,249,246,0.85)' : 'transparent', backdropFilter: scrolled ? 'blur(20px) saturate(1.2)' : 'none', borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
+                <div className="max-w-[1200px] mx-auto px-6 h-14 flex items-center justify-between">
                     <Link to="/" onClick={(e) => { if (window.location.pathname === '/') { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); } }} className="flex items-center gap-2">
                         <span className="text-[13px] font-bold tracking-[0.08em] uppercase text-emerald-800">DevMastery</span>
                     </Link>
@@ -173,14 +192,14 @@ const Landing: React.FC = () => {
                     <SylvaBackground />
                 </div>
 
-                <div className="absolute inset-0 opacity-20 pointer-events-auto hidden md:block z-10">
+                <div className="absolute inset-0 opacity-[0.08] pointer-events-auto hidden md:block z-[5]">
                     <ElasticMesh
                         color1="#d1fae5"
                         color2="#ecfdf5"
                         highlight="#10b981"
                         showGrid
                         gridDensity={24}
-                        gridOpacity={0.06}
+                        gridOpacity={0.04}
                         gridColor="#059669"
                         borderRadius={0}
                         stiffness={0.03}
@@ -196,7 +215,7 @@ const Landing: React.FC = () => {
                     />
                 </div>
 
-                <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[400px] md:w-[800px] h-[300px] md:h-[600px] opacity-[0.06] pointer-events-none" style={{
+                <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[400px] md:w-[800px] h-[300px] md:h-[600px] opacity-[0.04] pointer-events-none z-[2]" style={{
                     background: 'radial-gradient(ellipse, #10b981 0%, transparent 60%)'
                 }} />
 
@@ -216,9 +235,11 @@ const Landing: React.FC = () => {
                     </Reveal>
 
                     <Reveal delay={0.2}>
-                        <p className="text-[17px] text-gray-400 max-w-[520px] leading-relaxed mb-10">
-                            Master Full Stack, Data Science, Cybersecurity, or Cloud Computing with expert curriculum and AI mentorship. From beginner to job-ready.
-                        </p>
+                        <div className="inline-block max-w-[520px] mb-10 px-5 py-4 rounded-2xl" style={{ background: 'rgba(0,0,0,0.06)', backdropFilter: 'blur(6px)' }}>
+                            <p className="text-[17px] text-gray-400 leading-relaxed">
+                                Master Full Stack, Data Science, Cybersecurity, or Cloud Computing with expert curriculum and AI mentorship. From beginner to job-ready.
+                            </p>
+                        </div>
                     </Reveal>
 
                     <Reveal delay={0.3}>

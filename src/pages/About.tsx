@@ -4,6 +4,7 @@ import { ChevronLeft, Menu, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ElasticMesh from '../components/ElasticMesh';
 import GradualBlur from '../components/GradualBlur';
+import Noise from '../components/Noise';
 
 const Reveal: React.FC<{ children: React.ReactNode; className?: string; delay?: number }> = ({ children, className = '', delay = 0 }) => {
     const ref = useRef<HTMLDivElement>(null);
@@ -46,7 +47,9 @@ const About: React.FC = () => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     return (
         <>
-        <div className="min-h-screen bg-[#f8f9f6] text-gray-900" style={{ fontFamily: "'SF Pro Display', system-ui, -apple-system, sans-serif" }}>
+        <div className="min-h-screen bg-[#f8f9f6] text-gray-900 relative" style={{ fontFamily: "'SF Pro Display', system-ui, -apple-system, sans-serif" }}>
+            {/* Noise overlay for subtle texture */}
+            <Noise patternAlpha={12} patternRefreshInterval={3} />
 
             <style>{`
                 @keyframes marquee {
