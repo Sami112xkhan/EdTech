@@ -125,7 +125,7 @@ const Landing: React.FC = () => {
             `}</style>
 
             {/* ══════ NAV ══════ */}
-            <nav className="fixed top-0 left-0 right-0 z-50" style={{ background: 'rgba(248, 249, 246, 0.92)', backdropFilter: 'blur(20px)' }}>
+            <nav className="fixed top-0 left-0 right-0 z-50" style={{ background: 'rgba(248, 249, 246, 0.6)', backdropFilter: 'blur(16px)' }}>
                 <div className="max-w-[1200px] mx-auto px-6 h-14 flex items-center justify-between border-b border-black/[0.06]">
                     <Link to="/" onClick={(e) => { if (window.location.pathname === '/') { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); } }} className="flex items-center gap-2">
                         <span className="text-[13px] font-bold tracking-[0.08em] uppercase text-emerald-800">DevMastery</span>
