@@ -10,6 +10,7 @@ import { useActiveCourse } from '../hooks/useActiveCourse';
 import { useCourses, useAllCurricula, type CourseData, type CourseWithModules } from '../hooks/useCourses';
 import ElasticMesh from '../components/ElasticMesh';
 import GradualBlur from '../components/GradualBlur';
+import SylvaBackground from '../components/SylvaBackground';
 
 const Reveal: React.FC<{ children: React.ReactNode; className?: string; delay?: number }> = ({ children, className = '', delay = 0 }) => {
     const ref = useRef<HTMLDivElement>(null);
@@ -166,8 +167,13 @@ const Landing: React.FC = () => {
             </nav>
 
             {/* ══════ HERO ══════ */}
-            <section className="relative pt-24 pb-12 md:pt-20 md:pb-16 overflow-hidden min-h-[70vh] md:min-h-[85vh] flex flex-col justify-center">
-                <div className="absolute inset-0 opacity-20 pointer-events-auto hidden md:block">
+            <section className="relative pt-24 pb-12 md:pt-20 md:pb-16 overflow-hidden min-h-[70vh] md:min-h-[85vh] flex flex-col justify-center z-10">
+                {/* 3D Living Green background */}
+                <div className="absolute inset-0 z-0">
+                    <SylvaBackground />
+                </div>
+
+                <div className="absolute inset-0 opacity-20 pointer-events-auto hidden md:block z-10">
                     <ElasticMesh
                         color1="#d1fae5"
                         color2="#ecfdf5"

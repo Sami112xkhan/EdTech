@@ -13,6 +13,7 @@
     "@capacitor/android": "^8.1.0",
     "@capacitor/core": "^8.1.0",
     "@codesandbox/sandpack-react": "^2.20.0",
+    "@designcodeio/threeui": "^1.2.0",
     "@emailjs/browser": "^4.4.1",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
