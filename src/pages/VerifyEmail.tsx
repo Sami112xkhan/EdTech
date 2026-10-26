@@ -20,6 +20,8 @@ const VerifyEmail: React.FC = () => {
     const email = queryParams.get("email");
     const urlCode = queryParams.get("code");
     const redirectTo = queryParams.get("redirect") || "/dashboard";
+    const emailSent = queryParams.get("emailSent");
+    const [emailDeliveryStatus, setEmailDeliveryStatus] = useState<string | null>(emailSent);
 
     useEffect(() => {
         if (!email) {
@@ -80,11 +82,14 @@ const VerifyEmail: React.FC = () => {
         }
     };
 
-    const handleResend = () => {
+    const handleResend = async () => {
         if (!email || resendCooldown > 0) return;
 
-        resendVerificationCode(email);
-        setResendCooldown(30); // 30 seconds cooldown
+        const sent = await resendVerificationCode(email);
+        setEmailDeliveryStatus(sent ? "true" : "false");
+        if (sent) {
+            setResendCooldown(30); // 30 seconds cooldown
+        }
     };
 
     if (!email) return null;
@@ -114,11 +119,21 @@ const VerifyEmail: React.FC = () => {
                         <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-primary/20">
                             <Mail className="w-8 h-8 text-primary" />
                         </div>
-                        <h1 className="text-xl md:text-3xl font-bold mb-2">Check your inbox</h1>
+                        <h1 className="text-xl md:text-3xl font-bold mb-2">
+                            {emailDeliveryStatus === "false" ? "Email not sent yet" : emailDeliveryStatus === "true" ? "Check your inbox" : "Verify your email"}
+                        </h1>
                         <p className="text-muted-foreground">
-                            We've sent a verification code to <br />
+                            {emailDeliveryStatus === "true"
+                                ? "The email service accepted a verification message for "
+                                : "Enter the verification code sent to "}
+                            <br />
                             <span className="text-white font-medium">{email}</span>
                         </p>
+                        {emailDeliveryStatus === "false" && (
+                            <p role="status" className="mt-3 text-sm text-amber-300">
+                                The verification message was not sent. Use Resend below to retry.
+                            </p>
+                        )}
                     </div>
 
                     <form onSubmit={handleVerify} className="space-y-6">
@@ -133,7 +148,7 @@ const VerifyEmail: React.FC = () => {
                                 error={error}
                             />
                             <p className="text-xs text-muted-foreground mt-2 text-center">
-                                Enter the 6-digit code mentioned in the alert.
+                                Enter the 6-digit code from your email.
                             </p>
                         </div>
 

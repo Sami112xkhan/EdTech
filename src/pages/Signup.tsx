@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import Input from "../components/ui/Input";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { GoogleLogin } from '@react-oauth/google';
+import { toast } from "sonner";
 
 const Signup: React.FC = () => {
   const { register, handleSubmit, formState: { errors }, watch } = useForm();
@@ -28,7 +29,7 @@ const Signup: React.FC = () => {
   const onSubmit = async (data: any) => {
     setIsLoading(true);
     try {
-      await signup({
+      const result = await signup({
         id: Math.random().toString(36).substr(2, 9),
         name: data.fullName,
         username: data.username,
@@ -40,10 +41,14 @@ const Signup: React.FC = () => {
         password: data.password
       });
       setIsLoading(false);
-      navigate(`/verify?email=${encodeURIComponent(data.email)}&redirect=/checkout`);
+      if (!result.emailSent) {
+        toast.error(result.emailError || "Verification email could not be sent. You can retry from the next page.");
+      }
+      navigate(`/verify?email=${encodeURIComponent(data.email)}&redirect=/checkout&emailSent=${result.emailSent ? "true" : "false"}`);
     } catch (error) {
       console.error("Signup submission failed:", error);
       setIsLoading(false);
+      toast.error(error instanceof Error ? error.message : "Could not create your account. Please try again.");
     }
   };
 

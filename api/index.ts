@@ -403,7 +403,7 @@ app.post("/api/auth/signup", authLimiter, async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
         const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-        const [newUser] = await db.insert(users).values({
+        await db.insert(users).values({
             email,
             password: hashedPassword,
             name,
@@ -411,11 +411,11 @@ app.post("/api/auth/signup", authLimiter, async (req, res) => {
             verificationCode,
             isVerified: false,
             googleId: null, // Explicitly null for email users
-        }).returning();
+        });
 
-        // Verification code returned for EmailJS client-side email sending
-        // TODO: Move email sending server-side and remove code from response
-        res.json({ user: newUser, verificationCode });
+        // The browser needs the code for the EmailJS template. Do not return the
+        // user row here because it includes the password hash and private fields.
+        res.json({ verificationCode });
     } catch (error) {
         console.error("Signup error:", error);
         res.status(500).json({ error: "Signup failed" });
@@ -596,13 +596,17 @@ app.post("/api/auth/resend", authLimiter, async (req, res) => {
 
         if (user.isVerified) return res.status(400).json({ error: "User already verified" });
 
-        const newCode = Math.floor(100000 + Math.random() * 900000).toString();
+        // Keep the existing code until EmailJS accepts a resend. If sending fails,
+        // the user can retry without invalidating a code they may already have.
+        const verificationCode = user.verificationCode || Math.floor(100000 + Math.random() * 900000).toString();
 
-        await db.update(users)
-            .set({ verificationCode: newCode })
-            .where(eq(users.id, user.id));
+        if (!user.verificationCode) {
+            await db.update(users)
+                .set({ verificationCode })
+                .where(eq(users.id, user.id));
+        }
 
-        res.json({ success: true, verificationCode: newCode });
+        res.json({ success: true, verificationCode });
     } catch (error) {
         console.error("Resend error:", error);
         res.status(500).json({ error: "Failed to resend code" });

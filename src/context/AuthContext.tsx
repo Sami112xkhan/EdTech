@@ -16,7 +16,7 @@ interface AuthContextType {
     sessionId: string | null;
     isAuthenticated: boolean;
     login: (userData: User) => Promise<boolean>;
-    signup: (userData: User) => Promise<void>;
+    signup: (userData: User) => Promise<{ emailSent: boolean; emailError?: string }>;
     logout: () => void;
     completePurchase: (courseId: string) => Promise<void>;
     getAllUsers: () => Promise<any[]>;
@@ -24,7 +24,7 @@ interface AuthContextType {
     deleteUser: (email: string) => Promise<void>;
     markLessonComplete: (lessonId: string) => void;
     verifyEmail: (email: string, code: string) => Promise<{ success: boolean; message: string }>;
-    resendVerificationCode: (email: string) => Promise<void>;
+    resendVerificationCode: (email: string) => Promise<boolean>;
     loginWithGoogle: (credential: string) => Promise<void>;
     // Trial System
     generateAccessCode: (type: GeneratedAccessCodeType) => Promise<string>;
@@ -289,7 +289,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
-    const signup = async (userData: User) => {
+    const signup = async (userData: User): Promise<{ emailSent: boolean; emailError?: string }> => {
         try {
             const response = await fetch('/api/auth/signup', {
                 method: 'POST',
@@ -302,27 +302,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             });
             const data = await response.json();
 
-            if (response.ok) {
-                // Send Verification Email via EmailJS
-                const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID;
-                const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
-                const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+            if (!response.ok) {
+                throw new Error(data.error || "Signup failed");
+            }
 
-                if (serviceId && templateId && publicKey) {
-                    emailjs.send(serviceId, templateId, {
-                        to_email: userData.email,
-                        to_name: userData.name,
-                        email: userData.email,
-                        passcode: data.verificationCode,
-                        time: new Date(Date.now() + 15 * 60000).toLocaleTimeString(),
-                        verify_url: `${window.location.origin}/verify?email=${encodeURIComponent(userData.email)}&code=${data.verificationCode}`
-                    }, publicKey).catch(err => console.error("EmailJS Failed", err));
-                } else {
-                    alert(`[DEV MODE] Verification Code: ${data.verificationCode}`);
-                }
-            } else {
-                toast.error(data.error || "Signup failed");
-                throw new Error(data.error);
+            // Do not report success until EmailJS has accepted the send request.
+            // The account and code are already saved, so the user can retry from Verify Email.
+            const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+            const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+            const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+
+            if (!serviceId || !templateId || !publicKey) {
+                console.error("EmailJS is not configured for verification emails.");
+                return {
+                    emailSent: false,
+                    emailError: "Your account was created, but verification email is not configured. Try Resend or contact support."
+                };
+            }
+
+            try {
+                await emailjs.send(serviceId, templateId, {
+                    to_email: userData.email,
+                    to_name: userData.name,
+                    email: userData.email,
+                    passcode: data.verificationCode,
+                    time: new Date(Date.now() + 15 * 60000).toLocaleTimeString(),
+                    verify_url: `${window.location.origin}/verify?email=${encodeURIComponent(userData.email)}&code=${data.verificationCode}`
+                }, publicKey);
+                return { emailSent: true };
+            } catch (emailError) {
+                console.error("EmailJS failed to accept the verification email:", emailError);
+                return {
+                    emailSent: false,
+                    emailError: "Your account was created, but the email service could not send the verification message. Try Resend."
+                };
             }
         } catch (error: any) {
             console.error("Signup error:", error);
@@ -354,7 +367,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
-    const resendVerificationCode = async (email: string) => {
+    const resendVerificationCode = async (email: string): Promise<boolean> => {
         try {
             const response = await fetch('/api/auth/resend', {
                 method: 'POST',
@@ -363,28 +376,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             });
             const data = await response.json();
 
-            if (response.ok) {
-                const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID;
-                const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
-                const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
-
-                if (serviceId && templateId && publicKey) {
-                    await emailjs.send(serviceId, templateId, {
-                        to_email: email,
-                        email: email,
-                        passcode: data.verificationCode,
-                        time: new Date(Date.now() + 15 * 60000).toLocaleTimeString(),
-                        verify_url: `${window.location.origin}/verify?email=${encodeURIComponent(email)}&code=${data.verificationCode}`
-                    }, publicKey);
-                    toast.success("New verification code sent!");
-                } else {
-                    alert(`[DEV] New Code: ${data.verificationCode}`);
-                }
-            } else {
+            if (!response.ok) {
                 toast.error(data.error || "Failed to resend");
+                return false;
+            }
+
+            const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+            const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+            const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+
+            if (!serviceId || !templateId || !publicKey) {
+                toast.error("Verification email is not configured for this site.");
+                return false;
+            }
+
+            try {
+                await emailjs.send(serviceId, templateId, {
+                    to_email: email,
+                    email,
+                    passcode: data.verificationCode,
+                    time: new Date(Date.now() + 15 * 60000).toLocaleTimeString(),
+                    verify_url: `${window.location.origin}/verify?email=${encodeURIComponent(email)}&code=${data.verificationCode}`
+                }, publicKey);
+                toast.success("Email service accepted the message. Check your inbox and spam folder.");
+                return true;
+            } catch (emailError) {
+                console.error("EmailJS failed to accept the verification email:", emailError);
+                toast.error("The email service could not send the message. Your current code is still valid; try again later.");
+                return false;
             }
         } catch (error) {
-            toast.error("Failed to resend code");
+            console.error("Resend verification request failed:", error);
+            toast.error("Could not request a verification email. Please try again.");
+            return false;
         }
     };
 
