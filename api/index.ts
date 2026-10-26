@@ -174,7 +174,12 @@ void applicationSchemaReady.then(async () => {
         SELECT current_database() AS database_name,
             to_regclass('public.users') IS NOT NULL AS has_public_users,
             to_regclass('public.sessions') IS NOT NULL AS has_public_sessions,
-            to_regclass('public.courses') IS NOT NULL AS has_public_courses
+            to_regclass('public.courses') IS NOT NULL AS has_public_courses,
+            (SELECT count(*)::int FROM public.users) AS public_users_count,
+            (SELECT count(*)::int FROM public.sessions) AS public_sessions_count,
+            (SELECT count(*)::int FROM public.courses) AS public_courses_count,
+            (SELECT count(*)::int FROM public.modules) AS public_modules_count,
+            (SELECT count(*)::int FROM public.lessons) AS public_lessons_count
     `);
     console.info('[database target diagnostic]', { host: databaseTargetHost, ...result.rows[0] });
 }).catch((error) => {
@@ -2214,13 +2219,17 @@ async function seedCourseCurriculum(courseId: string, moduleData: any[], tx: any
 async function seedCoursesFromStaticData() {
     try {
         await applicationSchemaReady;
+        console.info('[Seed] Starting core curriculum check.');
         await withCourseSeedLock(async (tx) => {
-        if (await hasSeededCurricula(tx, {
+        console.info('[Seed] Core curriculum lock acquired.');
+        const curriculaComplete = await hasSeededCurricula(tx, {
             fullstack: minimumSeededCurricula.fullstack,
             cyber: minimumSeededCurricula.cyber,
             datascience: minimumSeededCurricula.datascience,
             ai: minimumSeededCurricula.ai,
-        })) {
+        });
+        console.info('[Seed] Core curriculum check complete.', { curriculaComplete });
+        if (curriculaComplete) {
             console.log('[Seed] Core course curricula already complete; skipping seed queries.');
             return;
         }
@@ -2389,6 +2398,7 @@ async function seedCoursesFromStaticData() {
 
         console.log("[Seed] Verified static course curricula and filled missing modules and lessons.");
         });
+        console.info('[Seed] Core curriculum transaction complete.');
     } catch (error) {
         console.error("[Seed] Failed to seed courses:", error);
         throw error;
@@ -2399,8 +2409,12 @@ async function seedCoursesFromStaticData() {
 async function seedCloudComputingCourse() {
     try {
         await applicationSchemaReady;
+        console.info('[Seed] Starting cloud computing curriculum check.');
         await withCourseSeedLock(async (tx) => {
-        if (await hasSeededCurricula(tx, { cloudcomputing: minimumSeededCurricula.cloudcomputing })) {
+        console.info('[Seed] Cloud computing curriculum lock acquired.');
+        const curriculumComplete = await hasSeededCurricula(tx, { cloudcomputing: minimumSeededCurricula.cloudcomputing });
+        console.info('[Seed] Cloud computing curriculum check complete.', { curriculumComplete });
+        if (curriculumComplete) {
             console.log('[Seed] Cloud Computing curriculum already complete; skipping seed queries.');
             return;
         }
@@ -2460,6 +2474,7 @@ async function seedCloudComputingCourse() {
         await seedCourseCurriculum(cc.id, ccModules, tx);
         console.log("[Seed] Verified Cloud Computing curriculum and filled missing modules and lessons.");
         });
+        console.info('[Seed] Cloud computing curriculum transaction complete.');
     } catch (error) {
         console.error("[Seed] Failed to seed Cloud Computing course:", error);
         throw error;
