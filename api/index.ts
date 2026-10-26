@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import { OAuth2Client } from "google-auth-library";
 import { db } from "../server/db/index.js";
 import { users, sessions, feedback as feedbackTable, accessCodes, discountCoupons, paymentOrders, userNotes, playgroundProjects, aiChats, systemSettings, activityLogs, courses, modules, lessons } from "../server/db/schema.js";
-import { eq, and, gte, sql, desc, ne, asc, isNull, lt, or } from "drizzle-orm";
+import { eq, and, gte, sql, desc, ne, asc, isNull, lt, or, inArray } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -160,13 +160,26 @@ const applicationSchemaReady = (async () => {
     }
 })();
 
-app.use(async (_req, res, next) => {
+let courseCatalogReady: Promise<void> = Promise.resolve();
+let courseCatalogSeedError: unknown = null;
+
+app.use(async (req, res, next) => {
     try {
         await applicationSchemaReady;
+        const needsCourseCatalog = req.path === '/api/courses' || req.path.startsWith('/api/courses/') || req.path.startsWith('/api/admin/courses');
+        if (needsCourseCatalog) {
+            await courseCatalogReady;
+            if (courseCatalogSeedError) throw courseCatalogSeedError;
+        }
         next();
     } catch (error) {
-        console.error('[database schema] Startup migration failed:', error);
-        res.status(503).json({ error: 'Database schema update failed; API is temporarily unavailable' });
+        if (req.path === '/api/courses' || req.path.startsWith('/api/courses/') || req.path.startsWith('/api/admin/courses')) {
+            console.error('[course catalog] Initialization failed:', error);
+            res.status(503).json({ error: 'Course catalog is temporarily unavailable' });
+        } else {
+            console.error('[database schema] Startup migration failed:', error);
+            res.status(503).json({ error: 'Database schema update failed; API is temporarily unavailable' });
+        }
     }
 });
 
@@ -2073,22 +2086,95 @@ app.put("/api/admin/lessons/reorder", requireAdmin, async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// SEED: Populate courses from static curriculum data (one-time migration)
+// SEED: Populate missing courses, modules, and lessons without overwriting edits
 // ═══════════════════════════════════════════════════════════════════════════════
+
+async function withCourseSeedLock<T>(work: () => Promise<T>): Promise<T> {
+    await db.execute(sql`SELECT pg_advisory_lock(73638198730212::bigint)`);
+    try {
+        return await work();
+    } finally {
+        try {
+            await db.execute(sql`SELECT pg_advisory_unlock(73638198730212::bigint)`);
+        } catch (error) {
+            console.error('[course catalog] Failed to release seed lock:', error);
+        }
+    }
+}
+
+async function findOrCreateCourse(courseData: any) {
+    const [existing] = await db.select().from(courses).where(eq(courses.slug, courseData.slug)).limit(1);
+    if (existing) return existing;
+
+    const [inserted] = await db.insert(courses).values(courseData)
+        .onConflictDoNothing({ target: courses.slug })
+        .returning();
+    if (inserted) return inserted;
+
+    const [createdConcurrently] = await db.select().from(courses).where(eq(courses.slug, courseData.slug)).limit(1);
+    if (!createdConcurrently) throw new Error(`Course ${courseData.slug} could not be created`);
+    return createdConcurrently;
+}
+
+async function seedCourseCurriculum(courseId: string, moduleData: any[]) {
+    const existingModules = await db.select().from(modules).where(eq(modules.courseId, courseId));
+    const modulesBySlug = new Map(existingModules.map((module) => [module.slug, module]));
+    const missingModules = moduleData
+        .map((module, index) => ({ module, index }))
+        .filter(({ module }) => !modulesBySlug.has(module.slug))
+        .map(({ module, index }) => ({
+            courseId,
+            slug: module.slug,
+            title: module.title,
+            description: module.description,
+            sortOrder: index,
+        }));
+
+    if (missingModules.length) {
+        const insertedModules = await db.insert(modules).values(missingModules).returning();
+        for (const module of insertedModules) modulesBySlug.set(module.slug, module);
+    }
+
+    const moduleIds = [...modulesBySlug.values()].map((module) => module.id);
+    if (!moduleIds.length) return;
+
+    const existingLessons = await db.select().from(lessons).where(inArray(lessons.moduleId, moduleIds));
+    const lessonKeys = new Set(existingLessons.map((lesson) => `${lesson.moduleId}:${lesson.slug}`));
+    const missingLessons: Array<typeof lessons.$inferInsert> = [];
+
+    for (const module of moduleData) {
+        const seededModule = modulesBySlug.get(module.slug);
+        if (!seededModule) continue;
+        for (let index = 0; index < module.lessons.length; index++) {
+            const lesson = module.lessons[index];
+            const key = `${seededModule.id}:${lesson.slug}`;
+            if (lessonKeys.has(key)) continue;
+            lessonKeys.add(key);
+            missingLessons.push({
+                moduleId: seededModule.id,
+                slug: lesson.slug,
+                title: lesson.title,
+                duration: lesson.duration,
+                youtubeId: lesson.youtubeId || null,
+                notesPath: lesson.notesPath || null,
+                free: lesson.free || false,
+                sortOrder: index,
+            });
+        }
+    }
+
+    if (missingLessons.length) await db.insert(lessons).values(missingLessons);
+}
 
 async function seedCoursesFromStaticData() {
     try {
         await applicationSchemaReady;
+        await withCourseSeedLock(async () => {
         const [existing] = await db.select({ count: sql<number>`count(*)` }).from(courses);
-        if (existing.count > 0) {
-            console.log(`[Seed] ${existing.count} courses already exist, skipping seed.`);
-            return;
-        }
-
-        console.log("[Seed] No courses found. Seeding from static curriculum data...");
+        console.log(`[Seed] Checking ${existing.count} existing courses for missing curriculum data.`);
 
         // ── Full Stack ──
-        const [fs] = await db.insert(courses).values({
+        const fs = await findOrCreateCourse({
             slug: 'fullstack', title: 'Full Stack Web Dev',
             subtitle: 'Master the Modern Stack',
             description: 'From Hello World to deployed SaaS application. Master frontend, backend, databases, and deploy real applications.',
@@ -2096,10 +2182,10 @@ async function seedCoursesFromStaticData() {
             price: 15000, salePrice: 8000,
             features: ['Lifetime Access to Full Stack Content', 'Frontend & Backend Deep Dive', 'AI Mentor Support (Beta)', '5+ Real World Projects', 'Certificate of Completion', 'Discord Community Access'],
             icon: 'BookOpen', color: 'emerald', sortOrder: 0, isPublished: true
-        }).returning();
+        });
 
         // ── Cybersecurity ──
-        const [cy] = await db.insert(courses).values({
+        const cy = await findOrCreateCourse({
             slug: 'cyber', title: '90 Days Cyber Security',
             subtitle: '90 Day Program',
             description: 'Master cybersecurity in 90 days — from networking and Linux to ethical hacking and cloud security.',
@@ -2107,10 +2193,10 @@ async function seedCoursesFromStaticData() {
             price: 8000, salePrice: 5000,
             features: ['90 Days Intensive Training', 'Ethical Hacking Workshops', 'Linux & Networking Deep Dive', 'Certificate of Completion', 'Discord Community Access'],
             icon: 'Shield', color: 'blue', sortOrder: 1, isPublished: true
-        }).returning();
+        });
 
         // ── Data Science ──
-        const [ds] = await db.insert(courses).values({
+        const ds = await findOrCreateCourse({
             slug: 'datascience', title: 'Data Science Specialization',
             subtitle: 'Analytics & ML',
             description: 'Unlock the power of data through Python, math, machine learning, and visualization.',
@@ -2118,10 +2204,10 @@ async function seedCoursesFromStaticData() {
             price: 12000, salePrice: 8000,
             features: ['Complete ML & Math Foundation', 'Python & Data Wrangling Projects', 'Advanced Data Visualization', 'Certificate of Completion', 'Discord Community Access'],
             icon: 'Award', color: 'purple', sortOrder: 2, isPublished: true
-        }).returning();
+        });
 
         // ── AI ──
-        const [ai] = await db.insert(courses).values({
+        const ai = await findOrCreateCourse({
             slug: 'ai', title: 'AI & Machine Learning',
             subtitle: 'AI Course',
             description: 'Complete AI & Machine Learning course. Builds on your Full Stack skills with hands-on AI projects.',
@@ -2129,7 +2215,7 @@ async function seedCoursesFromStaticData() {
             price: 5000, salePrice: 2000,
             features: ['Complete AI & ML Course Content', 'Builds on Your Full Stack Skills', 'Hands-on AI Projects', 'Early Access to New AI Modules', 'Discord Community Access'],
             icon: 'Bot', color: 'cyan', sortOrder: 3, isPublished: true
-        }).returning();
+        });
 
         // Seed modules & lessons for each course
         const courseMap: Record<string, { course: any; moduleData: any[] }> = {
@@ -2245,42 +2331,24 @@ async function seedCoursesFromStaticData() {
             ]}
         };
 
-        for (const [key, data] of Object.entries(courseMap)) {
-            for (let i = 0; i < data.moduleData.length; i++) {
-                const md = data.moduleData[i];
-                const [mod] = await db.insert(modules).values({
-                    courseId: data.course.id, slug: md.slug, title: md.title,
-                    description: md.description, sortOrder: i
-                }).returning();
-
-                for (let j = 0; j < md.lessons.length; j++) {
-                    const ld = md.lessons[j];
-                    await db.insert(lessons).values({
-                        moduleId: mod.id, slug: ld.slug, title: ld.title,
-                        duration: ld.duration, youtubeId: ld.youtubeId || null,
-                        notesPath: ld.notesPath || null, free: ld.free || false,
-                        sortOrder: j
-                    });
-                }
-            }
+        for (const data of Object.values(courseMap)) {
+            await seedCourseCurriculum(data.course.id, data.moduleData);
         }
 
-        console.log("[Seed] Successfully seeded 4 courses with modules and lessons!");
+        console.log("[Seed] Verified static course curricula and filled missing modules and lessons.");
+        });
     } catch (error) {
         console.error("[Seed] Failed to seed courses:", error);
+        throw error;
     }
 }
-seedCoursesFromStaticData();
 
-// SEED: Add Cloud Computing course if it doesn't exist yet (migration)
+// SEED: Ensure Cloud Computing course curriculum is complete
 async function seedCloudComputingCourse() {
     try {
         await applicationSchemaReady;
-        const [existing] = await db.select().from(courses).where(eq(courses.slug, 'cloudcomputing')).limit(1);
-        if (existing) return; // already seeded
-
-        console.log("[Seed] Cloud Computing course not found. Seeding...");
-        const [cc] = await db.insert(courses).values({
+        await withCourseSeedLock(async () => {
+        const cc = await findOrCreateCourse({
             slug: 'cloudcomputing', title: 'Cloud Computing',
             subtitle: 'NPTEL Cloud Computing',
             description: 'Master cloud computing from fundamentals to platform deployment — covering architecture, virtualization, XML & web services, MapReduce, OpenStack, Azure, and GCP.',
@@ -2288,7 +2356,7 @@ async function seedCloudComputingCourse() {
             price: 11500, salePrice: null,
             features: ['25+ Video Lessons', 'Cloud Architecture & Deployment', 'Azure & GCP Hands-On', 'OpenStack & MapReduce', 'Certificate of Completion', 'Discord Community Access'],
             icon: 'Cloud', color: 'sky', sortOrder: 4, isPublished: true
-        }).returning();
+        });
 
         const ccModules = [
             { slug: 'cc-phase-1', title: 'Phase 1 — Cloud Computing Fundamentals', description: 'Understand the core concepts, architecture, deployment models, and virtualization in cloud computing.', lessons: [
@@ -2332,28 +2400,21 @@ async function seedCloudComputingCourse() {
             ]},
         ];
 
-        for (let i = 0; i < ccModules.length; i++) {
-            const md = ccModules[i];
-            const [mod] = await db.insert(modules).values({
-                courseId: cc.id, slug: md.slug, title: md.title,
-                description: md.description, sortOrder: i
-            }).returning();
-            for (let j = 0; j < md.lessons.length; j++) {
-                const ld = md.lessons[j];
-                await db.insert(lessons).values({
-                    moduleId: mod.id, slug: ld.slug, title: ld.title,
-                    duration: ld.duration, youtubeId: ld.youtubeId || null,
-                    notesPath: (ld as any).notesPath || null, free: ld.free || false,
-                    sortOrder: j
-                });
-            }
-        }
-        console.log("[Seed] Successfully seeded Cloud Computing course with 7 modules and 25 lessons!");
+        await seedCourseCurriculum(cc.id, ccModules);
+        console.log("[Seed] Verified Cloud Computing curriculum and filled missing modules and lessons.");
+        });
     } catch (error) {
         console.error("[Seed] Failed to seed Cloud Computing course:", error);
+        throw error;
     }
 }
-seedCloudComputingCourse();
+
+courseCatalogReady = Promise.all([seedCoursesFromStaticData(), seedCloudComputingCourse()])
+    .then(() => undefined)
+    .catch((error) => {
+        courseCatalogSeedError = error;
+        console.error('[course catalog] Seed startup failed:', error);
+    });
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
