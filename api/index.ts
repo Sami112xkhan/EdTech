@@ -26,6 +26,64 @@ const app = express();
 const applicationSchemaReady = (async () => {
     await db.execute(sql`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS trial_course_id text`);
     await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS public.courses (
+            id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+            slug text NOT NULL UNIQUE,
+            title text NOT NULL,
+            subtitle text,
+            description text,
+            landing_description text,
+            price integer NOT NULL,
+            sale_price integer,
+            features text[] NOT NULL DEFAULT '{}',
+            badge text,
+            icon text,
+            color text,
+            sort_order integer NOT NULL DEFAULT 0,
+            is_published boolean NOT NULL DEFAULT false,
+            created_at timestamp NOT NULL DEFAULT now(),
+            updated_at timestamp NOT NULL DEFAULT now()
+        )
+    `);
+    await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS public.modules (
+            id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+            course_id uuid NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
+            slug text NOT NULL,
+            title text NOT NULL,
+            description text,
+            sort_order integer NOT NULL DEFAULT 0,
+            created_at timestamp NOT NULL DEFAULT now(),
+            updated_at timestamp NOT NULL DEFAULT now()
+        )
+    `);
+    await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS public.lessons (
+            id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+            module_id uuid NOT NULL REFERENCES public.modules(id) ON DELETE CASCADE,
+            slug text NOT NULL,
+            title text NOT NULL,
+            duration text,
+            youtube_id text,
+            notes_path text,
+            free boolean NOT NULL DEFAULT false,
+            sort_order integer NOT NULL DEFAULT 0,
+            created_at timestamp NOT NULL DEFAULT now(),
+            updated_at timestamp NOT NULL DEFAULT now()
+        )
+    `);
+    await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS public.activity_logs (
+            id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id uuid NOT NULL REFERENCES public.users(id),
+            type text NOT NULL,
+            description text,
+            path text,
+            metadata text,
+            created_at timestamp NOT NULL DEFAULT now()
+        )
+    `);
+    await db.execute(sql`
         CREATE TABLE IF NOT EXISTS public.discount_coupons (
             id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
             code text NOT NULL,
@@ -1980,6 +2038,7 @@ app.put("/api/admin/lessons/reorder", requireAdmin, async (req, res) => {
 
 async function seedCoursesFromStaticData() {
     try {
+        await applicationSchemaReady;
         const [existing] = await db.select({ count: sql<number>`count(*)` }).from(courses);
         if (existing.count > 0) {
             console.log(`[Seed] ${existing.count} courses already exist, skipping seed.`);
@@ -2176,6 +2235,7 @@ seedCoursesFromStaticData();
 // SEED: Add Cloud Computing course if it doesn't exist yet (migration)
 async function seedCloudComputingCourse() {
     try {
+        await applicationSchemaReady;
         const [existing] = await db.select().from(courses).where(eq(courses.slug, 'cloudcomputing')).limit(1);
         if (existing) return; // already seeded
 

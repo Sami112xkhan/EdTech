@@ -15,6 +15,13 @@
       "when": 1792999017412,
       "tag": "0001_discount_coupons_and_payment_orders",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793002318000,
+      "tag": "0002_course_catalog",
+      "breakpoints": true
     }
   ]
 }
