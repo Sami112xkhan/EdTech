@@ -17,6 +17,20 @@ import DarkVeil from "../components/DarkVeil";
 import MagicBento from "../components/MagicBento";
 import { useTheme, ACCENT_COLORS, BACKGROUND_CALIBRATION, ACCENT_RGB } from "../context/ThemeContext";
 
+const dashboardCourseIcons: Record<string, React.ElementType> = {
+    fullstack: BookOpen,
+    cyber: Shield,
+    datascience: Award,
+    ai: Bot,
+    cloudcomputing: Cloud,
+};
+const dashboardCourseLabels: Record<string, string> = {
+    cyber: 'Cyber Security',
+    datascience: 'Data Science',
+    ai: 'AI Course',
+    cloudcomputing: 'Cloud Computing',
+};
+
 const Dashboard: React.FC = () => {
     const { theme } = useTheme();
     const isRich = theme === 'rich';
@@ -30,6 +44,12 @@ const Dashboard: React.FC = () => {
     const [activeCourse, setActiveCourse] = useActiveCourse();
 
     const { curricula } = useAllCurricula();
+    useEffect(() => {
+        if (curricula.length > 0 && !curricula.some(course => course.slug === activeCourse)) {
+            setActiveCourse(curricula[0].slug);
+        }
+    }, [curricula, activeCourse, setActiveCourse]);
+
     const activeCourseObj = curricula.find(c => c.slug === activeCourse);
     const activeCurriculum: Module[] = (activeCourseObj?.modules || []).map(m => ({
         id: m.slug,
@@ -46,7 +66,7 @@ const Dashboard: React.FC = () => {
     }));
 
     // AI upgrade logic: user has any course but not ai
-    const hasAnyCourse = user?.purchasedCourses.includes('fullstack') || user?.purchasedCourses.includes('cyber') || user?.purchasedCourses.includes('datascience') || user?.purchasedCourses.includes('cloudcomputing');
+    const hasAnyCourse = (user?.purchasedCourses || []).some(courseSlug => courseSlug !== 'ai');
     const hasAI = user?.purchasedCourses.includes('ai');
     const showAIUpgrade = user?.role !== 'admin' && isOfferActive && activeCourse === 'ai' && hasAnyCourse && !hasAI;
 
@@ -66,7 +86,7 @@ const Dashboard: React.FC = () => {
             ai: 'AI & Machine Learning',
             cloudcomputing: 'Cloud Computing Architecture',
         };
-        const courseDisplayName = courseNames[targetCourse] || 'Premium Course';
+        const courseDisplayName = curricula.find(course => course.slug === targetCourse)?.title || courseNames[targetCourse] || 'Premium Course';
 
         const doc = new jsPDF({
             orientation: 'landscape',
@@ -267,9 +287,9 @@ const Dashboard: React.FC = () => {
         const SWIPE_THRESHOLD = 30;
         const VELOCITY_THRESHOLD = 0.3;
         if (next && (dx > SWIPE_THRESHOLD || vx > VELOCITY_THRESHOLD)) {
-            setActiveCourse(next as any);
+            setActiveCourse(next);
         } else if (prev && (dx < -SWIPE_THRESHOLD || vx < -VELOCITY_THRESHOLD)) {
-            setActiveCourse(prev as any);
+            setActiveCourse(prev);
         }
     };
 
@@ -316,190 +336,43 @@ const Dashboard: React.FC = () => {
                     </div>
                 )}
 
-                {/* Course Selector */}
-                <div className="flex z-10 w-full relative overflow-x-auto scrollbar-hide">
-                    {isRich ? (
-                        <div className="flex p-1 rounded-full bg-gray-100 border border-black/[0.06] w-full md:w-auto">
-                            <button
-                                onClick={() => setActiveCourse('fullstack')}
-                                className={`relative flex-1 md:flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeCourse === 'fullstack' ? isRich ? 'text-emerald-800' : 'text-white' : isRich ? 'text-gray-400 hover:text-gray-900' : 'text-white/40 hover:text-white'}`}
-                            >
-                                {/* Floating Background Pill - High Fidelity Glass */}
-                                {activeCourse === 'fullstack' && (
-                                    <motion.div
-                                        layoutId="dashboard-active-pill"
-                                        {...swipeDragProps}
-                                        onDragEnd={makeSwipeHandler('cyber', null)}
-                                        className={`absolute inset-0 rounded-full cursor-grab active:cursor-grabbing z-0 ${isRich ? "bg-white border border-black/[0.06] shadow-sm" : "bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)]"}`}
-                                    />
-                                )}
-                                <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
-                                    <BookOpen className="w-3.5 h-3.5" />
-                                    {isOfferActive ? 'Full Stack + AI' : 'Full Stack'}
-                                </span>
-                            </button>
-                            <button
-                                onClick={() => setActiveCourse('cyber')}
-                                className={`relative flex-1 md:flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeCourse === 'cyber' ? isRich ? 'text-emerald-800' : 'text-white' : isRich ? 'text-gray-400 hover:text-gray-900' : 'text-white/40 hover:text-white'}`}
-                            >
-                                {/* Floating Background Pill - High Fidelity Glass */}
-                                {activeCourse === 'cyber' && (
-                                    <motion.div
-                                        layoutId="dashboard-active-pill"
-                                        {...swipeDragProps}
-                                        onDragEnd={makeSwipeHandler('datascience', 'fullstack')}
-                                        className={`absolute inset-0 rounded-full cursor-grab active:cursor-grabbing z-0 ${isRich ? "bg-white border border-black/[0.06] shadow-sm" : "bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)]"}`}
-                                    />
-                                )}
-                                <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
-                                    <Shield className="w-3.5 h-3.5" />
-                                    Cyber Security
-                                </span>
-                            </button>
-                            <button
-                                onClick={() => setActiveCourse('datascience')}
-                                className={`relative flex-1 md:flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeCourse === 'datascience' ? isRich ? 'text-emerald-800' : 'text-white' : isRich ? 'text-gray-400 hover:text-gray-900' : 'text-white/40 hover:text-white'}`}
-                            >
-                                {activeCourse === 'datascience' && (
-                                    <motion.div
-                                        layoutId="dashboard-active-pill"
-                                        {...swipeDragProps}
-                                        onDragEnd={makeSwipeHandler('cloudcomputing', 'cyber')}
-                                        className={`absolute inset-0 rounded-full cursor-grab active:cursor-grabbing z-0 ${isRich ? "bg-white border border-black/[0.06] shadow-sm" : "bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)]"}`}
-                                    />
-                                )}
-                                <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
-                                    <Award className="w-3.5 h-3.5" />
-                                    Data Science
-                                </span>
-                            </button>
-                            <button
-                                onClick={() => setActiveCourse('cloudcomputing')}
-                                className={`relative flex-1 md:flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeCourse === 'cloudcomputing' ? isRich ? 'text-emerald-800' : 'text-white' : isRich ? 'text-gray-400 hover:text-gray-900' : 'text-white/40 hover:text-white'}`}
-                            >
-                                {activeCourse === 'cloudcomputing' && (
-                                    <motion.div
-                                        layoutId="dashboard-active-pill"
-                                        {...swipeDragProps}
-                                        onDragEnd={makeSwipeHandler('ai', 'datascience')}
-                                        className={`absolute inset-0 rounded-full cursor-grab active:cursor-grabbing z-0 ${isRich ? "bg-white border border-black/[0.06] shadow-sm" : "bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)]"}`}
-                                    />
-                                )}
-                                <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
-                                    <Cloud className="w-3.5 h-3.5" />
-                                    Cloud Computing
-                                </span>
-                            </button>
-                            <button
-                                onClick={() => setActiveCourse('ai')}
-                                className={`relative flex-1 md:flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeCourse === 'ai' ? isRich ? 'text-emerald-800' : 'text-white' : isRich ? 'text-gray-400 hover:text-gray-900' : 'text-white/40 hover:text-white'}`}
-                            >
-                                {activeCourse === 'ai' && (
-                                    <motion.div
-                                        layoutId="dashboard-active-pill"
-                                        {...swipeDragProps}
-                                        onDragEnd={makeSwipeHandler(null, 'cloudcomputing')}
-                                        className={`absolute inset-0 rounded-full cursor-grab active:cursor-grabbing z-0 ${isRich ? "bg-white border border-black/[0.06] shadow-sm" : "bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)]"}`}
-                                    />
-                                )}
-                                <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
-                                    <Bot className="w-3.5 h-3.5" />
-                                    AI Course
-                                </span>
-                            </button>
+                {/* Published courses come from the catalogue, including courses added by an admin. */}
+                {curricula.length > 0 && (
+                    <div className="flex z-10 w-full relative overflow-x-auto scrollbar-hide">
+                        <div className={`flex min-w-max p-1 rounded-full ${isRich ? 'bg-gray-100 border border-black/[0.06] w-full md:w-auto' : 'bg-white/10 border border-white/10 backdrop-blur-xl w-full md:w-auto'}`}>
+                            {curricula.map((course, index) => {
+                                const selected = activeCourse === course.slug;
+                                const Icon = dashboardCourseIcons[course.slug] || BookOpen;
+                                const label = course.slug === 'fullstack' && isOfferActive
+                                    ? 'Full Stack + AI'
+                                    : (dashboardCourseLabels[course.slug] || course.title);
+                                const pillClass = isRich
+                                    ? 'bg-white border border-black/[0.06] shadow-sm'
+                                    : 'bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)]';
+                                return (
+                                    <button
+                                        key={course.slug}
+                                        onClick={() => setActiveCourse(course.slug)}
+                                        className={`relative flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${selected ? (isRich ? 'text-emerald-800' : 'text-white') : (isRich ? 'text-gray-400 hover:text-gray-900' : 'text-white/40 hover:text-white')}`}
+                                    >
+                                        {selected && (
+                                            <motion.div
+                                                layoutId="dashboard-active-pill"
+                                                {...swipeDragProps}
+                                                onDragEnd={makeSwipeHandler(curricula[index + 1]?.slug || null, curricula[index - 1]?.slug || null)}
+                                                className={`absolute inset-0 rounded-full cursor-grab active:cursor-grabbing z-0 ${pillClass}`}
+                                            />
+                                        )}
+                                        <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
+                                            <Icon className="w-3.5 h-3.5" />
+                                            {label}
+                                        </span>
+                                    </button>
+                                );
+                            })}
                         </div>
-                    ) : (
-                        <div className="flex w-full md:w-auto p-1 rounded-full bg-white/10 border border-white/10 backdrop-blur-xl">
-                            <button
-                                onClick={() => setActiveCourse('fullstack')}
-                                className={`relative flex-1 md:flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeCourse === 'fullstack' ? 'text-white' : 'text-white/40 hover:text-white'}`}
-                            >
-                                {/* Floating Background Pill - High Fidelity Glass */}
-                                {activeCourse === 'fullstack' && (
-                                    <motion.div
-                                        layoutId="dashboard-active-pill"
-                                        {...swipeDragProps}
-                                        onDragEnd={makeSwipeHandler('cyber', null)}
-                                        className="absolute inset-0 rounded-full cursor-grab active:cursor-grabbing z-0 bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)]"
-                                    />
-                                )}
-                                <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
-                                    <BookOpen className="w-3.5 h-3.5" />
-                                    {isOfferActive ? 'Full Stack + AI' : 'Full Stack'}
-                                </span>
-                            </button>
-                            <button
-                                onClick={() => setActiveCourse('cyber')}
-                                className={`relative flex-1 md:flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeCourse === 'cyber' ? 'text-white' : 'text-white/40 hover:text-white'}`}
-                            >
-                                {/* Floating Background Pill - High Fidelity Glass */}
-                                {activeCourse === 'cyber' && (
-                                    <motion.div
-                                        layoutId="dashboard-active-pill"
-                                        {...swipeDragProps}
-                                        onDragEnd={makeSwipeHandler('datascience', 'fullstack')}
-                                        className="absolute inset-0 rounded-full cursor-grab active:cursor-grabbing z-0 bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)]"
-                                    />
-                                )}
-                                <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
-                                    <Shield className="w-3.5 h-3.5" />
-                                    Cyber Security
-                                </span>
-                            </button>
-                            <button
-                                onClick={() => setActiveCourse('datascience')}
-                                className={`relative flex-1 md:flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeCourse === 'datascience' ? 'text-white' : 'text-white/40 hover:text-white'}`}
-                            >
-                                {activeCourse === 'datascience' && (
-                                    <motion.div
-                                        layoutId="dashboard-active-pill"
-                                        {...swipeDragProps}
-                                        onDragEnd={makeSwipeHandler('cloudcomputing', 'cyber')}
-                                        className="absolute inset-0 rounded-full cursor-grab active:cursor-grabbing z-0 bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)]"
-                                    />
-                                )}
-                                <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
-                                    <Award className="w-3.5 h-3.5" />
-                                    Data Science
-                                </span>
-                            </button>
-                            <button
-                                onClick={() => setActiveCourse('cloudcomputing')}
-                                className={`relative flex-1 md:flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeCourse === 'cloudcomputing' ? 'text-white' : 'text-white/40 hover:text-white'}`}
-                            >
-                                {activeCourse === 'cloudcomputing' && (
-                                    <motion.div
-                                        layoutId="dashboard-active-pill"
-                                        {...swipeDragProps}
-                                        onDragEnd={makeSwipeHandler('ai', 'datascience')}
-                                        className="absolute inset-0 rounded-full cursor-grab active:cursor-grabbing z-0 bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)]"
-                                    />
-                                )}
-                                <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
-                                    <Cloud className="w-3.5 h-3.5" />
-                                    Cloud Computing
-                                </span>
-                            </button>
-                            <button
-                                onClick={() => setActiveCourse('ai')}
-                                className={`relative flex-1 md:flex-none px-3 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeCourse === 'ai' ? 'text-white' : 'text-white/40 hover:text-white'}`}
-                            >
-                                {activeCourse === 'ai' && (
-                                    <motion.div
-                                        layoutId="dashboard-active-pill"
-                                        {...swipeDragProps}
-                                        onDragEnd={makeSwipeHandler(null, 'cloudcomputing')}
-                                        className="absolute inset-0 rounded-full cursor-grab active:cursor-grabbing z-0 bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.3),0_8_32_rgba(0,0,0,0.3)]"
-                                    />
-                                )}
-                                <span className="relative z-10 flex items-center justify-center gap-1.5 pointer-events-none whitespace-nowrap">
-                                    <Bot className="w-3.5 h-3.5" />
-                                    AI Course
-                                </span>
-                            </button>
-                        </div>
-                    )}
-                </div>
+                    </div>
+                )}
 
                 {/* Welcome Section */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-2">

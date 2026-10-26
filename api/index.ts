@@ -2061,9 +2061,14 @@ app.post("/api/admin/courses/:courseId/modules", requireAdmin, async (req, res) 
         const { slug, title, description, sortOrder } = req.body;
         if (!slug || !title) return res.status(400).json({ error: "Slug and title required" });
 
+        const [lastModule] = await db.select({ sortOrder: modules.sortOrder }).from(modules)
+            .where(eq(modules.courseId, req.params.courseId))
+            .orderBy(desc(modules.sortOrder)).limit(1);
+        const resolvedSortOrder = Number.isInteger(sortOrder) ? sortOrder : (lastModule?.sortOrder ?? -1) + 1;
+
         const [mod] = await db.insert(modules).values({
             courseId: req.params.courseId, slug, title, description,
-            sortOrder: sortOrder || 0
+            sortOrder: resolvedSortOrder
         }).returning();
 
         res.json(mod);
@@ -2122,9 +2127,14 @@ app.post("/api/admin/modules/:moduleId/lessons", requireAdmin, async (req, res) 
         const { slug, title, duration, youtubeId, notesPath, free, sortOrder } = req.body;
         if (!slug || !title) return res.status(400).json({ error: "Slug and title required" });
 
+        const [lastLesson] = await db.select({ sortOrder: lessons.sortOrder }).from(lessons)
+            .where(eq(lessons.moduleId, req.params.moduleId))
+            .orderBy(desc(lessons.sortOrder)).limit(1);
+        const resolvedSortOrder = Number.isInteger(sortOrder) ? sortOrder : (lastLesson?.sortOrder ?? -1) + 1;
+
         const [lesson] = await db.insert(lessons).values({
             moduleId: req.params.moduleId, slug, title, duration,
-            youtubeId, notesPath, free: free || false, sortOrder: sortOrder || 0
+            youtubeId, notesPath, free: free || false, sortOrder: resolvedSortOrder
         }).returning();
 
         res.json(lesson);

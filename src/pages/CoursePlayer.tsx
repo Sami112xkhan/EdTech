@@ -383,9 +383,9 @@ const CoursePlayer: React.FC = () => {
                                             <FileText className="w-12 h-12 text-primary relative z-10" />
                                         </div>
                                         <div className="space-y-2 px-4">
-                                            <h3 className={`text-xl font-black ${isRich ? 'text-gray-900' : 'text-white'}`}>Concept Notes</h3>
+                                            <h3 className={`text-xl font-black ${isRich ? 'text-gray-900' : 'text-white'}`}>Lesson Material</h3>
                                             <p className={`text-[10px] font-bold uppercase tracking-widest leading-relaxed ${isRich ? 'text-gray-500' : 'text-muted-foreground'}`}>
-                                                Official PDF material for "{currentLesson.title}".
+                                                Study material for "{currentLesson.title}".
                                             </p>
                                         </div>
                                         <div className="flex flex-col gap-3 px-4">
@@ -414,7 +414,7 @@ const CoursePlayer: React.FC = () => {
                                                         download
                                                         className={`w-full py-4 rounded-2xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-[0.98] ${isRich ? 'bg-gray-100 text-gray-900 border border-gray-200 hover:bg-gray-200' : 'bg-white/5 text-white border border-white/10 hover:bg-white/10'}`}
                                                     >
-                                                        Download PDF
+                                                        Download Material
                                                     </a>
                                                 </>
                                             )}

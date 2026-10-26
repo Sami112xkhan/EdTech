@@ -147,10 +147,11 @@ function LessonEditor({ lesson, moduleId, onSave, onCancel, isRich }: LessonEdit
                 </div>
             </div>
             <div>
-                <label className={`text-[10px] font-black uppercase tracking-widest mb-1 block ${c.textLabel}`}>Notes / Study Material Path</label>
+                <label className={`text-[10px] font-black uppercase tracking-widest mb-1 block ${c.textLabel}`}>Notes / Study Material URL or Path</label>
                 <input value={form.notesPath} onChange={e => setForm({ ...form, notesPath: e.target.value })}
                     className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300/40 ${c.input}`}
-                    placeholder="/notes/Some Path/file.pdf" />
+                    placeholder="/notes/lesson-handout.pdf or https://..." />
+                <p className={`mt-1 text-[10px] ${c.textMuted}`}>Link an existing file under public/ or a hosted URL. This field saves the link; it does not upload files.</p>
             </div>
             <div className="flex items-center gap-3">
                 <label className="flex items-center gap-2 cursor-pointer">
