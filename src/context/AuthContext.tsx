@@ -398,7 +398,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     time: new Date(Date.now() + 15 * 60000).toLocaleTimeString(),
                     verify_url: `${window.location.origin}/verify?email=${encodeURIComponent(email)}&code=${data.verificationCode}`
                 }, publicKey);
-                toast.success("Email service accepted the message. Check your inbox and spam folder.");
                 return true;
             } catch (emailError) {
                 console.error("EmailJS failed to accept the verification email:", emailError);
