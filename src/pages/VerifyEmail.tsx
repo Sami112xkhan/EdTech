@@ -83,9 +83,13 @@ const VerifyEmail: React.FC = () => {
 
         resendInFlight.current = true;
         setIsResending(true);
-        const sent = await resendVerificationCode(email);
-        resendInFlight.current = false;
-        setIsResending(false);
+        let sent = false;
+        try {
+            sent = await resendVerificationCode(email);
+        } finally {
+            resendInFlight.current = false;
+            setIsResending(false);
+        }
         setEmailDeliveryStatus(sent ? "true" : "false");
         if (sent) setResendCooldown(30);
     };
