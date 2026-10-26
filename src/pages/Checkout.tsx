@@ -8,6 +8,7 @@ import { initializePayment } from '../utils/razorpay';
 import { useActiveCourse } from '../hooks/useActiveCourse';
 import { useCourses } from '../hooks/useCourses';
 import { formatRupees, getEffectiveCoursePrice } from '../utils/coursePricing';
+import { getPermanentlyOwnedCourseSlugs } from '../utils/courseOwnership';
 
 type CouponQuote = { code: string; baseAmount: number; amountOff: number; discountAmount: number; finalAmount: number; discountCapped: boolean };
 
@@ -53,8 +54,7 @@ const Checkout: React.FC = () => {
         features: ['Complete AI & ML Course Content', 'Builds on Your Full Stack Skills', 'Hands-on AI Projects', 'Early Access to New AI Modules', 'Discord Community Access'],
     };
 
-    // Temporary trial access does not count as permanent ownership.
-    const ownedCourses = new Set(user?.trialExpiresAt ? [] : (user?.purchasedCourses || []));
+    const ownedCourses = getPermanentlyOwnedCourseSlugs(user);
     const currentCourse = courseDetails[selectedCourse] || null;
     const selectedCourseKey = selectedCourse === 'ai_upgrade' ? 'ai' : selectedCourse;
     const isSelectedCourseOwned = !!selectedCourse && ownedCourses.has(selectedCourseKey);

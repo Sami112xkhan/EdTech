@@ -6,6 +6,7 @@ import { useOffer } from '../context/OfferContext';
 import { useCourses } from '../hooks/useCourses';
 import { useTheme } from '../context/ThemeContext';
 import { formatRupees, getEffectiveCoursePrice } from '../utils/coursePricing';
+import { getPermanentlyOwnedCourseSlugs } from '../utils/courseOwnership';
 
 const courseIcons: Record<string, React.ElementType> = {
     BookOpen,
@@ -31,8 +32,7 @@ const Shop: React.FC = () => {
     const [searchParams] = useSearchParams();
     const isRich = theme === 'rich';
 
-    // Trial access is temporary, so it must not hide the course from the shop.
-    const ownedCourses = new Set(user?.trialExpiresAt ? [] : (user?.purchasedCourses || []));
+    const ownedCourses = getPermanentlyOwnedCourseSlugs(user);
     const availableCourses = courses
         .filter(course => course.isPublished && !ownedCourses.has(course.slug))
         .sort((a, b) => a.sortOrder - b.sortOrder);
