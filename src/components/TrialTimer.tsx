@@ -24,9 +24,9 @@ const TrialTimer: React.FC = () => {
                 setTimeLeft("00:00");
                 setIsVisible(true);
                 // AuthContext handles the actual expiry state update
-                // We just redirect if we are on a protected page
-                if (!window.location.pathname.includes('/checkout')) {
-                    navigate('/checkout');
+                // Send expired trial users to the shop so they can choose a course.
+                if (user.trialCourseId && !user.purchasedCourses.includes(user.trialCourseId) && !window.location.pathname.includes('/shop')) {
+                    navigate('/shop');
                 }
                 return;
             }

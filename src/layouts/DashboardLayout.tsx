@@ -12,7 +12,8 @@ import {
     PanelLeft,
     MessageSquare,
     Clock,
-    Code
+    Code,
+    ShoppingBag
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
@@ -182,6 +183,7 @@ const DashboardLayout: React.FC = () => {
 
     const sidebarItems = [
         { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+        { to: "/shop", icon: ShoppingBag, label: "Course Shop" },
         { to: "/curriculum", icon: BookOpen, label: "Curriculum" },
         { to: "/projects", icon: FolderKanban, label: "Projects" },
         { to: "/playground", icon: Code, label: "Playground" },
@@ -360,7 +362,11 @@ const DashboardLayout: React.FC = () => {
 
                 {/* Trial Expired Overlay */}
                 {
-                    user?.role !== 'admin' && (user?.trialExpiresAt === 'EXPIRED' || (user?.trialExpiresAt && new Date(user.trialExpiresAt) <= new Date())) && (
+                    user?.role !== 'admin'
+                    && location.pathname !== '/shop'
+                    && !!user?.trialCourseId
+                    && !user?.purchasedCourses.includes(user.trialCourseId)
+                    && (user?.trialExpiresAt === 'EXPIRED' || (!!user?.trialExpiresAt && new Date(user.trialExpiresAt) <= new Date())) && (
                         <div className={`fixed inset-0 z-[100] flex items-center justify-center p-6 ${isRich ? "bg-black/40 backdrop-blur-sm" : "bg-black/80 backdrop-blur-xl"}`}>
                             <motion.div
                                 initial={{ scale: 0.9, opacity: 0 }}
@@ -377,10 +383,10 @@ const DashboardLayout: React.FC = () => {
                                 </p>
                                 <div className="space-y-4">
                                     <button
-                                        onClick={() => navigate('/curriculum')}
+                                        onClick={() => navigate('/shop')}
                                         className={`w-full py-4 font-black rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all ${isRich ? "bg-emerald-900 text-white shadow-lg shadow-emerald-900/15" : "bg-white text-black shadow-xl shadow-white/10"}`}
                                     >
-                                        Get Full Access
+                                        Browse Courses
                                     </button>
                                     <button
                                         onClick={handleLogout}

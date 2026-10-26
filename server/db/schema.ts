@@ -21,6 +21,7 @@ export const users = pgTable("users", {
     isVerified: boolean("is_verified").default(false).notNull(),
     verificationCode: text("verification_code"),
     trialExpiresAt: timestamp("trial_expires_at"),
+    trialCourseId: text("trial_course_id"),
     certificateStatus: text("certificate_status").default("locked").notNull(), // 'locked','eligible','pending','approved'
     certificateIssueDate: timestamp("certificate_issue_date"),
     emailNotifs: boolean("email_notifs").default(true).notNull(),
@@ -58,13 +59,40 @@ export const feedback = pgTable("feedback", {
 export const accessCodes = pgTable("access_codes", {
     id: uuid("id").defaultRandom().primaryKey(),
     code: text("code").unique().notNull(),
-    type: text("type").notNull(), // '3days', '5mins', or 'lifetime'
+    type: text("type").notNull(), // New codes: '5mins' or 'lifetime'; legacy '3days' codes remain supported.
+    isUsed: boolean("is_used").default(false).notNull(),
+    isRevoked: boolean("is_revoked").default(false).notNull(),
+    usedBy: text("used_by"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const discountCoupons = pgTable("discount_coupons", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    code: text("code").unique().notNull(),
+    amountOff: integer("amount_off").notNull(),
     isUsed: boolean("is_used").default(false).notNull(),
     isRevoked: boolean("is_revoked").default(false).notNull(),
     usedBy: text("used_by"),
     usedAt: timestamp("used_at"),
+    reservedBy: uuid("reserved_by").references(() => users.id),
+    reservedAt: timestamp("reserved_at"),
+    reservedOrderId: text("reserved_order_id"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
-    expiresAt: timestamp("expires_at"),
+});
+
+export const paymentOrders = pgTable("payment_orders", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    razorpayOrderId: text("razorpay_order_id").unique().notNull(),
+    razorpayPaymentId: text("razorpay_payment_id").unique(),
+    userId: uuid("user_id").references(() => users.id).notNull(),
+    courseId: text("course_id").notNull(),
+    baseAmount: integer("base_amount").notNull(),
+    discountAmount: integer("discount_amount").default(0).notNull(),
+    amount: integer("amount").notNull(),
+    couponId: uuid("coupon_id").references(() => discountCoupons.id),
+    status: text("status").default("created").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    paidAt: timestamp("paid_at"),
 });
 
 export const userNotes = pgTable("user_notes", {

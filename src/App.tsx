@@ -27,6 +27,7 @@ import VerifyEmail from "./pages/VerifyEmail";
 import Suspended from "./pages/Suspended";
 import PlaygroundPage from "./pages/PlaygroundPage";
 import About from "./pages/About";
+import Shop from "./pages/Shop";
 import { FeedbackProvider } from "./context/FeedbackContext";
 import { OfferProvider } from "./context/OfferContext";
 import NavigationTracker from "./components/NavigationTracker";
@@ -58,6 +59,11 @@ function App() {
                                 <Route element={<ProtectedRoute />}>
                                     <Route path="/checkout" element={<Checkout />} />
                                     <Route path="/admin" element={<AdminDashboard />} />
+
+                                    {/* Shop stays available to users without an active course or trial. */}
+                                    <Route element={<DashboardLayout />}>
+                                        <Route path="/shop" element={<Shop />} />
+                                    </Route>
 
                                     {/* Payment Required Routes */}
                                     <Route element={<ProtectedRoute requirePayment />}>

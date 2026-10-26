@@ -8,6 +8,13 @@
       "when": 1771338022729,
       "tag": "0000_fine_mole_man",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792999017412,
+      "tag": "0001_discount_coupons_and_payment_orders",
+      "breakpoints": true
     }
   ]
 }

@@ -14,7 +14,7 @@ import { useTheme } from "../context/ThemeContext";
 import { soundLessonComplete, pushNotification } from "../utils/notifications";
 
 const CoursePlayer: React.FC = () => {
-    const { user, markLessonComplete, addXp } = useAuth();
+    const { user, sessionId, markLessonComplete, addXp } = useAuth();
     const navigate = useNavigate();
     const { moduleId, lessonId } = useParams<{ moduleId: string; lessonId: string }>();
     const { theme } = useTheme();
@@ -67,7 +67,13 @@ const CoursePlayer: React.FC = () => {
     const prevLesson = currentModule?.lessons[currentLessonIndex - 1];
 
     // Access Check
-    const hasAccess = user?.role === 'admin' || user?.purchasedCourses?.includes(activeCourseSlug);
+    const hasActiveTrialForCourse = user?.trialCourseId === activeCourseSlug
+        && !!user.trialExpiresAt
+        && user.trialExpiresAt !== 'EXPIRED'
+        && new Date(user.trialExpiresAt) > new Date();
+    const hasAccess = user?.role === 'admin'
+        || !!user?.purchasedCourses?.includes(activeCourseSlug)
+        || hasActiveTrialForCourse;
 
     useEffect(() => {
         const loadNote = async () => {
@@ -79,7 +85,7 @@ const CoursePlayer: React.FC = () => {
 
             // 2. Fetch from SQL (Source of truth)
             try {
-                const response = await fetch(`/api/notes/list?email=${encodeURIComponent(user.email)}`);
+                const response = await fetch('/api/notes/list', { headers: { Authorization: `Bearer ${sessionId}` } });
                 if (response.ok) {
                     const notes = await response.json();
                     const currentNote = notes.find((n: any) => n.lessonId === lessonId);
@@ -107,7 +113,7 @@ const CoursePlayer: React.FC = () => {
         } else {
             setMarkdownContent(null);
         }
-    }, [moduleId, lessonId, currentLesson, user?.email]);
+        }, [moduleId, lessonId, currentLesson, user?.email, sessionId]);
 
     const handleSaveNote = async () => {
         if (!user?.email || !lessonId) return;
@@ -119,9 +125,8 @@ const CoursePlayer: React.FC = () => {
         try {
             await fetch('/api/notes/save', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionId}` },
                 body: JSON.stringify({
-                    email: user.email,
                     lessonId,
                     content: note
                 })
@@ -174,7 +179,7 @@ const CoursePlayer: React.FC = () => {
             <div className={`flex-1 flex flex-col min-h-0 rounded-2xl overflow-hidden ${isRich ? 'bg-white border border-gray-200' : 'bg-background/50 border border-white/5 shadow-2xl'} ${!currentLesson.youtubeId ? (isRich ? 'bg-gray-50' : 'bg-secondary/10') : ''}`}>
                 {currentLesson.youtubeId && (
                     <div className="w-full bg-black shadow-inner relative" style={{ aspectRatio: '16/9' }}>
-                        {(!hasAccess || (user?.role !== 'admin' && (user?.trialExpiresAt === 'EXPIRED' || (user?.trialExpiresAt && new Date(user.trialExpiresAt) <= new Date())))) ? (
+                        {!hasAccess ? (
                             <div className="absolute inset-0 z-50 bg-[#0a0a0a] flex flex-col items-center justify-center p-6 text-center">
                                 <div className="absolute inset-0 bg-gradient-to-b from-primary/10 to-transparent opacity-20" />
                                 <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6 border border-primary/20 relative">
@@ -188,10 +193,10 @@ const CoursePlayer: React.FC = () => {
                                         : "This course track is not included in your current subscription. Upgrade now to gain access."}
                                 </p>
                                 <Link
-                                    to="/checkout"
+                                    to={`/shop?course=${encodeURIComponent(activeCourseSlug)}`}
                                     className="px-8 py-3 bg-primary text-white rounded-xl text-sm font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-primary/20"
                                 >
-                                    Unlock Everything
+                                    Browse Course Shop
                                 </Link>
                             </div>
                         ) : (

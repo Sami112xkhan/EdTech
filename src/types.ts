@@ -14,6 +14,7 @@ export interface User {
     isVerified?: boolean;
     verificationCode?: string;
     trialExpiresAt?: string; // ISO string
+    trialCourseId?: string;
     photoURL?: string; // For Google Auth
     // Gamification
     streak?: number;
@@ -37,9 +38,14 @@ export interface User {
     showStreak?: boolean;
 }
 
+export type AccessCodeType = '3days' | '5mins' | 'lifetime';
+// New codes are limited to previews and permanent, single-use access.
+// `3days` remains in AccessCodeType so existing codes can still be displayed and redeemed.
+export type GeneratedAccessCodeType = Extract<AccessCodeType, '5mins' | 'lifetime'>;
+
 export interface AccessCode {
     code: string;
-    type: '3days' | '5mins';
+    type: AccessCodeType;
     createdAt: string;
     isUsed: boolean;
     usedBy?: string; // User email

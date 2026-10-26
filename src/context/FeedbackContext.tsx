@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useAuth } from './AuthContext';
 
 export type FeedbackStatus = 'pending' | 'implemented' | 'ignored';
 
@@ -25,10 +26,11 @@ const FeedbackContext = createContext<FeedbackContextType | undefined>(undefined
 
 export const FeedbackProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [feedback, setFeedback] = useState<FeedbackItem[]>([]);
+    const { sessionId } = useAuth();
 
     const fetchFeedback = async () => {
         try {
-            const response = await fetch('/api/feedback');
+            const response = await fetch('/api/feedback', { headers: { Authorization: `Bearer ${sessionId}` } });
             if (response.ok) {
                 const data = await response.json();
                 setFeedback(data);
@@ -44,13 +46,13 @@ export const FeedbackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         // Poll every 30 seconds for new feedback in admin panel
         const interval = setInterval(fetchFeedback, 5000);
         return () => clearInterval(interval);
-    }, []);
+    }, [sessionId]);
 
     const addFeedback = async (userId: string, userName: string, content: string, type: 'feedback' | 'access_request' = 'feedback') => {
         try {
             const response = await fetch('/api/feedback', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionId}` },
                 body: JSON.stringify({ userId, userName, content, type }),
             });
             if (response.ok) {
@@ -66,7 +68,7 @@ export const FeedbackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         try {
             const response = await fetch(`/api/feedback/${id}`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionId}` },
                 body: JSON.stringify({ status }),
             });
             if (response.ok) {
@@ -82,7 +84,7 @@ export const FeedbackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         try {
             const response = await fetch(`/api/feedback/${id}`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionId}` },
                 body: JSON.stringify({ reply }),
             });
             if (response.ok) {
@@ -98,6 +100,7 @@ export const FeedbackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         try {
             const response = await fetch(`/api/feedback/${id}`, {
                 method: 'DELETE',
+                headers: { Authorization: `Bearer ${sessionId}` },
             });
             if (response.ok) {
                 setFeedback(prev => prev.filter(item => item.id !== id));

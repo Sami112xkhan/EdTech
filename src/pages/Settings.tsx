@@ -8,7 +8,7 @@ import {
     CreditCard, Save, Bell, Globe, BookOpen,
     Shield, Download, Monitor, Volume2, VolumeX, Palette,
     Eye, Zap, ChevronDown, Check, Trash2, LogOut,
-    GraduationCap, Code, AlertTriangle, RefreshCw,
+    GraduationCap, Code, AlertTriangle, RefreshCw, ShoppingBag,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
@@ -514,6 +514,15 @@ const Settings: React.FC = () => {
                                     )}
                                 </div>
                             </button>
+
+                            <div className="px-6 pb-5">
+                                <button
+                                    onClick={() => navigate('/shop')}
+                                    className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-colors ${isRich ? 'bg-emerald-900 text-white hover:bg-emerald-800' : 'bg-white/10 text-white hover:bg-white/15'}`}
+                                >
+                                    <ShoppingBag className="h-4 w-4" /> Browse Course Shop
+                                </button>
+                            </div>
 
                             {/* Expandable Course Breakdown */}
                             <AnimatePresence>

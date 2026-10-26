@@ -45,12 +45,18 @@ const CurriculumPage: React.FC = () => {
 
     // Get status of all phases (locked/completed)
     const phasesStatus = getPhasesStatus(activeCurriculum, completedLessons).map(phase => {
-        const isExpired = user?.role !== 'admin' && (user?.trialExpiresAt === 'EXPIRED' ||
-            (user?.trialExpiresAt && new Date(user.trialExpiresAt) <= new Date()));
+        const isExpired = user?.role !== 'admin'
+            && user?.trialCourseId === activeCourse
+            && !user.purchasedCourses.includes(activeCourse)
+            && (user?.trialExpiresAt === 'EXPIRED' || (!!user?.trialExpiresAt && new Date(user.trialExpiresAt) <= new Date()));
+        const hasActiveTrialForCourse = user?.trialCourseId === activeCourse
+            && !!user.trialExpiresAt
+            && user.trialExpiresAt !== 'EXPIRED'
+            && new Date(user.trialExpiresAt) > new Date();
 
         return {
             ...phase,
-            locked: user?.role === 'admin' ? false : (phase.locked || isExpired || !user?.purchasedCourses.includes(activeCourse))
+            locked: user?.role === 'admin' ? false : (phase.locked || isExpired || (!user?.purchasedCourses.includes(activeCourse) && !hasActiveTrialForCourse))
         };
     });
 

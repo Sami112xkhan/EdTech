@@ -71,7 +71,6 @@ export function getCoursesGrantedOnPurchase(slug: string): string[] {
 // ── Simple in-memory cache ────────────────────────────────────────────────────
 
 let cachedCourses: CourseData[] | null = null;
-let cachedCurriculum: CourseWithModules[] | null = null;
 let cacheTimestamp = 0;
 const CACHE_TTL = 30_000; // 30 seconds
 
@@ -217,7 +216,10 @@ export function useCourse(slug: string | null) {
         if (!slug) { setLoading(false); return; }
         try {
             setLoading(true);
-            const res = await fetch(`/api/courses/${slug}`);
+            const sessionId = localStorage.getItem('sessionId');
+            const res = await fetch(`/api/courses/${slug}`, {
+                headers: sessionId ? { Authorization: `Bearer ${sessionId}` } : {},
+            });
             if (!res.ok) throw new Error('Course not found');
             const data = await res.json();
             setCourse(data);
@@ -242,44 +244,37 @@ export function useCourse(slug: string | null) {
 // ── Hook: All published courses with full curriculum (for CurriculumPage) ─────
 
 export function useAllCurricula() {
-    const [curricula, setCurricula] = useState<CourseWithModules[]>(cachedCurriculum || []);
-    const [loading, setLoading] = useState(!cachedCurriculum);
+    const [curricula, setCurricula] = useState<CourseWithModules[]>([]);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     const fetchCurricula = useCallback(async () => {
         try {
             setLoading(true);
-            const res = await fetch('/api/courses/all/curriculum');
+            const sessionId = localStorage.getItem('sessionId');
+            const res = await fetch('/api/courses/all/curriculum', {
+                headers: sessionId ? { Authorization: `Bearer ${sessionId}` } : {},
+            });
             if (!res.ok) throw new Error('Failed to fetch curricula');
             const data = await res.json();
             if (Array.isArray(data) && data.length > 0) {
-                cachedCurriculum = data;
-                cacheTimestamp = Date.now();
                 setCurricula(data);
                 setError(null);
             } else {
                 throw new Error('Empty response');
             }
         } catch (e: any) {
-            // Fall back to static curriculum data when API is unavailable
-            if (!cachedCurriculum) {
-                cachedCurriculum = STATIC_COURSES;
-                cacheTimestamp = Date.now();
-                setCurricula(cachedCurriculum);
-            }
+            // Do not expose static lesson/video data when the access-controlled API fails.
             setError(e.message);
         } finally {
             setLoading(false);
         }
     }, []);
 
+    useEffect(() => { fetchCurricula(); }, [fetchCurricula]);
     useEffect(() => {
-        if (cachedCurriculum && Date.now() - cacheTimestamp < CACHE_TTL) {
-            setCurricula(cachedCurriculum);
-            setLoading(false);
-            return;
-        }
-        fetchCurricula();
+        window.addEventListener('devmastery:access-changed', fetchCurricula);
+        return () => window.removeEventListener('devmastery:access-changed', fetchCurricula);
     }, [fetchCurricula]);
 
     return { curricula, loading, error, refetch: fetchCurricula };

@@ -4,23 +4,22 @@ import { useAuth } from '../context/AuthContext';
 
 const NavigationTracker = memo(() => {
     const location = useLocation();
-    const { user } = useAuth();
+    const { user, sessionId } = useAuth();
 
     useEffect(() => {
         if (user?.id) {
             // Log navigation event
             fetch('/api/track', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionId}` },
                 body: JSON.stringify({
-                    userId: user.id,
                     type: 'NAVIGATE',
                     path: location.pathname,
                     description: `Navigated to ${location.pathname}`,
                 })
             }).catch(err => console.error("Tracking error:", err));
         }
-    }, [location.pathname, user?.id]);
+    }, [location.pathname, user?.id, sessionId]);
 
     return null; // This component doesn't render anything
 });
@@ -31,9 +30,8 @@ export const trackAction = async (userId: string, type: 'CLICK' | 'ACTION', desc
     try {
         await fetch('/api/track', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('sessionId') || ''}` },
             body: JSON.stringify({
-                userId,
                 type,
                 description,
                 path: window.location.pathname,

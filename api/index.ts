@@ -3,14 +3,15 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { OAuth2Client } from "google-auth-library";
 import { db } from "../server/db/index.js";
-import { users, sessions, feedback as feedbackTable, accessCodes, userNotes, playgroundProjects, aiChats, systemSettings, activityLogs, courses, modules, lessons } from "../server/db/schema.js";
-import { eq, and, gte, sql, desc, ne, asc } from "drizzle-orm";
+import { users, sessions, feedback as feedbackTable, accessCodes, discountCoupons, paymentOrders, userNotes, playgroundProjects, aiChats, systemSettings, activityLogs, courses, modules, lessons } from "../server/db/schema.js";
+import { eq, and, gte, sql, desc, ne, asc, isNull, lt, or } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import { createHmac, randomInt, timingSafeEqual } from "crypto";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -39,7 +40,7 @@ initStaticCodes();
 const googleClient = new OAuth2Client(process.env.VITE_GOOGLE_CLIENT_ID);
 
 app.use(cors({
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:5173', 'https://devmastery.space'],
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:5173', 'https://devmastery.space', 'https://www.devmastery.space'],
     credentials: true,
 }));
 app.use(express.json({ limit: '1mb' }));
@@ -63,6 +64,42 @@ const apiLimiter = rateLimit({
     legacyHeaders: false,
 });
 
+// Session middleware is defined before routes so user-owned endpoints can use it.
+const requireSessionUser = async (req: any, res: any, next: any) => {
+    try {
+        const authHeader = req.headers.authorization || '';
+        const sessionId = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+        if (!sessionId || sessionId.length < 10) return res.status(401).json({ error: 'Authentication required' });
+        const [session] = await db.select().from(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.isActive, true)));
+        if (!session) return res.status(401).json({ error: 'Invalid session' });
+        const [user] = await db.select().from(users).where(eq(users.id, session.userId));
+        if (!user || user.status !== 'active') return res.status(403).json({ error: 'Account is unavailable' });
+        req.authUser = user;
+        next();
+    } catch (error) {
+        console.error('[requireSessionUser] Middleware error:', error);
+        res.status(500).json({ error: 'Authentication failed' });
+    }
+};
+
+const requireAdmin = async (req: any, res: any, next: any) => {
+    try {
+        const authHeader = req.headers.authorization || '';
+        const sessionId = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+        if (!sessionId || sessionId.length < 10) return res.status(401).json({ error: 'No session' });
+        const [session] = await db.select().from(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.isActive, true)));
+        if (!session) return res.status(401).json({ error: 'Invalid session' });
+        const [user] = await db.select().from(users).where(eq(users.id, session.userId));
+        if (!user || user.status !== 'active') return res.status(403).json({ error: 'Account unavailable' });
+        if (user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+        req.adminUser = user;
+        next();
+    } catch (error) {
+        console.error('[requireAdmin] Middleware error:', error);
+        res.status(500).json({ error: 'Admin auth failed' });
+    }
+};
+
 // Auth Sync Hook
 app.post("/api/auth/google", authLimiter, async (req, res) => {
     const { credential } = req.body;
@@ -78,19 +115,35 @@ app.post("/api/auth/google", authLimiter, async (req, res) => {
             return res.status(400).json({ error: "Invalid token" });
         }
 
-        const { sub: googleId, email, name, picture } = payload;
+        const { sub: googleId, email, name, picture, email_verified: emailVerified } = payload;
+        if (!email || !emailVerified) return res.status(403).json({ error: 'A verified Google email is required' });
+        const adminEmails = new Set(['admin@devmastery.com', 'sami112xxkhan@gmail.com']);
 
         // 1. Sync User
         let [user] = await db.select().from(users).where(eq(users.googleId, googleId));
 
         if (!user) {
-            [user] = await db.insert(users).values({
-                googleId,
-                email: email!,
-                name: name!,
-                picture,
-                role: email === "admin@devmastery.com" || email === "sami112xxkhan@gmail.com" ? "admin" : "student",
-            }).returning();
+            const [existingEmailUser] = await db.select().from(users).where(eq(users.email, email));
+            if (existingEmailUser) {
+                if (existingEmailUser.googleId && existingEmailUser.googleId !== 'hardcoded-admin') {
+                    return res.status(409).json({ error: 'This account is linked to a different Google identity' });
+                }
+                [user] = await db.update(users).set({
+                    googleId,
+                    lastLoginAt: new Date(),
+                    name: name || existingEmailUser.name,
+                    picture: picture || existingEmailUser.picture,
+                    role: adminEmails.has(email.toLowerCase()) ? 'admin' : existingEmailUser.role,
+                }).where(eq(users.id, existingEmailUser.id)).returning();
+            } else {
+                [user] = await db.insert(users).values({
+                    googleId,
+                    email,
+                    name: name || email,
+                    picture,
+                    role: adminEmails.has(email.toLowerCase()) ? 'admin' : 'student',
+                }).returning();
+            }
         } else {
             // Check if name or picture changed in Google (sync back)
             [user] = await db.update(users)
@@ -137,18 +190,7 @@ app.get("/api/auth/me", async (req, res) => {
         // Update last heartbeat
         await db.update(sessions).set({ lastHeartbeat: new Date() }).where(eq(sessions.id, sessionId));
 
-        // Map admin user to match frontend expectations
-        const mappedUser = user.email === 'admin@devmastery.com' ? {
-            ...user,
-            role: 'admin',
-            purchasedCourses: (user.purchasedCourses && user.purchasedCourses.length > 0)
-                ? user.purchasedCourses
-                : ['fullstack', 'cyber', 'datascience', 'cloudcomputing'],
-            completedLessons: user.completedLessons || [],
-            trialExpiresAt: undefined, // Admin never has trial restrictions
-        } : user;
-
-        res.json({ user: mappedUser, sessionId: session.id });
+        res.json({ user, sessionId: session.id });
     } catch (error) {
         console.error("Auth me error:", error);
         res.status(500).json({ error: "Auth check failed" });
@@ -255,67 +297,9 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
     }
 });
 
-// Admin Session Creation (for hardcoded admin login)
-app.post("/api/auth/admin-session", authLimiter, async (req, res) => {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ error: "Email required" });
-    if (email !== 'admin@devmastery.com') return res.status(403).json({ error: "Not authorized" });
-
-    try {
-        let [adminUser] = await db.select().from(users).where(eq(users.email, email));
-        if (!adminUser) {
-            // Create admin user in DB if not exists
-            [adminUser] = await db.insert(users).values({
-                email,
-                name: 'Administrator',
-                role: 'admin',
-                isVerified: true,
-                status: 'active',
-                googleId: 'hardcoded-admin',
-                purchasedCourses: ['fullstack', 'cyber', 'datascience', 'cloudcomputing'],
-            }).returning();
-        } else {
-            // Ensure existing admin user has correct role and courses
-            const needsUpdate = adminUser.role !== 'admin' || !adminUser.purchasedCourses || adminUser.purchasedCourses.length === 0;
-            if (needsUpdate) {
-                [adminUser] = await db.update(users).set({
-                    role: 'admin',
-                    purchasedCourses: (adminUser.purchasedCourses && adminUser.purchasedCourses.length > 0)
-                        ? adminUser.purchasedCourses
-                        : ['fullstack', 'cyber', 'datascience', 'cloudcomputing'],
-                }).where(eq(users.id, adminUser.id)).returning();
-            }
-        }
-
-        // Create session
-        await db.update(sessions)
-            .set({ isActive: false })
-            .where(and(eq(sessions.userId, adminUser.id), eq(sessions.isActive, true)));
-
-        const [session] = await db.insert(sessions).values({
-            userId: adminUser.id,
-            isActive: true,
-        }).returning();
-
-        // Map DB user to match frontend User type (admin always gets all courses)
-        const mappedUser = {
-            ...adminUser,
-            username: adminUser.username || 'admin',
-            role: 'admin',
-            purchasedCourses: (adminUser.purchasedCourses && adminUser.purchasedCourses.length > 0)
-                ? adminUser.purchasedCourses
-                : ['fullstack', 'cyber', 'datascience', 'cloudcomputing'],
-            completedLessons: adminUser.completedLessons || [],
-            trialExpiresAt: undefined, // Admin never has trial restrictions
-            lastLogin: adminUser.lastLoginAt?.toISOString?.() || new Date().toISOString(),
-            photoURL: adminUser.picture || undefined,
-        };
-
-        res.json({ user: mappedUser, sessionId: session.id });
-    } catch (error) {
-        console.error("Admin session error:", error);
-        res.status(500).json({ error: "Failed to create admin session" });
-    }
+// Retired: the former endpoint created admin sessions from a public email-only request.
+app.post("/api/auth/admin-session", (_req, res) => {
+    res.status(410).json({ error: "Use an authenticated admin account to sign in" });
 });
 
 // Email Verify Hook
@@ -359,8 +343,6 @@ app.post("/api/auth/verify", authLimiter, async (req, res) => {
 // Resend Verification Code Hook
 app.post("/api/auth/resend", authLimiter, async (req, res) => {
     const { email } = req.body;
-    if (!email) return res.status(400).json({ error: "Email required" });
-
     try {
         const [user] = await db.select().from(users).where(eq(users.email, email));
         if (!user) return res.status(404).json({ error: "User not found" });
@@ -381,23 +363,18 @@ app.post("/api/auth/resend", authLimiter, async (req, res) => {
 });
 
 // Update Profile Hook
-app.post("/api/auth/profile", async (req, res) => {
+app.post("/api/auth/profile", requireSessionUser, async (req: any, res) => {
     const {
-        email, name, username, streak, xp, level,
+        name, username,
         emailNotifs, pushNotifs, courseUpdates, soundEffects,
         profileVisibility, showProgress, showStreak
     } = req.body;
-
-    if (!email) return res.status(400).json({ error: "Email required" });
 
     try {
         const [updatedUser] = await db.update(users)
             .set({
                 name,
                 username,
-                streak: streak !== undefined ? streak : undefined,
-                xp: xp !== undefined ? xp : undefined,
-                level: level !== undefined ? level : undefined,
                 emailNotifs: emailNotifs !== undefined ? emailNotifs : undefined,
                 pushNotifs: pushNotifs !== undefined ? pushNotifs : undefined,
                 courseUpdates: courseUpdates !== undefined ? courseUpdates : undefined,
@@ -406,7 +383,7 @@ app.post("/api/auth/profile", async (req, res) => {
                 showProgress: showProgress !== undefined ? showProgress : undefined,
                 showStreak: showStreak !== undefined ? showStreak : undefined,
             })
-            .where(eq(users.email, email))
+            .where(eq(users.id, req.authUser.id))
             .returning();
         res.json({ success: true, user: updatedUser });
     } catch (error) {
@@ -428,7 +405,7 @@ app.post("/api/progress/lesson", async (req, res) => {
         const [session] = await db.select().from(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.isActive, true)));
         if (!session) return res.status(401).json({ error: "Invalid session" });
         const [sessionUser] = await db.select().from(users).where(eq(users.id, session.userId));
-        if (!sessionUser || sessionUser.email !== email) return res.status(403).json({ error: "Cannot update another user's progress" });
+        if (!sessionUser || sessionUser.status !== 'active' || sessionUser.email !== email) return res.status(403).json({ error: "Cannot update another user's progress" });
 
         // Fetch current user
         let [user] = await db.select().from(users).where(eq(users.email, email));
@@ -442,7 +419,10 @@ app.post("/api/progress/lesson", async (req, res) => {
             if (!moduleRow) return res.status(404).json({ error: "Module not found" });
             const [courseRow] = await db.select().from(courses).where(eq(courses.id, moduleRow.courseId));
             if (!courseRow) return res.status(404).json({ error: "Course not found" });
-            if (!user.purchasedCourses?.includes(courseRow.slug)) {
+            const hasActiveTrial = user.trialCourseId === courseRow.slug
+                && !!user.trialExpiresAt
+                && user.trialExpiresAt.getTime() > Date.now();
+            if (!user.purchasedCourses?.includes(courseRow.slug) && !hasActiveTrial) {
                 return res.status(403).json({ error: "You have not purchased this course" });
             }
         }
@@ -464,9 +444,8 @@ app.post("/api/progress/lesson", async (req, res) => {
 });
 
 // Logout Hook
-app.post("/api/auth/logout", async (req, res) => {
-    const { sessionId } = req.body;
-    if (!sessionId) return res.status(400).json({ error: "Session ID required" });
+app.post("/api/auth/logout", requireSessionUser, async (req: any, res) => {
+    const sessionId = (req.headers.authorization || '').replace(/^Bearer /, '');
 
     try {
         await db.update(sessions)
@@ -478,53 +457,9 @@ app.post("/api/auth/logout", async (req, res) => {
     }
 });
 
-// Purchase Sync Hook
-app.post("/api/auth/purchase", async (req, res) => {
-    const { email, courseId } = req.body;
-    if (!email || !courseId) return res.status(400).json({ error: "Email and courseId required" });
-
-    try {
-        // Verify session belongs to this user
-        const authHeader = req.headers.authorization || '';
-        const sessionId = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
-        if (!sessionId) return res.status(401).json({ error: "Authentication required" });
-        const [session] = await db.select().from(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.isActive, true)));
-        if (!session) return res.status(401).json({ error: "Invalid session" });
-        const [sessionUser] = await db.select().from(users).where(eq(users.id, session.userId));
-        if (!sessionUser || sessionUser.email !== email) return res.status(403).json({ error: "Cannot purchase for another user" });
-
-        const [existingUser] = await db.select().from(users).where(eq(users.email, email));
-        if (!existingUser) return res.status(404).json({ error: "User not found" });
-
-        const currentCourses = existingUser.purchasedCourses || [];
-
-        // Determine which courses to grant
-        let coursesToGrant: string[] = [];
-        if (courseId === 'fullstack') {
-            // Full Stack + AI Bundle: grant both
-            coursesToGrant = ['fullstack', 'ai'];
-        } else if (courseId === 'ai_upgrade') {
-            // Upgrade: grant just the AI course
-            coursesToGrant = ['ai'];
-        } else if (courseId) {
-            coursesToGrant = [courseId];
-        }
-
-        for (const c of coursesToGrant) {
-            if (!currentCourses.includes(c)) {
-                currentCourses.push(c);
-            }
-        }
-
-        const [user] = await db.update(users)
-            .set({ purchasedCourses: currentCourses })
-            .where(eq(users.email, email))
-            .returning();
-        res.json({ success: true, user });
-    } catch (error) {
-        console.error("Purchase sync error:", error);
-        res.status(500).json({ error: "Failed to sync purchase" });
-    }
+// Kept as a closed legacy route so old clients cannot grant courses without a verified payment.
+app.post("/api/auth/purchase", async (_req, res) => {
+    res.status(410).json({ error: "Purchases must be completed through verified Razorpay checkout" });
 });
 
 // Heartbeat
@@ -547,18 +482,7 @@ app.post("/api/auth/heartbeat", async (req, res) => {
             .set({ lastHeartbeat: new Date() })
             .where(eq(sessions.id, sessionId));
 
-        // Map admin user to match frontend expectations
-        const mappedUser = user.email === 'admin@devmastery.com' ? {
-            ...user,
-            role: 'admin',
-            purchasedCourses: (user.purchasedCourses && user.purchasedCourses.length > 0)
-                ? user.purchasedCourses
-                : ['fullstack', 'cyber', 'datascience', 'cloudcomputing'],
-            completedLessons: user.completedLessons || [],
-            trialExpiresAt: undefined, // Admin never has trial restrictions
-        } : user;
-
-        res.json({ success: true, user: mappedUser });
+        res.json({ success: true, user });
     } catch (error) {
         console.error("Heartbeat error:", error);
         res.status(500).json({ error: "Heartbeat failed" });
@@ -566,22 +490,25 @@ app.post("/api/auth/heartbeat", async (req, res) => {
 });
 
 // Feedback Endpoints
-app.get("/api/feedback", async (req, res) => {
+app.get("/api/feedback", requireSessionUser, async (req: any, res) => {
     try {
-        const items = await db.select().from(feedbackTable).orderBy(desc(feedbackTable.createdAt));
+        const items = req.authUser.role === 'admin'
+            ? await db.select().from(feedbackTable).orderBy(desc(feedbackTable.createdAt))
+            : await db.select().from(feedbackTable).where(eq(feedbackTable.userId, req.authUser.id)).orderBy(desc(feedbackTable.createdAt));
         res.json(items);
     } catch (error) {
         res.status(500).json({ error: "Failed to fetch feedback" });
     }
 });
 
-app.post("/api/feedback", async (req, res) => {
-    const { userId, userName, content, type } = req.body;
+app.post("/api/feedback", requireSessionUser, async (req: any, res) => {
+    const { content, type } = req.body;
+    if (typeof content !== 'string' || !content.trim()) return res.status(400).json({ error: "Feedback content required" });
     try {
         const [item] = await db.insert(feedbackTable).values({
-            userId,
-            userName,
-            content,
+            userId: req.authUser.id,
+            userName: req.authUser.name,
+            content: content.trim(),
             type: type || "feedback",
         }).returning();
         res.json(item);
@@ -590,7 +517,7 @@ app.post("/api/feedback", async (req, res) => {
     }
 });
 
-app.patch("/api/feedback/:id", async (req, res) => {
+app.patch("/api/feedback/:id", requireAdmin, async (req, res) => {
     const { id } = req.params;
     const { status, reply } = req.body;
     try {
@@ -604,7 +531,7 @@ app.patch("/api/feedback/:id", async (req, res) => {
     }
 });
 
-app.delete("/api/feedback/:id", async (req, res) => {
+app.delete("/api/feedback/:id", requireAdmin, async (req, res) => {
     const { id } = req.params;
     try {
         await db.delete(feedbackTable).where(eq(feedbackTable.id, id as any));
@@ -628,23 +555,305 @@ app.get("/api/settings/offer", async (req, res) => {
 });
 
 // Admin Update Settings
-// Admin middleware helper
-const requireAdmin = async (req: any, res: any, next: any) => {
-    try {
-        const authHeader = req.headers.authorization || '';
-        const sessionId = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
-        if (!sessionId || sessionId.length < 10) return res.status(401).json({ error: 'No session' });
-        const [session] = await db.select().from(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.isActive, true)));
-        if (!session) return res.status(401).json({ error: 'Invalid session' });
-        const [user] = await db.select().from(users).where(eq(users.id, session.userId));
-        if (!user || user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
-        req.adminUser = user;
-        next();
-    } catch (error) {
-        console.error('[requireAdmin] Middleware error:', error);
-        res.status(500).json({ error: 'Admin auth failed' });
+const getRazorpayCredentials = () => ({
+    keyId: process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID,
+    keySecret: process.env.RAZORPAY_KEY_SECRET,
+});
+
+const razorpayRequest = async (endpoint: string, init: RequestInit = {}) => {
+    const { keyId, keySecret } = getRazorpayCredentials();
+    if (!keyId || !keySecret) throw new Error('Razorpay is not configured on the server');
+    const response = await fetch(`https://api.razorpay.com/v1${endpoint}`, {
+        ...init,
+        headers: {
+            Authorization: `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString('base64')}`,
+            'Content-Type': 'application/json',
+            ...(init.headers || {}),
+        },
+    });
+    const data: any = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        console.error('[Razorpay API]', response.status, data?.error?.description || data?.error?.code || 'request failed');
+        throw new Error(data?.error?.description || 'Razorpay request failed');
     }
+    return data;
 };
+
+const getCourseQuote = async (courseId: string, user: any) => {
+    if (courseId === 'ai_upgrade') {
+        const [offerSetting] = await db.select().from(systemSettings).where(eq(systemSettings.key, 'bundle_offer_active'));
+        const isOfferActive = offerSetting ? offerSetting.value === 'true' : true;
+        const owned = user.purchasedCourses || [];
+        const hasAnotherCourse = owned.some((slug: string) => slug !== 'ai');
+        if (!isOfferActive || !hasAnotherCourse || owned.includes('ai')) return null;
+        return { courseId, title: 'AI Course Upgrade', amount: 2000 };
+    }
+
+    const [course] = await db.select().from(courses).where(and(eq(courses.slug, courseId), eq(courses.isPublished, true)));
+    if (!course) return null;
+    const [offerSetting] = await db.select().from(systemSettings).where(eq(systemSettings.key, 'bundle_offer_active'));
+    const isOfferActive = offerSetting ? offerSetting.value === 'true' : true;
+    const amount = course.slug === 'fullstack' && isOfferActive
+        ? 10000
+        : (course.salePrice ?? course.price);
+    if (!Number.isInteger(amount) || amount < 1) return null;
+    return { courseId: course.slug, title: course.title, amount };
+};
+
+const getAvailableCoupon = async (code: string) => {
+    const normalized = String(code || '').trim().toUpperCase();
+    if (!normalized) return null;
+    const [coupon] = await db.select().from(discountCoupons).where(and(
+        eq(discountCoupons.code, normalized),
+        eq(discountCoupons.isUsed, false),
+        eq(discountCoupons.isRevoked, false),
+    ));
+    if (!coupon) return null;
+    const reservationExpiredAt = new Date(Date.now() - 21 * 60 * 1000);
+    if (coupon.reservedBy && coupon.reservedAt && coupon.reservedAt > reservationExpiredAt) return null;
+    return coupon;
+};
+
+const createDiscountCode = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    return Array.from({ length: 8 }, () => chars[randomInt(chars.length)]).join('');
+};
+
+app.post('/api/coupons/preview', requireSessionUser, async (req: any, res) => {
+    const { couponCode, courseId } = req.body || {};
+    if (!couponCode || !courseId) return res.status(400).json({ error: 'Coupon code and course are required' });
+    try {
+        const user = req.authUser;
+        if ((user.purchasedCourses || []).includes(courseId) || (courseId === 'ai_upgrade' && (user.purchasedCourses || []).includes('ai'))) {
+            return res.status(409).json({ error: 'You already own this course' });
+        }
+        const quote = await getCourseQuote(courseId, user);
+        if (!quote) return res.status(400).json({ error: 'This course is not available for purchase' });
+        const coupon = await getAvailableCoupon(couponCode);
+        if (!coupon) return res.status(400).json({ error: 'Coupon is invalid, already used, revoked, or in another checkout' });
+        const discountAmount = Math.min(coupon.amountOff, Math.max(0, quote.amount - 1));
+        res.json({
+            code: coupon.code,
+            baseAmount: quote.amount,
+            amountOff: coupon.amountOff,
+            discountAmount,
+            finalAmount: quote.amount - discountAmount,
+            discountCapped: discountAmount < coupon.amountOff,
+        });
+    } catch (error) {
+        console.error('Coupon preview error:', error);
+        res.status(500).json({ error: 'Could not validate coupon right now' });
+    }
+});
+
+app.post('/api/payments/create-order', requireSessionUser, async (req: any, res) => {
+    const { courseId, couponCode } = req.body || {};
+    if (!courseId) return res.status(400).json({ error: 'Course is required' });
+    const { keyId, keySecret } = getRazorpayCredentials();
+    if (!keyId || !keySecret) return res.status(503).json({ error: 'Razorpay is not configured on the server' });
+
+    const user = req.authUser;
+    const ownedCourses = user.purchasedCourses || [];
+    if (ownedCourses.includes(courseId) || (courseId === 'ai_upgrade' && ownedCourses.includes('ai'))) {
+        return res.status(409).json({ error: 'You already own this course' });
+    }
+
+    let couponId: string | null = null;
+    let couponReserved = false;
+    try {
+        const quote = await getCourseQuote(courseId, user);
+        if (!quote) return res.status(400).json({ error: 'This course is not available for purchase' });
+
+        let coupon: any = null;
+        let discountAmount = 0;
+        if (couponCode) {
+            coupon = await getAvailableCoupon(couponCode);
+            if (!coupon) return res.status(400).json({ error: 'Coupon is invalid, already used, revoked, or in another checkout' });
+            const reservationExpiredAt = new Date(Date.now() - 21 * 60 * 1000);
+            const [reserved] = await db.update(discountCoupons)
+                .set({ reservedBy: user.id, reservedAt: new Date(), reservedOrderId: null })
+                .where(and(
+                    eq(discountCoupons.id, coupon.id),
+                    eq(discountCoupons.isUsed, false),
+                    eq(discountCoupons.isRevoked, false),
+                    or(isNull(discountCoupons.reservedBy), lt(discountCoupons.reservedAt, reservationExpiredAt)),
+                ))
+                .returning();
+            if (!reserved) return res.status(409).json({ error: 'This coupon is currently being used in another checkout' });
+            couponId = coupon.id;
+            couponReserved = true;
+            discountAmount = Math.min(coupon.amountOff, Math.max(0, quote.amount - 1));
+        }
+
+        const amount = quote.amount - discountAmount;
+        const razorpayOrder = await razorpayRequest('/orders', {
+            method: 'POST',
+            body: JSON.stringify({
+                amount: amount * 100,
+                currency: 'INR',
+                receipt: `dm${Date.now().toString(36)}${randomInt(0xffffff).toString(36)}`,
+                expire_by: Math.floor(Date.now() / 1000) + 20 * 60,
+                notes: { userId: user.id, courseId: quote.courseId, couponCode: coupon?.code || '' },
+            }),
+        });
+
+        await db.transaction(async (tx) => {
+            await tx.insert(paymentOrders).values({
+                razorpayOrderId: razorpayOrder.id,
+                userId: user.id,
+                courseId: quote.courseId,
+                baseAmount: quote.amount,
+                discountAmount,
+                amount,
+                couponId,
+                status: 'created',
+            });
+            if (couponId) {
+                const [linkedCoupon] = await tx.update(discountCoupons)
+                    .set({ reservedOrderId: razorpayOrder.id })
+                    .where(and(
+                        eq(discountCoupons.id, couponId),
+                        eq(discountCoupons.reservedBy, user.id),
+                        isNull(discountCoupons.reservedOrderId),
+                        eq(discountCoupons.isUsed, false),
+                    ))
+                    .returning();
+                if (!linkedCoupon) throw new Error('Could not reserve coupon for this payment');
+            }
+        });
+
+        res.json({
+            orderId: razorpayOrder.id,
+            keyId,
+            amount: amount * 100,
+            currency: 'INR',
+            courseId: quote.courseId,
+            title: quote.title,
+            baseAmount: quote.amount,
+            discountAmount,
+            finalAmount: amount,
+        });
+    } catch (error) {
+        if (couponReserved && couponId) {
+            await db.update(discountCoupons)
+                .set({ reservedBy: null, reservedAt: null, reservedOrderId: null })
+                .where(and(eq(discountCoupons.id, couponId), eq(discountCoupons.reservedBy, user.id), eq(discountCoupons.isUsed, false)))
+                .catch((releaseError) => console.error('Coupon reservation cleanup error:', releaseError));
+        }
+        console.error('Payment order creation error:', error);
+        res.status(502).json({ error: error instanceof Error ? error.message : 'Could not start payment' });
+    }
+});
+
+app.post('/api/payments/verify', requireSessionUser, async (req: any, res) => {
+    const { razorpay_order_id: orderId, razorpay_payment_id: paymentId, razorpay_signature: signature } = req.body || {};
+    if (!orderId || !paymentId || !signature) return res.status(400).json({ error: 'Payment verification details are incomplete' });
+    const { keySecret } = getRazorpayCredentials();
+    if (!keySecret) return res.status(503).json({ error: 'Razorpay is not configured on the server' });
+
+    try {
+        const [order] = await db.select().from(paymentOrders).where(and(
+            eq(paymentOrders.razorpayOrderId, orderId),
+            eq(paymentOrders.userId, req.authUser.id),
+        ));
+        if (!order) return res.status(404).json({ error: 'Payment order not found' });
+
+        const expected = createHmac('sha256', keySecret).update(`${orderId}|${paymentId}`).digest();
+        const provided = Buffer.from(String(signature), 'hex');
+        if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
+            return res.status(400).json({ error: 'Payment signature is invalid' });
+        }
+
+        let payment = await razorpayRequest(`/payments/${encodeURIComponent(paymentId)}`);
+        if (payment.order_id !== orderId || payment.amount !== order.amount * 100 || payment.currency !== 'INR') {
+            return res.status(400).json({ error: 'Payment amount or order does not match' });
+        }
+        if (payment.status === 'authorized') {
+            payment = await razorpayRequest(`/payments/${encodeURIComponent(paymentId)}/capture`, {
+                method: 'POST',
+                body: JSON.stringify({ amount: order.amount * 100, currency: 'INR' }),
+            });
+        }
+        if (payment.status !== 'captured') return res.status(409).json({ error: 'Payment has not been captured yet' });
+
+        const user = await db.transaction(async (tx) => {
+            const [lockedOrder] = await tx.select().from(paymentOrders)
+                .where(eq(paymentOrders.razorpayOrderId, orderId))
+                .for('update');
+            if (!lockedOrder || lockedOrder.userId !== req.authUser.id) throw new Error('Payment order not found');
+            if (lockedOrder.status === 'paid') {
+                if (lockedOrder.razorpayPaymentId !== paymentId) throw new Error('A different payment already completed this order');
+                const [existingUser] = await tx.select().from(users).where(eq(users.id, lockedOrder.userId)).for('update');
+                return existingUser;
+            }
+            if (lockedOrder.status !== 'created') throw new Error('This payment order is no longer active');
+
+            if (lockedOrder.couponId) {
+                const [claimedCoupon] = await tx.update(discountCoupons)
+                    .set({ isUsed: true, usedBy: req.authUser.email, usedAt: new Date(), reservedBy: null, reservedAt: null })
+                    .where(and(
+                        eq(discountCoupons.id, lockedOrder.couponId),
+                        eq(discountCoupons.reservedBy, req.authUser.id),
+                        eq(discountCoupons.reservedOrderId, orderId),
+                        eq(discountCoupons.isUsed, false),
+                        eq(discountCoupons.isRevoked, false),
+                    ))
+                    .returning();
+                if (!claimedCoupon) throw new Error('Coupon reservation could not be confirmed');
+            }
+
+            const [existingUser] = await tx.select().from(users).where(eq(users.id, lockedOrder.userId)).for('update');
+            if (!existingUser) throw new Error('User not found');
+            const currentCourses = existingUser.purchasedCourses || [];
+            const grantedCourses = lockedOrder.courseId === 'fullstack'
+                ? ['fullstack', 'ai']
+                : lockedOrder.courseId === 'ai_upgrade' ? ['ai'] : [lockedOrder.courseId];
+            const purchasedCourses = [...new Set([...currentCourses, ...grantedCourses])];
+            const [updatedUser] = await tx.update(users)
+                .set({ purchasedCourses, trialExpiresAt: null, trialCourseId: null })
+                .where(eq(users.id, lockedOrder.userId))
+                .returning();
+            await tx.update(paymentOrders)
+                .set({ razorpayPaymentId: paymentId, status: 'paid', paidAt: new Date() })
+                .where(eq(paymentOrders.id, lockedOrder.id));
+            return updatedUser;
+        });
+
+        res.json({ success: true, courseId: order.courseId, user });
+    } catch (error) {
+        console.error('Payment verification error:', error);
+        res.status(400).json({ error: error instanceof Error ? error.message : 'Payment verification failed' });
+    }
+});
+
+app.post('/api/payments/release', requireSessionUser, async (req: any, res) => {
+    const { orderId } = req.body || {};
+    if (!orderId) return res.status(400).json({ error: 'Payment order is required' });
+    try {
+        await db.transaction(async (tx) => {
+            const [order] = await tx.select().from(paymentOrders).where(and(
+                eq(paymentOrders.razorpayOrderId, orderId),
+                eq(paymentOrders.userId, req.authUser.id),
+            )).for('update');
+            if (!order || order.status === 'paid') return;
+            await tx.update(paymentOrders).set({ status: 'cancelled' }).where(eq(paymentOrders.id, order.id));
+            if (order.couponId) {
+                await tx.update(discountCoupons)
+                    .set({ reservedBy: null, reservedAt: null, reservedOrderId: null })
+                    .where(and(
+                        eq(discountCoupons.id, order.couponId),
+                        eq(discountCoupons.reservedBy, req.authUser.id),
+                        eq(discountCoupons.reservedOrderId, orderId),
+                        eq(discountCoupons.isUsed, false),
+                    ));
+            }
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Payment release error:', error);
+        res.status(500).json({ error: 'Could not release this checkout' });
+    }
+});
 
 app.post("/api/admin/settings/offer", requireAdmin, async (req, res) => {
     const { isActive } = req.body;
@@ -719,14 +928,13 @@ app.get("/api/admin/stats", requireAdmin, async (req, res) => {
 });
 
 // Telemetry/Tracking
-app.post("/api/track", async (req, res) => {
-    const { userId, type, description, path, metadata } = req.body;
-    if (!userId || !type) return res.status(400).json({ error: "userId and type required" });
-    if (userId === 'admin-id') return res.json({ success: true, bypassed: true });
+app.post("/api/track", requireSessionUser, async (req: any, res) => {
+    const { type, description, path, metadata } = req.body;
+    if (!type) return res.status(400).json({ error: "type required" });
 
     try {
         await db.insert(activityLogs).values({
-            userId,
+            userId: req.authUser.id,
             type,
             description,
             path,
@@ -987,14 +1195,16 @@ app.delete("/api/admin/users/:email", requireAdmin, async (req, res) => {
 // ── Certificate Management ─────────────────────────────────────────────
 
 // User requests certificate
-app.post("/api/certificate/request", async (req, res) => {
-    const { email, courseId } = req.body;
-    if (!email) return res.status(400).json({ error: "Email required" });
+app.post("/api/certificate/request", requireSessionUser, async (req: any, res) => {
+    const { courseId } = req.body;
+    if (!courseId || (!(req.authUser.purchasedCourses || []).includes(courseId) && req.authUser.role !== 'admin')) {
+        return res.status(403).json({ error: "You must own this course to request its certificate" });
+    }
 
     try {
         const [updated] = await db.update(users)
             .set({ certificateStatus: "pending" })
-            .where(eq(users.email, email))
+            .where(eq(users.id, req.authUser.id))
             .returning();
 
         if (!updated) return res.status(404).json({ error: "User not found" });
@@ -1045,28 +1255,21 @@ app.post("/api/admin/certificate/:email/reject", requireAdmin, async (req, res) 
 });
 
 // User Notes Endpoints
-app.get("/api/notes/list", async (req, res) => {
-    const { email } = req.query;
-    if (!email) return res.status(400).json({ error: "Email required" });
-
+app.get("/api/notes/list", requireSessionUser, async (req: any, res) => {
     try {
-        const [user] = await db.select().from(users).where(eq(users.email, email as string));
-        if (!user) return res.status(404).json({ error: "User not found" });
-
-        const notes = await db.select().from(userNotes).where(eq(userNotes.userId, user.id));
+        const notes = await db.select().from(userNotes).where(eq(userNotes.userId, req.authUser.id));
         res.json(notes);
     } catch (error) {
         res.status(500).json({ error: "Failed to fetch notes" });
     }
 });
 
-app.post("/api/notes/save", async (req, res) => {
-    const { email, lessonId, content } = req.body;
-    if (!email || !lessonId || content === undefined) return res.status(400).json({ error: "Email, Lesson ID and Content required" });
+app.post("/api/notes/save", requireSessionUser, async (req: any, res) => {
+    const { lessonId, content } = req.body;
+    if (!lessonId || content === undefined) return res.status(400).json({ error: "Lesson ID and Content required" });
 
     try {
-        const [user] = await db.select().from(users).where(eq(users.email, email));
-        if (!user) return res.status(404).json({ error: "User not found" });
+        const user = req.authUser;
 
         // Upsert logic
         const [existing] = await db.select().from(userNotes).where(and(eq(userNotes.userId, user.id), eq(userNotes.lessonId, lessonId)));
@@ -1091,14 +1294,9 @@ app.post("/api/notes/save", async (req, res) => {
 });
 
 // Playground Projects Endpoints
-app.get("/api/playground/list", async (req, res) => {
-    const { email } = req.query;
-    if (!email) return res.status(400).json({ error: "Email required" });
-
+app.get("/api/playground/list", requireSessionUser, async (req: any, res) => {
     try {
-        const [user] = await db.select().from(users).where(eq(users.email, email as string));
-        if (!user) return res.status(404).json({ error: "User not found" });
-
+        const user = req.authUser;
         const projects = await db.select().from(playgroundProjects).where(eq(playgroundProjects.userId, user.id)).orderBy(desc(playgroundProjects.updatedAt));
         res.json(projects);
     } catch (error) {
@@ -1106,14 +1304,12 @@ app.get("/api/playground/list", async (req, res) => {
     }
 });
 
-app.post("/api/playground/save", async (req, res) => {
-    const { email, name, type, files, projectId } = req.body;
-    if (!email || !name || !type || !files) return res.status(400).json({ error: "Missing required fields" });
+app.post("/api/playground/save", requireSessionUser, async (req: any, res) => {
+    const { name, type, files, projectId } = req.body;
+    if (!name || !type || !files) return res.status(400).json({ error: "Missing required fields" });
 
     try {
-        let [user] = await db.select().from(users).where(eq(users.email, email));
-
-        if (!user) return res.status(404).json({ error: "User not found" });
+        const user = req.authUser;
 
         if (projectId) {
             const [updated] = await db.update(playgroundProjects)
@@ -1137,14 +1333,9 @@ app.post("/api/playground/save", async (req, res) => {
 });
 
 // AI Chat History Endpoints
-app.get("/api/ai/chat/history", async (req, res) => {
-    const { email } = req.query;
-    if (!email) return res.status(400).json({ error: "Email required" });
-
+app.get("/api/ai/chat/history", requireSessionUser, async (req: any, res) => {
     try {
-        const [user] = await db.select().from(users).where(eq(users.email, email as string));
-        if (!user) return res.status(404).json({ error: "User not found" });
-
+        const user = req.authUser;
         const history = await db.select().from(aiChats).where(eq(aiChats.userId, user.id)).orderBy(aiChats.createdAt);
         res.json(history);
     } catch (error) {
@@ -1152,13 +1343,12 @@ app.get("/api/ai/chat/history", async (req, res) => {
     }
 });
 
-app.post("/api/ai/chat/save", async (req, res) => {
-    const { email, role, content, reasoning } = req.body;
-    if (!email || !role || !content) return res.status(400).json({ error: "Missing required fields" });
+app.post("/api/ai/chat/save", requireSessionUser, async (req: any, res) => {
+    const { role, content, reasoning } = req.body;
+    if (!role || !content) return res.status(400).json({ error: "Missing required fields" });
 
     try {
-        const [user] = await db.select().from(users).where(eq(users.email, email));
-        if (!user) return res.status(404).json({ error: "User not found" });
+        const user = req.authUser;
 
         const [message] = await db.insert(aiChats).values({
             userId: user.id,
@@ -1173,13 +1363,9 @@ app.post("/api/ai/chat/save", async (req, res) => {
     }
 });
 
-app.delete("/api/ai/chat/clear", async (req, res) => {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ error: "Email required" });
-
+app.delete("/api/ai/chat/clear", requireSessionUser, async (req: any, res) => {
     try {
-        const [user] = await db.select().from(users).where(eq(users.email, email));
-        if (!user) return res.status(404).json({ error: "User not found" });
+        const user = req.authUser;
 
         await db.delete(aiChats).where(eq(aiChats.userId, user.id));
         res.json({ success: true });
@@ -1192,9 +1378,9 @@ app.delete("/api/ai/chat/clear", async (req, res) => {
 
 // Generate a new access code
 app.post("/api/admin/codes/generate", requireAdmin, async (req, res) => {
-    const { type } = req.body; // '3days', '5mins', or 'lifetime'
-    if (!type || !['3days', '5mins', 'lifetime'].includes(type)) {
-        return res.status(400).json({ error: "Invalid type. Must be '3days', '5mins', or 'lifetime'" });
+    const { type } = req.body; // New codes: '5mins' or 'lifetime'. Existing '3days' codes remain redeemable.
+    if (type !== '5mins' && type !== 'lifetime') {
+        return res.status(400).json({ error: "Invalid type. Must be '5mins' or 'lifetime'" });
     }
 
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -1223,6 +1409,72 @@ app.get("/api/admin/codes", requireAdmin, async (req, res) => {
     } catch (error) {
         console.error("Codes fetch error:", error);
         res.status(500).json({ error: "Failed to fetch codes" });
+    }
+});
+
+app.get('/api/admin/coupons', requireAdmin, async (_req, res) => {
+    try {
+        const coupons = await db.select().from(discountCoupons).orderBy(desc(discountCoupons.createdAt));
+        res.json(coupons);
+    } catch (error) {
+        console.error('Coupon list error:', error);
+        res.status(500).json({ error: 'Failed to fetch discount coupons' });
+    }
+});
+
+app.post('/api/admin/coupons/generate', requireAdmin, async (req, res) => {
+    const amountOff = Number(req.body?.amountOff);
+    if (!Number.isSafeInteger(amountOff) || amountOff < 1 || amountOff > 2147483647) {
+        return res.status(400).json({ error: 'Enter a whole-number discount amount greater than zero' });
+    }
+    try {
+        for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+                const [coupon] = await db.insert(discountCoupons).values({ code: createDiscountCode(), amountOff }).returning();
+                return res.json(coupon);
+            } catch (error: any) {
+                if (error?.code !== '23505' || attempt === 2) throw error;
+            }
+        }
+        return res.status(500).json({ error: 'Could not generate a unique coupon' });
+    } catch (error) {
+        console.error('Coupon generation error:', error);
+        res.status(500).json({ error: 'Failed to generate discount coupon' });
+    }
+});
+
+app.post('/api/admin/coupons/:code/revoke', requireAdmin, async (req, res) => {
+    try {
+        const [existing] = await db.select().from(discountCoupons).where(eq(discountCoupons.code, String(req.params.code).toUpperCase()));
+        if (!existing) return res.status(404).json({ error: 'Coupon not found' });
+        const reservationIsActive = existing.reservedBy && existing.reservedAt && existing.reservedAt > new Date(Date.now() - 21 * 60 * 1000);
+        if (reservationIsActive) return res.status(409).json({ error: 'This coupon is reserved by an active checkout. Try again after the checkout expires.' });
+        const [coupon] = await db.update(discountCoupons)
+            .set({ isRevoked: true })
+            .where(eq(discountCoupons.code, String(req.params.code).toUpperCase()))
+            .returning();
+        if (!coupon) return res.status(404).json({ error: 'Coupon not found' });
+        res.json(coupon);
+    } catch (error) {
+        console.error('Coupon revoke error:', error);
+        res.status(500).json({ error: 'Failed to revoke coupon' });
+    }
+});
+
+app.delete('/api/admin/coupons/:code', requireAdmin, async (req, res) => {
+    try {
+        const code = String(req.params.code).toUpperCase();
+        const [coupon] = await db.select().from(discountCoupons).where(eq(discountCoupons.code, code));
+        if (!coupon) return res.status(404).json({ error: 'Coupon not found' });
+        const reservationIsActive = coupon.reservedBy && coupon.reservedAt && coupon.reservedAt > new Date(Date.now() - 21 * 60 * 1000);
+        if (reservationIsActive) return res.status(409).json({ error: 'This coupon is reserved by an active checkout. Try again after the checkout expires.' });
+        const [paymentHistory] = await db.select({ id: paymentOrders.id }).from(paymentOrders).where(eq(paymentOrders.couponId, coupon.id)).limit(1);
+        if (paymentHistory || coupon.isUsed) return res.status(409).json({ error: 'Coupons in payment history cannot be deleted. Revoke unused coupons instead.' });
+        await db.delete(discountCoupons).where(eq(discountCoupons.id, coupon.id));
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Coupon delete error:', error);
+        res.status(500).json({ error: 'Failed to delete coupon' });
     }
 });
 
@@ -1261,82 +1513,69 @@ app.delete("/api/admin/codes/:code", requireAdmin, async (req, res) => {
     }
 });
 
-// Redeem a code (user-facing)
-app.post("/api/codes/redeem", async (req, res) => {
-    const { code, email, courseId = 'fullstack' } = req.body;
-    if (!code || !email) return res.status(400).json({ error: "Code and email required" });
-
-    const normalizedCode = code.toUpperCase().trim();
+// Redeem an access code for the authenticated account. Trial access stays separate
+// from permanent purchases, and the code claim + grant commit as one transaction.
+app.post("/api/codes/redeem", requireSessionUser, async (req: any, res) => {
+    const rawCode = req.body?.code;
+    const requestedCourseId = req.body?.courseId || 'fullstack';
+    if (typeof rawCode !== 'string' || typeof requestedCourseId !== 'string') {
+        return res.status(400).json({ error: 'Code and course are required' });
+    }
+    const normalizedCode = rawCode.toUpperCase().trim();
+    const courseId = requestedCourseId === 'ai_upgrade' ? 'ai' : requestedCourseId;
 
     try {
-        // Check if it's a valid, unused, non-revoked code
-        const [accessCode] = await db.select().from(accessCodes)
-            .where(and(
-                eq(accessCodes.code, normalizedCode),
-                eq(accessCodes.isUsed, false),
-                eq(accessCodes.isRevoked, false)
-            ));
+        const [course] = await db.select().from(courses).where(and(eq(courses.slug, courseId), eq(courses.isPublished, true)));
+        if (!course) return res.status(400).json({ error: 'Choose an available course' });
+        const result = await db.transaction(async (tx) => {
+            const [currentUser] = await tx.select().from(users).where(eq(users.id, req.authUser.id)).for('update');
+            if (!currentUser) throw new Error('User account not found');
+            const currentCourses: string[] = currentUser.purchasedCourses || [];
+            if (currentCourses.includes(courseId)) throw new Error('You already own this course');
+            const [accessCode] = await tx.select().from(accessCodes)
+                .where(and(eq(accessCodes.code, normalizedCode), eq(accessCodes.isUsed, false), eq(accessCodes.isRevoked, false)))
+                .for('update');
+            if (!accessCode) throw new Error('Invalid, used, or revoked code');
 
-        if (!accessCode) {
-            return res.status(400).json({ error: "Invalid, used, or revoked code" });
-        }
-
-        // Calculate expiry based on type
-        const now = new Date();
-        let trialExpiresAt: string | null = null;
-        let isPaidFlag = false;
-
-        if (accessCode.type === 'lifetime') {
-            isPaidFlag = true;
-        } else {
-            const duration = accessCode.type === '3days' ? (3 * 24 * 60 * 60 * 1000) : (5 * 60 * 1000);
-            trialExpiresAt = new Date(now.getTime() + duration).toISOString();
-        }
-
-        // Update user access tier and specific course
-        const [existingUser] = await db.select().from(users).where(eq(users.email, email));
-
-        if (!existingUser && email !== 'admin@devmastery.com') {
-            return res.status(404).json({ error: "User not found" });
-        }
-
-        const currentCourses = existingUser?.purchasedCourses || [];
-        if (!currentCourses.includes(courseId)) {
-            currentCourses.push(courseId);
-        }
-
-        let updatedUser;
-        if (existingUser) {
-            const [updated] = await db.update(users)
-                .set({
-                    purchasedCourses: currentCourses,
-                    trialExpiresAt: trialExpiresAt ? new Date(trialExpiresAt) : null
-                })
-                .where(eq(users.email, email))
+            const [claimed] = await tx.update(accessCodes)
+                .set({ isUsed: true, usedBy: req.authUser.email })
+                .where(and(eq(accessCodes.id, accessCode.id), eq(accessCodes.isUsed, false), eq(accessCodes.isRevoked, false)))
                 .returning();
-            updatedUser = updated;
-        } else {
-            updatedUser = { email: 'admin@devmastery.com', purchasedCourses: currentCourses };
-        }
+            if (!claimed) throw new Error('Invalid, used, or revoked code');
 
-        // Mark code as used ONLY after successful user update
-        await db.update(accessCodes)
-            .set({ isUsed: true, usedBy: email, usedAt: now })
-            .where(eq(accessCodes.id, accessCode.id));
+            const isLifetime = accessCode.type === 'lifetime';
+            const now = new Date();
+            const duration = accessCode.type === '3days' ? 3 * 24 * 60 * 60 * 1000 : 5 * 60 * 1000;
+            const trialExpiresAt = isLifetime ? null : new Date(now.getTime() + duration);
+            const coursesToGrant = courseId === 'fullstack' ? ['fullstack', 'ai'] : [courseId];
+            const updatedCourses = isLifetime
+                ? [...new Set([...currentCourses, ...coursesToGrant])]
+                : currentCourses;
+            const [updatedUser] = await tx.update(users).set({
+                purchasedCourses: updatedCourses,
+                trialExpiresAt,
+                trialCourseId: isLifetime ? null : courseId,
+            }).where(eq(users.id, req.authUser.id)).returning();
+            if (!updatedUser) throw new Error('User account could not be updated');
+            return { accessCode, updatedUser, trialExpiresAt };
+        });
 
         res.json({
             success: true,
-            trialExpiresAt: trialExpiresAt || undefined,
-            isPaid: isPaidFlag,
-            message: accessCode.type === 'lifetime' ? "Lifetime Access Granted! Welcome to the family." : "Trial Activated! Timer started.",
-            user: updatedUser
+            trialExpiresAt: result.trialExpiresAt?.toISOString(),
+            isPaid: result.accessCode.type === 'lifetime',
+            type: result.accessCode.type,
+            courseId,
+            message: result.accessCode.type === 'lifetime'
+                ? 'Lifetime access granted for this course. This one-time code cannot be used again.'
+                : 'Trial activated. Your timer has started.',
+            user: result.updatedUser,
         });
     } catch (error) {
-        console.error("Code redeem error:", error);
-        res.status(500).json({
-            error: "Failed to redeem code",
-            details: error instanceof Error ? error.message : String(error)
-        });
+        const message = error instanceof Error ? error.message : 'Failed to redeem code';
+        const isClientError = message.startsWith('Invalid, used') || message.startsWith('User account') || message.startsWith('You already own');
+        if (!isClientError) console.error('Code redeem error:', error);
+        res.status(isClientError ? 400 : 500).json({ error: message });
     }
 });
 
@@ -1370,8 +1609,11 @@ app.get("/api/courses/:slug", async (req, res) => {
                 const [session] = await db.select().from(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.isActive, true)));
                 if (session) {
                     const [sessionUser] = await db.select().from(users).where(eq(users.id, session.userId));
-                    if (sessionUser) {
-                        hasAccess = sessionUser.role === 'admin' || (sessionUser.purchasedCourses || []).includes(course.slug);
+                    if (sessionUser?.status === 'active') {
+                        const hasActiveTrial = sessionUser.trialCourseId === course.slug
+                            && !!sessionUser.trialExpiresAt
+                            && sessionUser.trialExpiresAt.getTime() > Date.now();
+                        hasAccess = sessionUser.role === 'admin' || (sessionUser.purchasedCourses || []).includes(course.slug) || hasActiveTrial;
                     }
                 }
             } catch { /* not logged in */ }
@@ -1419,6 +1661,8 @@ app.get("/api/courses/all/curriculum", async (req, res) => {
         // Optional session auth — identify the user if logged in
         let purchasedCourses: string[] = [];
         let isAdmin = false;
+        let trialCourseId: string | null = null;
+        let trialExpiresAt: Date | null = null;
         const authHeader = req.headers.authorization || '';
         const sessionId = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
         if (sessionId) {
@@ -1426,9 +1670,11 @@ app.get("/api/courses/all/curriculum", async (req, res) => {
                 const [session] = await db.select().from(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.isActive, true)));
                 if (session) {
                     const [sessionUser] = await db.select().from(users).where(eq(users.id, session.userId));
-                    if (sessionUser) {
+                    if (sessionUser?.status === 'active') {
                         purchasedCourses = sessionUser.purchasedCourses || [];
                         isAdmin = sessionUser.role === 'admin';
+                        trialCourseId = sessionUser.trialCourseId;
+                        trialExpiresAt = sessionUser.trialExpiresAt;
                     }
                 }
             } catch { /* not logged in, continue as guest */ }
@@ -1458,7 +1704,8 @@ app.get("/api/courses/all/curriculum", async (req, res) => {
             });
 
             // Server-side access control: redact video IDs for non-purchased courses
-            const hasAccess = isAdmin || purchasedCourses.includes(course.slug);
+            const hasActiveTrial = trialCourseId === course.slug && !!trialExpiresAt && trialExpiresAt.getTime() > Date.now();
+            const hasAccess = isAdmin || purchasedCourses.includes(course.slug) || hasActiveTrial;
 
             result.push({
                 ...course,

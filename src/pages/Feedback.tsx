@@ -13,7 +13,7 @@ const Feedback: React.FC = () => {
     const [content, setContent] = useState('');
     const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
-    const userFeedback = feedback.filter(f => f.userId === user?.username);
+    const userFeedback = feedback.filter(f => f.userId === user?.id);
 
     const handleSubmit = (e: React.FormEvent) => {
         // ... (existing submit logic)

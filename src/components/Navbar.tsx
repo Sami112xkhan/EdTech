@@ -78,6 +78,7 @@ const Navbar: React.FC = () => {
     const navLinks = [
         { name: "Home", path: "/" },
         { name: "About", path: "/about" },
+        ...(isAuthenticated ? [{ name: "Course Shop", path: "/shop" }] : []),
         ...(!isAuthenticated ? [{ name: "Login", path: "/login" }] : [])
     ];
 

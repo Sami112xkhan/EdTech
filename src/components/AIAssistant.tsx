@@ -30,7 +30,7 @@ interface AIAssistantProps {
 }
 
 const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
-    const { user } = useAuth();
+    const { user, sessionId } = useAuth();
     const { theme } = useTheme();
     const isRich = theme === 'rich';
     const [isOpen, setIsOpen] = useState(variant === 'full');
@@ -69,7 +69,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
             if (!user?.email) return;
             setIsLoadingHistory(true);
             try {
-                const response = await fetch(`/api/ai/chat/history?email=${encodeURIComponent(user.email)}`);
+                const response = await fetch('/api/ai/chat/history', { headers: { Authorization: `Bearer ${sessionId}` } });
                 if (response.ok) {
                     const history = await response.json();
                     if (history.length > 0) {
@@ -89,16 +89,15 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
         };
 
         loadHistory();
-    }, [user?.email]);
+    }, [user?.email, sessionId]);
 
     const saveMessage = async (role: string, content: string, reasoning?: string) => {
         if (!user?.email) return;
         try {
             await fetch('/api/ai/chat/save', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionId}` },
                 body: JSON.stringify({
-                    email: user.email,
                     role,
                     content,
                     reasoning
@@ -162,8 +161,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ variant = 'floating' }) => {
         try {
             const response = await fetch('/api/ai/chat/clear', {
                 method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: user.email })
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionId}` }
             });
 
             if (response.ok) {

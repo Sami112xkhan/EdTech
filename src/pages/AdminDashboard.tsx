@@ -8,20 +8,29 @@ import {
     Trash2, Search, CheckCircle, XCircle, Reply, Award, MessageSquare,
     LogOut, Clock, Users, Zap, TrendingUp, ShieldCheck, ShieldAlert,
     ChevronRight, ChevronDown, AlertTriangle, Eye, User as UserIcon,
-    BookOpen, BarChart3, Settings, CreditCard, Activity, Send, Bell
+    BookOpen, BarChart3, Settings, CreditCard, Activity, Send, Bell, Tag
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate, Link } from 'react-router-dom';
 import { getPhasesStatus } from "../utils/progress";
 import CourseManager from "../components/admin/CourseManager";
 import { useAllCurricula } from "../hooks/useCourses";
+import type { GeneratedAccessCodeType } from "../types";
+
+const CODE_TYPE_OPTIONS: { value: GeneratedAccessCodeType; label: string; hint: string }[] = [
+    { value: 'lifetime', label: 'Lifetime', hint: 'Redeem once on any course to permanently unlock that one course.' },
+    { value: '5mins', label: '5 Min Preview', hint: 'Unlocks the selected course for 5 minutes, then locks again.' },
+];
+
+const codeTypeLabel = (type: string) =>
+    type === 'lifetime' ? 'Lifetime' : type === '3days' ? '3 Day Trial' : '5 Min Preview';
 
 const isOnline = (lastSeen?: string) => {
     if (!lastSeen) return false;
     return new Date().getTime() - new Date(lastSeen).getTime() < 5 * 60 * 1000;
 };
 
-type Tab = 'overview' | 'members' | 'courses' | 'feedback' | 'codes' | 'progress' | 'activity' | 'notifications';
+type Tab = 'overview' | 'members' | 'courses' | 'feedback' | 'codes' | 'discounts' | 'progress' | 'activity' | 'notifications';
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
@@ -30,6 +39,7 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
     { id: 'feedback', label: 'Feedback', icon: MessageSquare },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'codes', label: 'Access Codes', icon: CreditCard },
+    { id: 'discounts', label: 'Discount Coupons', icon: Tag },
     { id: 'progress', label: 'Progress', icon: Award },
     { id: 'activity', label: 'Activity', icon: Activity },
 ];
@@ -440,11 +450,11 @@ function CodesTab({ codes, codeType, setCodeType, generatedCode, handleGenerateC
             <div className={`rounded-2xl border p-6 ${c.card}`}>
                 <h3 className={`text-sm font-black uppercase tracking-widest mb-4 ${c.sectionHead}`}>Generate Access Code</h3>
                 <div className="flex flex-col sm:flex-row gap-3">
-                    <div className={`flex gap-1.5 p-1 rounded-xl ${c.pill}`}>
-                        {(['3days', '5mins'] as const).map(t2 => (
-                            <button key={t2} onClick={() => setCodeType(t2)}
-                                className={`px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${codeType === t2 ? c.pillActive : c.pillInactive}`}>
-                                {t2 === '3days' ? '3 Day Trial' : '5 Min Preview'}
+                    <div className={`flex flex-wrap gap-1 p-1 rounded-xl ${c.pill}`}>
+                        {CODE_TYPE_OPTIONS.map(opt => (
+                            <button key={opt.value} onClick={() => setCodeType(opt.value)}
+                                className={`px-4 sm:px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${codeType === opt.value ? c.pillActive : c.pillInactive}`}>
+                                {opt.label}
                             </button>
                         ))}
                     </div>
@@ -453,6 +463,9 @@ function CodesTab({ codes, codeType, setCodeType, generatedCode, handleGenerateC
                         Generate
                     </button>
                 </div>
+                <p className={`mt-3 text-[11px] font-medium ${c.textMuted}`}>
+                    {CODE_TYPE_OPTIONS.find(o => o.value === codeType)?.hint}
+                </p>
                 {generatedCode && (
                     <div className={`mt-4 p-4 rounded-xl flex items-center gap-3 ${isRich ? 'bg-emerald-50 border border-emerald-200' : 'bg-emerald-500/10 border border-emerald-500/20'}`}>
                         <span className={`font-mono text-lg font-black ${c.codeMono}`}>{generatedCode}</span>
@@ -473,7 +486,7 @@ function CodesTab({ codes, codeType, setCodeType, generatedCode, handleGenerateC
                             <div className="flex items-center gap-2 sm:gap-3 mb-2">
                                 <span className={`font-mono text-xs sm:text-sm font-bold truncate min-w-0 ${c.text}`}>{code.code}</span>
                                 <span className={`shrink-0 px-2 py-0.5 text-[10px] font-bold rounded-full uppercase ${code.type === 'lifetime' ? c.badgeGreen : code.type === '3days' ? c.badgeBlue : c.badgeAmber}`}>
-                                    {code.type}
+                                    {codeTypeLabel(code.type)}
                                 </span>
                             </div>
                             <div className="flex items-center gap-2 flex-wrap">
@@ -491,7 +504,7 @@ function CodesTab({ codes, codeType, setCodeType, generatedCode, handleGenerateC
                                 </div>
                             </div>
                         </div>
-                    ))}]
+                    ))}
                 </div>
                 {codes.length === 0 && (
                     <div className="py-16 text-center">
@@ -499,6 +512,74 @@ function CodesTab({ codes, codeType, setCodeType, generatedCode, handleGenerateC
                         <p className={`text-sm ${c.textMuted}`}>No codes generated yet</p>
                     </div>
                 )}
+            </div>
+        </div>
+    );
+}
+
+function DiscountCouponsTab({ coupons, amountOff, setAmountOff, generatedCoupon, onGenerate, onRevoke, onDelete, loading, isRich }: any) {
+    const c = t(isRich);
+    return (
+        <div className="space-y-6">
+            <div className={`rounded-2xl border p-5 sm:p-6 ${c.card}`}>
+                <h3 className={`text-sm font-black uppercase tracking-widest ${c.sectionHead}`}>Generate discount coupon</h3>
+                <p className={`mt-2 text-xs leading-relaxed ${c.textMuted}`}>Create a one-use code that takes a fixed amount in rupees off a course checkout.</p>
+                <form onSubmit={onGenerate} className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end">
+                    <label className="flex-1">
+                        <span className={`mb-2 block text-xs font-bold ${c.textSub}`}>Amount off (₹)</span>
+                        <input
+                            type="number"
+                            min="1"
+                            step="1"
+                            required
+                            value={amountOff}
+                            onChange={(event) => setAmountOff(event.target.value)}
+                            placeholder="e.g. 500"
+                            className={`w-full rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2 ${c.input}`}
+                        />
+                    </label>
+                    <button disabled={loading} className={`rounded-xl px-6 py-3 text-xs font-bold uppercase tracking-wider transition disabled:opacity-50 ${c.btnPrimary}`}>
+                        {loading ? 'Generating…' : 'Generate coupon'}
+                    </button>
+                </form>
+                {generatedCoupon && (
+                    <div className={`mt-4 flex flex-col gap-3 rounded-xl p-4 sm:flex-row sm:items-center sm:justify-between ${isRich ? 'border border-emerald-200 bg-emerald-50' : 'border border-emerald-500/20 bg-emerald-500/10'}`}>
+                        <div className="min-w-0">
+                            <p className={`font-mono text-lg font-black tracking-wider ${c.codeMono}`}>{generatedCoupon.code}</p>
+                            <p className={`mt-1 text-xs ${c.textMuted}`}>₹{Number(generatedCoupon.amountOff).toLocaleString()} off · one use</p>
+                        </div>
+                        <button type="button" onClick={() => { navigator.clipboard.writeText(generatedCoupon.code); toast.success('Coupon copied'); }} className={`rounded-lg px-4 py-2 text-xs font-bold ${c.btnGreen}`}>Copy code</button>
+                    </div>
+                )}
+            </div>
+
+            <div className={`overflow-hidden rounded-2xl border ${c.card}`}>
+                <div className={`border-b px-5 py-4 ${c.border}`}>
+                    <h3 className={`text-sm font-black uppercase tracking-widest ${c.sectionHead}`}>Discount coupons ({coupons.length})</h3>
+                </div>
+                <div className={`divide-y ${c.divider}`}>
+                    {coupons.map((coupon: any) => {
+                        const reserved = !coupon.isUsed && coupon.reservedAt && new Date(coupon.reservedAt).getTime() > Date.now() - 21 * 60 * 1000;
+                        return (
+                            <div key={coupon.id} className={`flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5 ${c.hover}`}>
+                                <div className="min-w-0">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className={`font-mono text-sm font-bold ${c.text}`}>{coupon.code}</span>
+                                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${c.badgeBlue}`}>₹{Number(coupon.amountOff).toLocaleString()} OFF</span>
+                                    </div>
+                                    <span className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${coupon.isRevoked ? c.badgeRed : coupon.isUsed ? c.badgeGray : reserved ? c.badgeAmber : c.badgeGreen}`}>
+                                        {coupon.isRevoked ? 'Revoked' : coupon.isUsed ? `Used by ${coupon.usedBy || 'customer'}` : reserved ? 'Checkout in progress' : 'Available'}
+                                    </span>
+                                </div>
+                                <div className="flex shrink-0 gap-2 sm:justify-end">
+                                    {!coupon.isUsed && !coupon.isRevoked && <button type="button" onClick={() => onRevoke(coupon.code)} className={`rounded-lg px-3 py-2 text-xs font-bold ${c.btnAmber}`}>Revoke</button>}
+                                    <button type="button" onClick={() => onDelete(coupon.code)} className={`rounded-lg px-3 py-2 text-xs font-bold ${c.btnRed}`}>Delete</button>
+                                </div>
+                            </div>
+                        );
+                    })}
+                    {coupons.length === 0 && <div className={`px-5 py-12 text-center text-sm ${c.textMuted}`}>No discount coupons generated yet.</div>}
+                </div>
             </div>
         </div>
     );
@@ -815,9 +896,13 @@ const AdminDashboard: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterRole, setFilterRole] = useState<'all' | 'pro' | 'online'>('all');
     const [expandedUser, setExpandedUser] = useState<string | null>(null);
-    const [codeType, setCodeType] = useState<'3days' | '5mins'>('3days');
+    const [codeType, setCodeType] = useState<GeneratedAccessCodeType>('5mins');
     const [generatedCode, setGeneratedCode] = useState('');
     const [codes, setCodes] = useState<any[]>([]);
+    const [coupons, setCoupons] = useState<any[]>([]);
+    const [couponAmount, setCouponAmount] = useState('');
+    const [generatedCoupon, setGeneratedCoupon] = useState<any>(null);
+    const [couponLoading, setCouponLoading] = useState(false);
     const [sqlStats, setSqlStats] = useState<any>(null);
     const [activityLogs, setActivityLogs] = useState<any[]>([]);
     const [viewingUserActivity, setViewingUserActivity] = useState<string | null>(null);
@@ -855,6 +940,19 @@ const AdminDashboard: React.FC = () => {
         return () => clearInterval(i);
     }, []);
 
+    useEffect(() => {
+        const fetchCoupons = async () => {
+            try {
+                const response = await fetch('/api/admin/coupons', { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('sessionId') || '') } });
+                if (!response.ok) throw new Error('Could not load coupons');
+                setCoupons(await response.json());
+            } catch { /* Keep the last list visible during transient network errors. */ }
+        };
+        fetchCoupons();
+        const interval = setInterval(fetchCoupons, 5000);
+        return () => clearInterval(interval);
+    }, []);
+
     const handleStatusUpdate = async (email: string, currentStatus: string) => {
         await updateUserStatus(email, currentStatus === 'active' ? 'inactive' : 'active');
         setUsers(await getAllUsers());
@@ -868,6 +966,59 @@ const AdminDashboard: React.FC = () => {
         const code = await generateAccessCode(codeType);
         setGeneratedCode(code);
         setCodes(await getAllAccessCodes());
+    };
+
+    const handleGenerateCoupon = async (event: React.FormEvent) => {
+        event.preventDefault();
+        const amountOff = Number(couponAmount);
+        if (!Number.isSafeInteger(amountOff) || amountOff < 1) {
+            toast.error('Enter a whole-number amount greater than zero');
+            return;
+        }
+        setCouponLoading(true);
+        try {
+            const response = await fetch('/api/admin/coupons/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('sessionId') || '') },
+                body: JSON.stringify({ amountOff }),
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Could not generate coupon');
+            setGeneratedCoupon(data);
+            setCoupons((current) => [data, ...current.filter((coupon) => coupon.id !== data.id)]);
+            setCouponAmount('');
+            toast.success('Discount coupon generated');
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Could not generate coupon');
+        } finally {
+            setCouponLoading(false);
+        }
+    };
+
+    const handleRevokeCoupon = async (code: string) => {
+        try {
+            const response = await fetch(`/api/admin/coupons/${encodeURIComponent(code)}/revoke`, {
+                method: 'POST', headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('sessionId') || '') },
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Could not revoke coupon');
+            setCoupons((current) => current.map((coupon) => coupon.code === code ? data : coupon));
+            toast.success('Coupon revoked');
+        } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not revoke coupon'); }
+    };
+
+    const handleDeleteCoupon = async (code: string) => {
+        if (!confirm(`Permanently delete coupon ${code}?`)) return;
+        try {
+            const response = await fetch(`/api/admin/coupons/${encodeURIComponent(code)}`, {
+                method: 'DELETE', headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('sessionId') || '') },
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Could not delete coupon');
+            setCoupons((current) => current.filter((coupon) => coupon.code !== code));
+            if (generatedCoupon?.code === code) setGeneratedCoupon(null);
+            toast.success('Coupon deleted');
+        } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not delete coupon'); }
     };
 
     const fetchUserActivity = async (userId: string) => {
@@ -985,6 +1136,7 @@ const AdminDashboard: React.FC = () => {
                             {activeTab === 'feedback' && <FeedbackTab feedback={feedback} updateFeedbackStatus={updateFeedbackStatus} deleteFeedback={deleteFeedback} replyToFeedback={replyToFeedback} users={users} getAllUsers={getAllUsers} approveCertificate={approveCertificate} rejectCertificate={rejectCertificate} isRich={isRich} />}
                             {activeTab === 'notifications' && <NotificationsTab isRich={isRich} />}
                             {activeTab === 'codes' && <CodesTab codes={codes} codeType={codeType} setCodeType={setCodeType} generatedCode={generatedCode} handleGenerateCode={handleGenerateCode} revokeAccessCode={revokeAccessCode} deleteAccessCode={deleteAccessCode} isRich={isRich} />}
+                            {activeTab === 'discounts' && <DiscountCouponsTab coupons={coupons} amountOff={couponAmount} setAmountOff={setCouponAmount} generatedCoupon={generatedCoupon} onGenerate={handleGenerateCoupon} onRevoke={handleRevokeCoupon} onDelete={handleDeleteCoupon} loading={couponLoading} isRich={isRich} />}
                             {activeTab === 'progress' && <ProgressTab users={users} defaultCurriculum={defaultCurriculum} isRich={isRich} />}
                             {activeTab === 'activity' && <ActivityTab activityLogs={activityLogs} viewingUserActivity={viewingUserActivity} setViewingUserActivity={setViewingUserActivity} isRich={isRich} />}
                         </motion.div>
@@ -993,22 +1145,22 @@ const AdminDashboard: React.FC = () => {
             </main>
 
             {/* Mobile Bottom Tab Bar */}
-            <nav className={`lg:hidden fixed bottom-0 inset-x-0 z-30 border-t backdrop-blur-xl ${c.sidebar}`}>
-                <div className="flex items-center justify-around px-1 py-1.5 safe-area-bottom">
+            <nav className={`lg:hidden fixed bottom-0 inset-x-0 z-30 overflow-x-auto border-t backdrop-blur-xl ${c.sidebar}`}>
+                <div className="flex w-max min-w-full items-center justify-around gap-1 px-1 py-1.5 safe-area-bottom">
                     {TABS.map(tab => {
                         const Icon = tab.icon;
                         const isActive = activeTab === tab.id;
                         const badge = tab.id === 'feedback' ? unreadFeedback : 0;
                         return (
                             <button key={tab.id} onClick={() => switchTab(tab.id)}
-                                className={`relative flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl transition-all min-w-0 ${
+                                className={`relative flex min-w-[52px] shrink-0 flex-col items-center gap-0.5 px-1 py-1.5 rounded-xl transition-all ${
                                     isActive
                                         ? isRich ? 'text-emerald-700' : 'text-primary'
                                         : c.textMuted
                                 }`}>
                                 <Icon className="w-5 h-5" />
                                 <span className="text-[9px] font-bold truncate w-full text-center">
-                                    {tab.id === 'codes' ? 'Codes' : tab.label.length > 8 ? tab.label.slice(0, 7) + '…' : tab.label}
+                                    {tab.id === 'codes' ? 'Codes' : tab.id === 'discounts' ? 'Discount' : tab.label.length > 8 ? tab.label.slice(0, 7) + '…' : tab.label}
                                 </span>
                                 {badge > 0 && (
                                     <span className="absolute -top-0.5 right-0 w-4 h-4 flex items-center justify-center bg-red-500 text-white text-[8px] font-bold rounded-full">{badge}</span>

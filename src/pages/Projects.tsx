@@ -16,7 +16,7 @@ interface Project {
 }
 
 const Projects: React.FC = () => {
-    const { user } = useAuth();
+    const { user, sessionId } = useAuth();
     const { theme } = useTheme();
     const isRich = theme === 'rich';
     const [projects, setProjects] = useState<Project[]>([]);
@@ -26,7 +26,7 @@ const Projects: React.FC = () => {
         const fetchProjects = async () => {
             if (!user?.email) return;
             try {
-                const response = await fetch(`/api/playground/list?email=${encodeURIComponent(user.email)}`);
+                const response = await fetch('/api/playground/list', { headers: { Authorization: `Bearer ${sessionId}` } });
                 if (response.ok) {
                     const data = await response.json();
                     setProjects(data.map((p: any) => ({
@@ -47,7 +47,7 @@ const Projects: React.FC = () => {
         };
 
         if (user) fetchProjects();
-    }, [user]);
+    }, [user, sessionId]);
 
     const toggleStatus = (id: string) => {
         setProjects(prev => prev.map(p => {

@@ -1,331 +1,261 @@
-import React from "react";
-import { Link } from "react-router-dom";
-import { CheckCircle2, ShieldCheck, CreditCard, Lock, ChevronDown, ArrowLeft } from "lucide-react";
-import Navbar from "../components/Navbar";
+import React from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, CheckCircle2, ChevronDown, CreditCard, Lock, ShieldCheck, Tag } from 'lucide-react';
+import Navbar from '../components/Navbar';
+import { useAuth } from '../context/AuthContext';
+import { useOffer } from '../context/OfferContext';
+import { initializePayment } from '../utils/razorpay';
+import { useActiveCourse } from '../hooks/useActiveCourse';
+import { useCourses } from '../hooks/useCourses';
 
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import { useOffer } from "../context/OfferContext";
-import { initializePayment } from "../utils/razorpay";
-import { useActiveCourse } from "../hooks/useActiveCourse";
-import { useCourses, getCoursesGrantedOnPurchase, type CourseData } from "../hooks/useCourses";
+type CouponQuote = { code: string; baseAmount: number; amountOff: number; discountAmount: number; finalAmount: number; discountCapped: boolean };
 
 const Checkout: React.FC = () => {
-  const { user, completePurchase, redeemCode } = useAuth();
-  const { isOfferActive } = useOffer();
-  const navigate = useNavigate();
-  const [accessCode, setAccessCode] = React.useState("");
-  const [loading, setLoading] = React.useState(false);
-  const [redeemMessage, setRedeemMessage] = React.useState("");
+    const { user, completePurchase, redeemCode } = useAuth();
+    const { isOfferActive } = useOffer();
+    const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const { courses: dbCourses } = useCourses();
+    const [activeCourse, setActiveCourse] = useActiveCourse();
+    const [selectedCourse, setSelectedCourse] = React.useState(searchParams.get('course') || '');
+    const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
+    const [accessCode, setAccessCode] = React.useState('');
+    const [accessLoading, setAccessLoading] = React.useState(false);
+    const [redeemMessage, setRedeemMessage] = React.useState('');
+    const [couponInput, setCouponInput] = React.useState('');
+    const [appliedCoupon, setAppliedCoupon] = React.useState<CouponQuote | null>(null);
+    const [couponMessage, setCouponMessage] = React.useState('');
+    const [couponLoading, setCouponLoading] = React.useState(false);
+    const [paymentLoading, setPaymentLoading] = React.useState(false);
+    const [paymentError, setPaymentError] = React.useState('');
 
-  const [searchParams] = useSearchParams();
-  const courseParam = searchParams.get('course') || '';
-  const [selectedCourse, setSelectedCourse] = React.useState(courseParam);
-  const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
+    React.useEffect(() => {
+        const requestedCourse = searchParams.get('course');
+        if (requestedCourse) setSelectedCourse(requestedCourse);
+    }, [searchParams]);
 
-  React.useEffect(() => {
-    if (searchParams.get('course')) {
-      setSelectedCourse(searchParams.get('course')!);
-    }
-  }, [searchParams]);    const { courses: dbCourses } = useCourses();
-
-    // Build course details from DB courses + fallback for ai_upgrade
-    const buildCourseDetails = () => {
-        const details: Record<string, any> = {};
-        dbCourses.forEach(c => {
-            details[c.slug] = {
-                title: isOfferActive && c.slug === 'fullstack' ? "Full Stack + AI Course Bundle" : c.title,
-                badge: isOfferActive && c.slug === 'fullstack' ? "Limited 2-Day Offer" : c.badge || undefined,
-                price: c.price,
-                salePrice: isOfferActive && c.slug === 'fullstack' ? 10000 : (c.salePrice || c.price),
-                features: isOfferActive && c.slug === 'fullstack' ? [
-                    "Lifetime Access to Full Stack Content",
-                    "AI & Machine Learning Course Included",
-                    "Frontend & Backend Deep Dive",
-                    "AI Mentor Support (Beta)",
-                    "5+ Real World Projects",
-                    "Certificate of Completion",
-                    "Discord Community Access"
-                ] : (c.features || []),
-            };
-        });
-        // ai_upgrade is a virtual course (not in DB)
-        if (!details['ai_upgrade']) {
-            details['ai_upgrade'] = {
-                title: "AI Course Upgrade",
-                badge: "Exclusive for Full Stack Students",
-                price: 5000,
-                salePrice: 2000,
-                features: [
-                    "Complete AI & ML Course Content",
-                    "Builds on Your Full Stack Skills",
-                    "Hands-on AI Projects",
-                    "Early Access to New AI Modules",
-                    "Discord Community Access"
-                ],
-            };
-        }
-        return details;
+    const courseDetails: Record<string, any> = {};
+    dbCourses.forEach((course) => {
+        courseDetails[course.slug] = {
+            title: isOfferActive && course.slug === 'fullstack' ? 'Full Stack + AI Course Bundle' : course.title,
+            price: course.price,
+            salePrice: isOfferActive && course.slug === 'fullstack' ? 10000 : (course.salePrice ?? course.price),
+            features: isOfferActive && course.slug === 'fullstack' ? [
+                'Lifetime Access to Full Stack Content', 'AI & Machine Learning Course Included',
+                'Frontend & Backend Deep Dive', 'AI Mentor Support (Beta)', '5+ Real World Projects',
+                'Certificate of Completion', 'Discord Community Access',
+            ] : (course.features || []),
+        };
+    });
+    courseDetails.ai_upgrade = {
+        title: 'AI Course Upgrade', price: 5000, salePrice: 2000,
+        features: ['Complete AI & ML Course Content', 'Builds on Your Full Stack Skills', 'Hands-on AI Projects', 'Early Access to New AI Modules', 'Discord Community Access'],
     };
-    const courseDetails = buildCourseDetails();
 
-  const [, setActiveCourse] = useActiveCourse();
-  const currentCourse = selectedCourse ? courseDetails[selectedCourse as keyof typeof courseDetails] : null;
+    // Temporary trial access does not count as permanent ownership.
+    const ownedCourses = new Set(user?.trialExpiresAt ? [] : (user?.purchasedCourses || []));
+    const currentCourse = courseDetails[selectedCourse] || null;
+    const selectedCourseKey = selectedCourse === 'ai_upgrade' ? 'ai' : selectedCourse;
+    const isSelectedCourseOwned = !!selectedCourse && ownedCourses.has(selectedCourseKey);
+    const baseAmount = currentCourse ? (currentCourse.salePrice || currentCourse.price) : 0;
+    const payableAmount = appliedCoupon?.finalAmount ?? baseAmount;
 
-  const handleRedeem = async () => {
-    if (!accessCode || !selectedCourse) return;
-    setLoading(true);
-    setRedeemMessage("");
+    React.useEffect(() => {
+        setAppliedCoupon(null);
+        setCouponMessage('');
+    }, [selectedCourse]);
 
-    await new Promise(r => setTimeout(r, 600));
+    const apiRequest = async (url: string, body: Record<string, unknown>) => {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${localStorage.getItem('sessionId') || ''}`,
+            },
+            body: JSON.stringify(body),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || 'Request failed');
+        return data;
+    };
 
-    const result = await redeemCode(accessCode, selectedCourse);
-    setLoading(false);
-    setRedeemMessage(result.message);
+    const handleApplyCoupon = async () => {
+        if (!user) { navigate('/login'); return; }
+        if (!couponInput.trim() || !selectedCourse) return;
+        setCouponLoading(true);
+        setCouponMessage('');
+        setAppliedCoupon(null);
+        try {
+            const quote: CouponQuote = await apiRequest('/api/coupons/preview', {
+                couponCode: couponInput.trim(), courseId: selectedCourse,
+            });
+            setAppliedCoupon(quote);
+            setCouponInput(quote.code);
+            setCouponMessage(quote.discountCapped
+                ? `Coupon applied. Discount adjusted to leave ₹1 payable.`
+                : 'Coupon applied successfully.');
+        } catch (error) {
+            setCouponMessage(error instanceof Error ? error.message : 'Could not validate coupon');
+        } finally {
+            setCouponLoading(false);
+        }
+    };
 
-    if (result.success) {
-      setActiveCourse(selectedCourse as any);
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 1000);
-    }
-  };
+    const handlePayment = async () => {
+        if (!currentCourse || isSelectedCourseOwned) return;
+        if (!user) { navigate('/login'); return; }
+        setPaymentLoading(true);
+        setPaymentError('');
+        let orderId = '';
+        try {
+            const order = await apiRequest('/api/payments/create-order', {
+                courseId: selectedCourse,
+                couponCode: appliedCoupon?.code || undefined,
+            });
+            orderId = order.orderId;
+            await initializePayment(
+                order,
+                { name: user.name, email: user.email },
+                async (response) => {
+                    try {
+                        const verified = await apiRequest('/api/payments/verify', {
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_signature: response.razorpay_signature,
+                        });
+                        if (!verified.success) throw new Error('Payment could not be confirmed');
+                        const purchasedCourse = selectedCourse === 'ai_upgrade' ? 'ai_upgrade' : selectedCourse;
+                        await completePurchase(purchasedCourse);
+                        setActiveCourse((selectedCourse === 'ai_upgrade' ? 'ai' : selectedCourse) as any);
+                        navigate('/dashboard');
+                    } catch (error) {
+                        setPaymentError(error instanceof Error ? error.message : 'Payment verification failed. Contact support if you were charged.');
+                        setPaymentLoading(false);
+                    }
+                },
+                async (error) => {
+                    console.error('Razorpay payment failed:', error);
+                    await apiRequest('/api/payments/release', { orderId }).catch(() => undefined);
+                    setPaymentError(error?.description || 'Payment failed. Please try again.');
+                    setPaymentLoading(false);
+                },
+                async () => {
+                    await apiRequest('/api/payments/release', { orderId }).catch(() => undefined);
+                    setPaymentLoading(false);
+                },
+            );
+        } catch (error) {
+            if (orderId) await apiRequest('/api/payments/release', { orderId }).catch(() => undefined);
+            setPaymentError(error instanceof Error ? error.message : 'Could not start checkout');
+            setPaymentLoading(false);
+        }
+    };
 
-  const handlePayment = async () => {
-    if (!currentCourse) return;
+    const handleRedeem = async () => {
+        if (!accessCode || !selectedCourse) return;
+        setAccessLoading(true);
+        setRedeemMessage('');
+        const result = await redeemCode(accessCode, selectedCourse);
+        setAccessLoading(false);
+        setRedeemMessage(result.message);
+        if (result.success) {
+            setActiveCourse((selectedCourse === 'ai_upgrade' ? 'ai' : selectedCourse) as any);
+            window.setTimeout(() => navigate('/dashboard'), 1000);
+        }
+    };
 
-    if (!user) {
-      navigate('/login');
-      return;
-    }
+    const currency = (value: number) => `₹${value.toLocaleString('en-IN')}`;
 
-    await initializePayment(
-      currentCourse.salePrice || currentCourse.price,
-      {
-        name: user.name,
-        email: user.email,
-      },
-      (response) => {
-        console.log("Payment Success:", response);
-        completePurchase(selectedCourse === 'ai_upgrade' ? 'ai_upgrade' : selectedCourse);
-        navigate('/dashboard');
-      },
-      (error) => {
-        console.error("Payment Failed:", error);
-        alert("Payment Failed. Please try again.");
-      },
-      currentCourse.title
-    );
-  };
+    return (
+        <div className="min-h-[100dvh] bg-[#f8f9f6]">
+            <Navbar />
+            <Link to="/shop" className="fixed left-4 top-[72px] z-[60] flex items-center gap-1.5 rounded-xl border border-black/[0.05] bg-white/70 px-3 py-2 text-[13px] font-medium text-gray-500 shadow-sm backdrop-blur-2xl transition hover:bg-white hover:text-gray-900 md:left-6 md:px-4 md:py-2.5">
+                <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Back to Course Shop</span>
+            </Link>
 
-  // Redirect to dashboard if user already has any purchased course
-  React.useEffect(() => {
-    if (user?.purchasedCourses && user.purchasedCourses.length > 0 && user?.role !== 'admin') {
-      navigate('/dashboard', { replace: true });
-    }
-  }, [user, navigate]);
-
-  return (
-    <div className="min-h-[100dvh] bg-[#f8f9f6]">
-      <Navbar />
-
-      {/* Back link */}
-      <Link
-        to="/"
-        className="fixed top-[72px] left-4 md:left-6 z-[60] flex items-center gap-1.5 px-3 py-2 md:px-4 md:py-2.5 bg-white/70 backdrop-blur-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.05] rounded-xl text-gray-500 hover:text-gray-900 hover:bg-white hover:shadow-[0_4px_20px_rgba(0,0,0,0.1)] transition-all duration-200 text-[13px] font-medium group"
-      >
-        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform duration-200" />
-        <span className="hidden sm:inline">Back to Home</span>
-      </Link>
-
-      <div className="flex items-center justify-center p-4 pt-28 min-h-[100dvh]">
-        <div className="w-full max-w-4xl grid md:grid-cols-2 gap-10 items-start">
-
-          {/* Left: Product Info */}
-          <div className="space-y-6">
-            <div className="relative w-full sm:w-80 z-50">
-              <label className="text-[11px] font-medium text-gray-400 uppercase tracking-[0.1em] mb-2 block">
-                Select Track
-              </label>
-              <button
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className={`w-full flex items-center justify-between px-5 py-3.5 bg-white border border-black/[0.06] rounded-2xl hover:border-black/[0.12] transition-all shadow-sm ${isDropdownOpen ? 'ring-2 ring-emerald-300/40 border-emerald-300' : ''}`}
-              >
-                <span className={`font-medium text-[15px] ${!currentCourse ? 'text-gray-400' : 'text-gray-900'}`}>
-                  {currentCourse ? currentCourse.title : "Choose Course..."}
-                </span>
-                <div className={`p-1 rounded-lg transition-colors ${isDropdownOpen ? 'bg-emerald-50 text-emerald-600' : 'bg-black/[0.04] text-gray-400'}`}>
-                  <ChevronDown className={`w-4 h-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
-                </div>
-              </button>
-
-              {isDropdownOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)} />
-                  <div className="absolute top-[calc(100%+6px)] left-0 w-full bg-white border border-black/[0.06] rounded-2xl shadow-xl shadow-black/[0.06] z-50 flex flex-col py-2 px-2">
-                    {Object.entries(courseDetails)
-                      .filter(([key]) => {
-                        const purchased = user?.purchasedCourses || [];
-                        const isTrialUser = user?.trialExpiresAt;
-                        if (!isTrialUser) {
-                          if (key === 'fullstack' && purchased.includes('fullstack')) return false;
-                          if (key === 'cyber' && purchased.includes('cyber')) return false;
-                          if (key === 'datascience' && purchased.includes('datascience')) return false;
-                        }
-                        if (key === 'ai_upgrade') {
-                          if (!isOfferActive) return false;
-                          if (isTrialUser) return false;
-                          const hasAnyCourse = purchased.includes('fullstack') || purchased.includes('cyber') || purchased.includes('datascience') || purchased.includes('cloudcomputing');
-                          return hasAnyCourse && !purchased.includes('ai');
-                        }
-                        return true;
-                      })
-                      .map(([key, course]) => (
-                      <button
-                        key={key}
-                        onClick={() => {
-                          setSelectedCourse(key);
-                          setIsDropdownOpen(false);
-                        }}
-                        className={`w-full text-left px-4 py-3 transition-all rounded-xl flex justify-between items-center group ${
-                          selectedCourse === key
-                            ? 'bg-emerald-50 border border-emerald-200/60'
-                            : 'hover:bg-black/[0.02] border border-transparent'
-                        }`}
-                      >
-                        <div className={`font-medium text-[15px] transition-colors ${selectedCourse === key ? 'text-emerald-800' : 'text-gray-900'}`}>
-                          {course.title}
+            <div className="flex min-h-[100dvh] items-center justify-center p-4 pb-10 pt-28 sm:p-6 sm:pt-28">
+                <div className="grid w-full max-w-5xl items-start gap-8 md:grid-cols-2 md:gap-10">
+                    <section className="space-y-6">
+                        <div className="relative z-20 w-full sm:max-w-sm">
+                            <label className="mb-2 block text-[11px] font-medium uppercase tracking-[0.1em] text-gray-400">Select track</label>
+                            <button type="button" onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="flex w-full items-center justify-between rounded-2xl border border-black/[0.06] bg-white px-5 py-3.5 text-left shadow-sm">
+                                <span className={`text-[15px] font-medium ${currentCourse ? 'text-gray-900' : 'text-gray-400'}`}>{currentCourse?.title || 'Choose course…'}</span>
+                                <ChevronDown className={`h-4 w-4 text-gray-400 transition ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                            </button>
+                            {isDropdownOpen && <>
+                                <button aria-label="Close course list" className="fixed inset-0 z-20 cursor-default" onClick={() => setIsDropdownOpen(false)} />
+                                <div className="absolute left-0 top-[calc(100%+6px)] z-30 flex max-h-72 w-full flex-col overflow-y-auto rounded-2xl border border-black/[0.06] bg-white p-2 shadow-xl">
+                                    {Object.entries(courseDetails).filter(([key]) => {
+                                        if (key === 'ai_upgrade') return isOfferActive && !user?.trialExpiresAt && [...ownedCourses].some(course => course !== 'ai') && !ownedCourses.has('ai');
+                                        return !ownedCourses.has(key);
+                                    }).map(([key, course]: [string, any]) => <button key={key} type="button" onClick={() => { setSelectedCourse(key); setIsDropdownOpen(false); }} className="flex w-full items-center justify-between rounded-xl px-4 py-3 text-left hover:bg-emerald-50">
+                                        <span className="text-sm font-medium text-gray-900">{course.title}</span>
+                                        <span className="text-sm text-gray-500">{currency(course.salePrice || course.price)}</span>
+                                    </button>)}
+                                </div>
+                            </>}
                         </div>
-                        <div className="text-sm text-gray-400 font-medium">₹{(course.salePrice || course.price || 0).toLocaleString()}</div>
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
 
-            <div className="pt-2">
-              <h1 className="text-3xl md:text-[40px] font-bold leading-[1.05] tracking-[-0.04em] text-gray-900">
-                Complete your{" "}
-                <span className="text-emerald-700">enrollment</span>
-              </h1>
-              <p className="text-gray-500 text-[15px] mt-3 max-w-md leading-relaxed tracking-[-0.01em]">
-                {currentCourse
-                  ? "You are one step away from becoming a job-ready developer."
-                  : "Select a track above to view the curriculum features and proceed with your secure enrollment."}
-              </p>
-            </div>
+                        <div>
+                            <h1 className="text-3xl font-bold leading-tight tracking-tight text-gray-900 md:text-[40px]">Complete your <span className="text-emerald-700">enrollment</span></h1>
+                            <p className="mt-3 max-w-md text-[15px] leading-relaxed text-gray-500">
+                                {isSelectedCourseOwned ? 'You already own this course. Choose another course or visit the shop for your remaining courses.' : currentCourse ? 'You are one step away from becoming a job-ready developer.' : 'Select a track above to view the course details and checkout.'}
+                            </p>
+                        </div>
+                        <div className="space-y-3 border-t border-black/[0.04] pt-5">
+                            {(currentCourse?.features || []).map((feature: string, index: number) => <div key={index} className="flex items-start gap-3">
+                                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /></span>
+                                <span className="text-sm text-gray-700">{feature}</span>
+                            </div>)}
+                        </div>
+                        <div className="flex items-center gap-2 text-[13px] text-gray-400"><ShieldCheck className="h-4 w-4" /><span>Secure checkout powered by Razorpay</span></div>
+                    </section>
 
-            <div className="relative">
-              {!currentCourse && (
-                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#f8f9f6]/80 backdrop-blur-[2px] rounded-2xl border border-black/[0.04]">
-                  <Lock className="w-7 h-7 text-gray-300 mb-2" />
-                  <p className="text-sm font-medium text-gray-400">Course track required</p>
+                    <section className="h-fit rounded-2xl border border-black/[0.06] bg-white p-5 shadow-lg shadow-black/[0.04] sm:p-8">
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0"><h2 className="max-w-[240px] text-xl font-bold leading-tight text-gray-900">{currentCourse?.title || 'Course title'}</h2><p className="mt-1.5 text-[13px] text-gray-400">One-time payment · Lifetime access</p></div>
+                            <div className="shrink-0 text-right"><div className="text-2xl font-bold text-gray-900">{currentCourse ? currency(payableAmount) : '—'}</div>{currentCourse && <div className="mt-0.5 text-sm text-gray-400 line-through">{currency(baseAmount)}</div>}</div>
+                        </div>
+
+                        <div className="my-6 h-px bg-black/[0.05]" />
+                        {currentCourse && appliedCoupon && <div className="mb-4 space-y-2 rounded-xl bg-emerald-50 p-3 text-sm">
+                            <div className="flex justify-between text-gray-600"><span>Course price</span><span>{currency(appliedCoupon.baseAmount)}</span></div>
+                            <div className="flex justify-between font-semibold text-emerald-800"><span>Coupon ({appliedCoupon.code})</span><span>−{currency(appliedCoupon.discountAmount)}</span></div>
+                            <div className="flex justify-between border-t border-emerald-900/10 pt-2 font-bold text-gray-900"><span>Total</span><span>{currency(appliedCoupon.finalAmount)}</span></div>
+                        </div>}
+
+                        {user && currentCourse && !isSelectedCourseOwned && <div className="mb-4">
+                            <label className="mb-2 block text-xs font-semibold text-gray-600">Discount coupon</label>
+                            <div className="flex gap-2">
+                                <input value={couponInput} onChange={(event) => { setCouponInput(event.target.value.toUpperCase()); setAppliedCoupon(null); setCouponMessage(''); }} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void handleApplyCoupon(); } }} placeholder="Enter coupon code" className="min-w-0 flex-1 rounded-xl border border-black/[0.08] bg-white px-3 py-3 text-sm font-mono uppercase text-gray-900 outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-300/30 sm:px-4" />
+                                {appliedCoupon ? <button type="button" onClick={() => { setAppliedCoupon(null); setCouponMessage('Coupon removed.'); }} className="rounded-xl bg-gray-100 px-4 text-sm font-semibold text-gray-700">Remove</button> : <button type="button" onClick={() => void handleApplyCoupon()} disabled={couponLoading || !couponInput.trim()} className="shrink-0 rounded-xl bg-gray-100 px-4 text-sm font-semibold text-gray-800 disabled:opacity-50">{couponLoading ? '…' : 'Apply'}</button>}
+                            </div>
+                            {couponMessage && <p className={`mt-2 text-xs ${appliedCoupon ? 'text-emerald-700' : 'text-red-600'}`}>{couponMessage}</p>}
+                        </div>}
+
+                        <button type="button" onClick={() => void handlePayment()} disabled={!currentCourse || isSelectedCourseOwned || paymentLoading} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-900 py-4 text-[15px] font-bold text-white shadow-lg shadow-emerald-900/15 transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50">
+                            <CreditCard className="h-5 w-5" />{paymentLoading ? 'Starting secure checkout…' : isSelectedCourseOwned ? 'Already enrolled' : `Pay now — ${currentCourse ? currency(payableAmount) : '₹0'}`}
+                        </button>
+                        {paymentError && <p role="alert" className="mt-3 rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-700">{paymentError}</p>}
+                        {isSelectedCourseOwned && <Link to="/shop" className="mt-3 flex w-full items-center justify-center rounded-xl border border-emerald-900/10 px-4 py-3 text-sm font-semibold text-emerald-800 hover:bg-emerald-50">Browse remaining courses</Link>}
+
+                        <div className="mt-7 border-t border-black/[0.04] pt-5 text-center">
+                            <p className="mb-4 text-sm font-medium text-gray-400">Or redeem an access code</p>
+                            {user ? <div className="flex flex-col gap-2">
+                                <div className="flex gap-2">
+                                    <input aria-label="Access code" value={accessCode} onChange={(event) => setAccessCode(event.target.value)} placeholder="Enter access code" className="min-w-0 flex-1 rounded-xl border border-black/[0.08] px-4 py-2.5 text-center font-mono text-[15px] uppercase text-gray-900 outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-300/30 md:text-left" />
+                                    <button type="button" onClick={() => void handleRedeem()} disabled={accessLoading || !accessCode || !currentCourse || isSelectedCourseOwned} className="shrink-0 rounded-xl bg-black/[0.04] px-5 py-2.5 text-[15px] font-medium text-gray-900 disabled:opacity-50">{accessLoading ? '…' : 'Apply'}</button>
+                                </div>
+                                {redeemMessage && <p className={`mt-2 text-sm ${/granted|activated/i.test(redeemMessage) ? 'text-emerald-700' : 'text-red-600'}`}>{redeemMessage}</p>}
+                            </div> : <Link to="/login" className="inline-flex items-center gap-2 rounded-xl border border-emerald-200/60 bg-emerald-50 px-5 py-2.5 text-[15px] font-medium text-emerald-700"><Lock className="h-4 w-4" />Login to redeem code</Link>}
+                        </div>
+                        <p className="mt-6 text-center text-[11px] text-gray-400">By purchasing, you agree to our Terms of Service &amp; Privacy Policy.</p>
+                        <div className="mt-3 flex items-center justify-center gap-1 text-[11px] text-gray-400"><Tag className="h-3.5 w-3.5" /> Coupons are single-use and available across courses</div>
+                    </section>
                 </div>
-              )}
-              <div className={`space-y-3 pt-1 transition-all duration-500 ${!currentCourse ? 'opacity-30 pointer-events-none blur-[2px]' : 'opacity-100'}`}>
-                {((currentCourse ? currentCourse.features : courseDetails.fullstack?.features) || []).map((item: string, i: number) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                    </div>
-                    <span className="text-[15px] text-gray-700">{item}</span>
-                  </div>
-                ))}
-              </div>
             </div>
-
-            <div className="flex items-center gap-2 text-[13px] text-gray-400 pt-4 border-t border-black/[0.04] mt-4">
-              <ShieldCheck className="w-4 h-4" />
-              <span>Secure checkout powered by Razorpay AES-256 encryption</span>
-            </div>
-          </div>
-
-          {/* Right: Payment Card */}
-          <div className="relative h-fit">
-            {!currentCourse && (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/80 backdrop-blur-[4px] rounded-2xl border border-black/[0.04]">
-                <div className="w-14 h-14 rounded-full bg-gray-100 border border-black/[0.04] flex items-center justify-center mb-3">
-                  <Lock className="w-6 h-6 text-gray-300" />
-                </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-1">Checkout Locked</h3>
-                <p className="text-gray-400 text-center max-w-[220px] text-sm">Select a course track on the left to unlock payment options.</p>
-              </div>
-            )}
-
-            <div className={`bg-white border border-black/[0.06] p-8 sm:p-10 rounded-2xl shadow-lg shadow-black/[0.04] transition-all duration-500 ${!currentCourse ? 'opacity-30 blur-[2px] pointer-events-none scale-[0.98]' : ''}`}>
-              <div className="flex justify-between items-start mb-8">
-                <div>
-                  <h3 className="text-xl font-bold leading-tight tracking-[-0.03em] text-gray-900 max-w-[220px]">
-                    {currentCourse ? currentCourse.title : "Course Title"}
-                  </h3>
-                  <p className="text-[13px] text-gray-400 mt-1.5">One-time payment · Lifetime access</p>
-                </div>
-                <div className="text-right">
-                  <div className="text-2xl font-bold tracking-[-0.03em] text-gray-900">₹{currentCourse ? (currentCourse.salePrice || currentCourse.price || 0).toLocaleString() : "—"}</div>
-                  <div className="text-sm text-gray-400 line-through decoration-gray-300 mt-0.5">₹{currentCourse ? currentCourse.price.toLocaleString() : "—"}</div>
-                </div>
-              </div>
-
-              <div className="w-full h-px bg-black/[0.04] mb-8" />
-
-              {/* Razorpay Button */}
-              <button
-                onClick={handlePayment}
-                disabled={!currentCourse}
-                className="w-full py-4 rounded-2xl bg-emerald-900 hover:bg-emerald-800 text-white font-bold text-[15px] tracking-[-0.01em] shadow-lg shadow-emerald-900/15 transition-all hover:scale-[1.01] flex items-center justify-center gap-2"
-              >
-                <CreditCard className="w-5 h-5" />
-                Pay Now — ₹{currentCourse ? (currentCourse.salePrice || currentCourse.price || 0).toLocaleString() : "0"}
-              </button>
-
-              <div className="text-center mt-8">
-                <p className="text-sm font-medium text-gray-400 mb-4">Or redeem an access code</p>
-                {user ? (
-                  <div className="flex flex-col gap-2">
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="Enter Code"
-                        className="flex-1 bg-white border border-black/[0.08] rounded-xl px-4 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-300/40 focus:border-emerald-300 font-mono uppercase text-center md:text-left text-[15px]"
-                        value={accessCode}
-                        onChange={(e) => setAccessCode(e.target.value)}
-                      />
-                      <button
-                        onClick={handleRedeem}
-                        disabled={loading || !accessCode || !currentCourse}
-                        className="bg-black/[0.04] hover:bg-black/[0.08] text-gray-900 rounded-xl px-6 py-2.5 font-medium text-[15px] transition-colors disabled:opacity-50"
-                      >
-                        {loading ? "..." : "Apply"}
-                      </button>
-                    </div>
-                    {redeemMessage && (
-                      <p className={`mt-2 text-sm ${redeemMessage.includes("Granted") || redeemMessage.includes("Activated") ? "text-emerald-700" : "text-red-600"}`}>
-                        {redeemMessage}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <Link
-                    to="/login"
-                    className="text-emerald-700 hover:text-emerald-900 font-medium text-[15px] inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200/60 px-5 py-2.5 rounded-xl transition-colors"
-                  >
-                    <Lock className="w-4 h-4" />
-                    Login to Redeem Code
-                  </Link>
-                )}
-              </div>
-
-              <p className="text-center text-[11px] text-gray-400 mt-8 border-t border-black/[0.04] pt-5">
-                By purchasing, you agree to our Terms of Service & Privacy Policy.
-              </p>
-            </div>
-          </div>
-
         </div>
-      </div>
-    </div>
-  );
+    );
 };
 
 export default Checkout;

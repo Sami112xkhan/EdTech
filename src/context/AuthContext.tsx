@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useLocation } from "react-router-dom";
-import { User } from "../types";
+import { User, GeneratedAccessCodeType } from "../types";
 import emailjs from '@emailjs/browser';
 import { toast } from "sonner";
 import { curriculum } from "../data/curriculum";
@@ -13,11 +13,12 @@ import { pushNotification, soundXpGain, soundLevelUp, soundStreakMilestone, soun
 
 interface AuthContextType {
     user: User | null;
+    sessionId: string | null;
     isAuthenticated: boolean;
     login: (userData: User) => Promise<void>;
     signup: (userData: User) => Promise<void>;
     logout: () => void;
-    completePurchase: (courseId: string) => void;
+    completePurchase: (courseId: string) => Promise<void>;
     getAllUsers: () => Promise<any[]>;
     updateUserStatus: (email: string, status: 'active' | 'inactive') => Promise<void>;
     deleteUser: (email: string) => Promise<void>;
@@ -26,7 +27,7 @@ interface AuthContextType {
     resendVerificationCode: (email: string) => Promise<void>;
     loginWithGoogle: (credential: string) => Promise<void>;
     // Trial System
-    generateAccessCode: (type: '3days' | '5mins') => Promise<string>;
+    generateAccessCode: (type: GeneratedAccessCodeType) => Promise<string>;
     redeemCode: (code: string, courseId?: string) => Promise<{ success: boolean; message: string }>;
     getAllAccessCodes: () => Promise<any[]>;
     revokeAccessCode: (code: string) => Promise<void>;
@@ -55,17 +56,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Validate Session with SQL Backend
         const validateSession = async () => {
             const storedSessionId = localStorage.getItem('sessionId');
-            const storedUserStr = localStorage.getItem("user");
-
-            // 1. Bypass for Hardcoded Admin (Client-side persistence)
-            if (storedUserStr) {
-                const storedUser = JSON.parse(storedUserStr);
-                if (storedUser.email === 'admin@devmastery.com') {
-                    setUser(storedUser);
-                    setIsAuthenticated(true);
-                    return; // Skip backend validation for hardcoded admin
-                }
-            }
 
             if (storedSessionId) {
                 try {
@@ -95,10 +85,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     console.error("Session validation network error", error);
                     // Do not log out on network errors
                 }
-            } else if (!storedUserStr) {
-                // No session and no local user, ensure logout state
+            } else {
+                // A cached profile is not an authentication session.
                 setUser(null);
                 setIsAuthenticated(false);
+                setSessionId(null);
+                localStorage.removeItem('user');
+                localStorage.removeItem('sessionId');
             }
         };
 
@@ -115,7 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     }, []);
 
-    const generateAccessCode = async (type: '3days' | '5mins'): Promise<string> => {
+    const generateAccessCode = async (type: GeneratedAccessCodeType): Promise<string> => {
         try {
             const response = await fetch('/api/admin/codes/generate', {
                 method: 'POST',
@@ -142,24 +135,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             const response = await fetch('/api/codes/redeem', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('sessionId') || '') },
                 body: JSON.stringify({ code: normalizedCode, email: user.email, courseId }),
             });
             const data = await response.json();
             if (response.ok && data.success) {
-                // Update local user state with new tier
-                // Default to specifically requested course (e.g. Data Science, Cyber)
-                const newCourses = [...(user.purchasedCourses || [])];
-                if (!newCourses.includes(courseId)) {
-                    newCourses.push(courseId);
-                }
-                const updatedUser = {
-                    ...user,
-                    trialExpiresAt: data.trialExpiresAt,
-                    purchasedCourses: newCourses
-                };
+                const updatedUser = data.user as User;
                 setUser(updatedUser);
                 localStorage.setItem("user", JSON.stringify(updatedUser));
+                window.dispatchEvent(new Event('devmastery:access-changed'));
 
                 return { success: true, message: data.message };
             }
@@ -198,57 +182,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const login = async (userData: User) => {
-        // Admin Check — set local state immediately, then create real server session in background
-        if (userData.username === 'admin' && (userData as any).password === 'admin@12345') {
-            const adminUser: User = {
-                id: 'admin-id',
-                name: 'Administrator',
-                username: 'admin',
-                email: 'admin@devmastery.com',
-                purchasedCourses: ['fullstack', 'cyber', 'datascience', 'cloudcomputing'],
-                role: 'admin',
-                status: 'active',
-                isVerified: true,
-                lastLogin: new Date().toISOString(),
-                completedLessons: []
-            };
-            setUser(adminUser);
-            setIsAuthenticated(true);
-            localStorage.setItem("user", JSON.stringify(adminUser));
-
-            // Create real server session in background so admin API endpoints work
-            try {
-                const response = await fetch('/api/auth/admin-session', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: 'admin@devmastery.com' }),
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    setSessionId(data.sessionId);
-                    localStorage.setItem('sessionId', data.sessionId);
-                    // Merge server user but always preserve admin privileges
-                    setUser(prev => {
-                        const serverUser = data.user;
-                        // Always enforce admin role and courses for hardcoded admin
-                        const mergedUser = {
-                            ...serverUser,
-                            role: 'admin',
-                            purchasedCourses: (serverUser.purchasedCourses && serverUser.purchasedCourses.length > 0)
-                                ? serverUser.purchasedCourses
-                                : ['fullstack', 'cyber', 'datascience', 'cloudcomputing'],
-                            trialExpiresAt: undefined, // Admin never has trial restrictions
-                        };
-                        localStorage.setItem("user", JSON.stringify(mergedUser));
-                        return mergedUser;
-                    });
-                }
-            } catch (e) {
-                console.warn("Admin session API failed, using local-only admin:", e);
-            }
-            return;
-        }
-
         try {
             const response = await fetch('/api/auth/login', {
                 method: 'POST',
@@ -452,8 +385,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             try {
                 await fetch('/api/auth/logout', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ sessionId }),
+                    headers: { Authorization: `Bearer ${sessionId}` },
                 });
             } catch (e) {
                 console.error("Backend logout failed", e);
@@ -481,29 +413,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
 
             const newCourses = coursesToGrant.filter(c => !currentCourses.includes(c));
-            if (newCourses.length === 0) return;
 
             const updatedUser = {
                 ...user,
                 purchasedCourses: [...currentCourses, ...newCourses],
-                trialExpiresAt: undefined // Clear trial status on permanent purchase
+                trialExpiresAt: undefined,
+                trialCourseId: undefined,
             };
             setUser(updatedUser);
             localStorage.setItem("user", JSON.stringify(updatedUser));
+            window.dispatchEvent(new Event('devmastery:access-changed'));
 
             soundEnrollment();
             pushNotification('🎓 Enrollment Complete!', `Welcome to the ${courseId} course. Start learning now!`, 'enrollment');
 
-            // Sync Purchase to SQL
-            try {
-                await fetch('/api/auth/purchase', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (sessionId || '') },
-                    body: JSON.stringify({ email: user.email, courseId }),
-                });
-            } catch (e) {
-                console.warn("Failed to sync purchase to SQL backend", e);
-            }
         }
     };
 
@@ -663,9 +586,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             await fetch('/api/auth/profile', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionId}` },
                 body: JSON.stringify({
-                    email: user.email,
                     ...updates
                 })
             });
@@ -686,8 +608,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             await fetch('/api/certificate/request', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: user.email, courseId }),
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionId}` },
+                body: JSON.stringify({ courseId }),
             });
         } catch (error) {
             console.warn('Failed to sync certificate request to API', error);
@@ -754,6 +676,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 const expiredUser = { ...user, trialExpiresAt: 'EXPIRED' as const };
                 setUser(expiredUser);
                 localStorage.setItem("user", JSON.stringify(expiredUser));
+                window.dispatchEvent(new Event('devmastery:access-changed'));
 
                 // Real-time DB Update
                 updateProfile({ trialExpiresAt: 'EXPIRED' as const });
@@ -785,16 +708,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 if (response.ok) {
                     const data = await response.json();
                     if (data.user) {
-                        // Update local user state with fresh backend data
-                        // But always preserve admin privileges for hardcoded admin
+                        // Update local state from the authenticated server session.
                         const incomingUser = data.user;
-                        if (incomingUser.email === 'admin@devmastery.com') {
-                            incomingUser.role = 'admin';
-                            incomingUser.trialExpiresAt = undefined; // Admin never has trial restrictions
-                            if (!incomingUser.purchasedCourses || incomingUser.purchasedCourses.length === 0) {
-                                incomingUser.purchasedCourses = ['fullstack', 'cyber', 'datascience', 'cloudcomputing'];
-                            }
-                        }
                         setUser(incomingUser);
                         localStorage.setItem('user', JSON.stringify(incomingUser));
                     }
@@ -816,6 +731,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return (
         <AuthContext.Provider value={{
             user,
+            sessionId,
             isAuthenticated,
             login,
             signup,

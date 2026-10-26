@@ -124,7 +124,7 @@ document.body.innerHTML += "<h1>Hello from JS</h1>";
 };
 
 const PlaygroundPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, sessionId } = useAuth();
   const { theme, accentColor } = useTheme();
   const isRich = theme === 'rich';
 
@@ -155,12 +155,12 @@ const PlaygroundPage: React.FC = () => {
   // Load Projects
   useEffect(() => {
     if (user?.email) {
-      fetch(`/api/playground/list?email=${encodeURIComponent(user.email)}`)
+      fetch('/api/playground/list', { headers: { Authorization: `Bearer ${sessionId}` } })
         .then(res => res.json())
         .then(data => setSavedProjects(data))
         .catch(console.error);
     }
-  }, [user?.email]);
+  }, [user?.email, sessionId]);
 
   // --- Handlers ---
   const handleEditorChange = (val: string | undefined) => {
@@ -241,9 +241,8 @@ const PlaygroundPage: React.FC = () => {
     try {
       const res = await fetch('/api/playground/save', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionId}` },
         body: JSON.stringify({
-          email: user.email,
           name: projectName,
           type: activeTemplate,
           files: JSON.stringify(files),
@@ -257,7 +256,7 @@ const PlaygroundPage: React.FC = () => {
         toast.success("Saved!", { id: toastId });
 
         // Refresh list
-        fetch(`/api/playground/list?email=${encodeURIComponent(user.email)}`)
+        fetch('/api/playground/list', { headers: { Authorization: `Bearer ${sessionId}` } })
           .then(r => r.json())
           .then(setSavedProjects);
       } else {
