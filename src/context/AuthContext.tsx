@@ -15,7 +15,7 @@ interface AuthContextType {
     user: User | null;
     sessionId: string | null;
     isAuthenticated: boolean;
-    login: (userData: User) => Promise<void>;
+    login: (userData: User) => Promise<boolean>;
     signup: (userData: User) => Promise<void>;
     logout: () => void;
     completePurchase: (courseId: string) => Promise<void>;
@@ -181,12 +181,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
-    const login = async (userData: User) => {
+    const login = async (userData: User): Promise<boolean> => {
         try {
             const response = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: userData.email, password: userData.password }),
+                body: JSON.stringify({
+                    identifier: userData.username || userData.email,
+                    email: userData.email,
+                    username: userData.username,
+                    password: userData.password,
+                }),
             });
             const data = await response.json();
 
@@ -197,12 +202,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 localStorage.setItem("user", JSON.stringify(data.user));
                 localStorage.setItem("sessionId", data.sessionId);
                 toast.success(`Welcome back, ${data.user.name}!`);
+                return true;
             } else {
                 toast.error(data.error || "Login failed");
+                return false;
             }
         } catch (error) {
             console.error("Login failed:", error);
             toast.error("Login failed. Please check your connection.");
+            return false;
         }
     };
 

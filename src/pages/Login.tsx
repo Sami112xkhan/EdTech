@@ -113,10 +113,9 @@ const Login: React.FC = () => {
                     role: 'user'
                 } as any;
 
-                login(loginPayload);
-
+                const loggedIn = await login(loginPayload);
                 setIsLoading(false);
-                navigate("/dashboard");
+                if (loggedIn) navigate("/dashboard");
             } catch (error: any) {
                 if (error.message && error.message.startsWith("NOT_VERIFIED:")) {
                     const email = error.message.split(":")[1];

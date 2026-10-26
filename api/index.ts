@@ -270,7 +270,16 @@ app.post("/api/auth/google", authLimiter, async (req, res) => {
 
         const { sub: googleId, email, name, picture, email_verified: emailVerified } = payload;
         if (!email || !emailVerified) return res.status(403).json({ error: 'A verified Google email is required' });
-        const adminEmails = new Set(['admin@devmastery.com', 'sami112xxkhan@gmail.com']);
+        const passwordAdminEmail = (process.env.ADMIN_EMAIL || 'admin@devmastery.com').trim().toLowerCase();
+        if (email.toLowerCase() === passwordAdminEmail) {
+            return res.status(403).json({ error: 'Use the administrator username and password to sign in.' });
+        }
+        // Admin Google accounts must be explicitly configured by the operator.
+        // Never infer an administrator from a hard-coded personal email address.
+        const adminEmails = new Set((process.env.ADMIN_GOOGLE_EMAILS || '')
+            .split(',')
+            .map((adminEmail) => adminEmail.trim().toLowerCase())
+            .filter(Boolean));
 
         // 1. Sync User
         let [user] = await db.select().from(users).where(eq(users.googleId, googleId));
@@ -413,20 +422,97 @@ app.post("/api/auth/signup", authLimiter, async (req, res) => {
     }
 });
 
-// Email Login Hook
+// Email / username login. The legacy admin identity is authenticated with a
+// server-only bcrypt hash, then backed by a normal database user and session.
 app.post("/api/auth/login", authLimiter, async (req, res) => {
-    const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: "Missing credentials" });
+    const identifier = String(req.body.identifier ?? req.body.email ?? req.body.username ?? '').trim();
+    const password = req.body.password;
+    if (!identifier || typeof password !== 'string' || !password) {
+        return res.status(400).json({ error: "Missing credentials" });
+    }
 
     try {
-        const [user] = await db.select().from(users).where(eq(users.email, email));
+        const adminUsername = (process.env.ADMIN_USERNAME || 'admin').trim();
+        const adminEmail = (process.env.ADMIN_EMAIL || 'admin@devmastery.com').trim().toLowerCase();
+        const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
+        const isConfiguredAdminLogin = Boolean(
+            adminPasswordHash && identifier.toLowerCase() === adminUsername.toLowerCase()
+        );
+        let user: typeof users.$inferSelect | undefined;
+
+        if (isConfiguredAdminLogin) {
+            const validAdminPassword = await bcrypt.compare(password, adminPasswordHash);
+            if (!validAdminPassword) return res.status(400).json({ error: "Invalid credentials" });
+
+            // Provision/repair the dedicated admin row only after the configured
+            // password has been verified. A row linked to a real Google identity
+            // is never silently taken over by the local admin credential.
+            const adminResult = await db.transaction(async (tx) => {
+                await tx.execute(sql`SELECT pg_advisory_xact_lock(73638198730212::bigint)`);
+
+                const [existingAdmin] = await tx.select().from(users).where(sql`lower(${users.email}) = ${adminEmail}`).limit(1);
+                if (existingAdmin && (
+                    (existingAdmin.googleId && existingAdmin.googleId !== 'hardcoded-admin') ||
+                    existingAdmin.password
+                )) {
+                    return { conflict: true as const };
+                }
+
+                const usernameCollision = await tx.select().from(users)
+                    .where(sql`lower(${users.username}) = ${adminUsername.toLowerCase()} AND lower(${users.email}) <> ${adminEmail}`)
+                    .limit(1);
+                if (usernameCollision.length) return { conflict: true as const };
+
+                const [legacyAdminIdentity] = await tx.select().from(users).where(eq(users.googleId, 'hardcoded-admin')).limit(1);
+                if (legacyAdminIdentity && legacyAdminIdentity.id !== existingAdmin?.id) return { conflict: true as const };
+
+                if (existingAdmin) {
+                    const [updatedAdmin] = await tx.update(users).set({
+                        username: adminUsername,
+                        name: existingAdmin.name || 'Administrator',
+                        role: 'admin',
+                        status: 'active',
+                        isVerified: true,
+                        googleId: existingAdmin.googleId || 'hardcoded-admin',
+                        lastLoginAt: new Date(),
+                    }).where(eq(users.id, existingAdmin.id)).returning();
+                    return { user: updatedAdmin };
+                }
+
+                const [createdAdmin] = await tx.insert(users).values({
+                    email: adminEmail,
+                    name: 'Administrator',
+                    username: adminUsername,
+                    role: 'admin',
+                    status: 'active',
+                    isVerified: true,
+                    googleId: 'hardcoded-admin',
+                }).returning();
+                return { user: createdAdmin };
+            });
+
+            if ('conflict' in adminResult) {
+                return res.status(409).json({ error: "Admin login is already linked to another account. Configure a dedicated ADMIN_EMAIL." });
+            }
+            user = adminResult.user;
+        } else {
+            const normalizedIdentifier = identifier.toLowerCase();
+            [user] = await db.select().from(users)
+                .where(or(
+                    sql`lower(${users.email}) = ${normalizedIdentifier}`,
+                    sql`lower(${users.username}) = ${normalizedIdentifier}`,
+                ))
+                .limit(1);
+        }
 
         if (!user) return res.status(400).json({ error: "User not found" });
 
         // If user exists but has no password (Google auth only), block email login
-        if (!user.password) return res.status(400).json({ error: "Please login with Google" });
+        if (!user.password && !isConfiguredAdminLogin) return res.status(400).json({ error: "Please login with Google" });
 
-        const validPassword = await bcrypt.compare(password, user.password);
+        const validPassword = isConfiguredAdminLogin
+            ? true
+            : await bcrypt.compare(password, user.password || '');
         if (!validPassword) return res.status(400).json({ error: "Invalid credentials" });
 
         // Update Login Stats
@@ -443,7 +529,8 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
             isActive: true,
         }).returning();
 
-        res.json({ user, sessionId: session.id, isPaid: (user.purchasedCourses || []).length > 0 });
+        const { password: _passwordHash, ...publicUser } = user;
+        res.json({ user: publicUser, sessionId: session.id, isPaid: (user.purchasedCourses || []).length > 0 });
     } catch (error) {
         console.error("Login error:", error);
         res.status(500).json({ error: "Login failed" });
