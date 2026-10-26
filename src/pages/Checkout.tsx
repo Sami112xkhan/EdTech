@@ -7,6 +7,7 @@ import { useOffer } from '../context/OfferContext';
 import { initializePayment } from '../utils/razorpay';
 import { useActiveCourse } from '../hooks/useActiveCourse';
 import { useCourses } from '../hooks/useCourses';
+import { formatRupees, getEffectiveCoursePrice } from '../utils/coursePricing';
 
 type CouponQuote = { code: string; baseAmount: number; amountOff: number; discountAmount: number; finalAmount: number; discountCapped: boolean };
 
@@ -35,11 +36,11 @@ const Checkout: React.FC = () => {
     }, [searchParams]);
 
     const courseDetails: Record<string, any> = {};
-    dbCourses.forEach((course) => {
+    dbCourses.filter((course) => course.isPublished).forEach((course) => {
         courseDetails[course.slug] = {
             title: isOfferActive && course.slug === 'fullstack' ? 'Full Stack + AI Course Bundle' : course.title,
             price: course.price,
-            salePrice: isOfferActive && course.slug === 'fullstack' ? 10000 : (course.salePrice ?? course.price),
+            salePrice: isOfferActive && course.slug === 'fullstack' ? 10000 : getEffectiveCoursePrice(course.price, course.salePrice),
             features: isOfferActive && course.slug === 'fullstack' ? [
                 'Lifetime Access to Full Stack Content', 'AI & Machine Learning Course Included',
                 'Frontend & Backend Deep Dive', 'AI Mentor Support (Beta)', '5+ Real World Projects',
@@ -57,7 +58,7 @@ const Checkout: React.FC = () => {
     const currentCourse = courseDetails[selectedCourse] || null;
     const selectedCourseKey = selectedCourse === 'ai_upgrade' ? 'ai' : selectedCourse;
     const isSelectedCourseOwned = !!selectedCourse && ownedCourses.has(selectedCourseKey);
-    const baseAmount = currentCourse ? (currentCourse.salePrice || currentCourse.price) : 0;
+    const baseAmount = currentCourse ? getEffectiveCoursePrice(currentCourse.price, currentCourse.salePrice) : 0;
     const payableAmount = appliedCoupon?.finalAmount ?? baseAmount;
 
     React.useEffect(() => {
@@ -164,7 +165,7 @@ const Checkout: React.FC = () => {
         }
     };
 
-    const currency = (value: number) => `₹${value.toLocaleString('en-IN')}`;
+    const currency = formatRupees;
 
     return (
         <div className="min-h-[100dvh] bg-[#f8f9f6]">
@@ -190,7 +191,7 @@ const Checkout: React.FC = () => {
                                         return !ownedCourses.has(key);
                                     }).map(([key, course]: [string, any]) => <button key={key} type="button" onClick={() => { setSelectedCourse(key); setIsDropdownOpen(false); }} className="flex w-full items-center justify-between rounded-xl px-4 py-3 text-left hover:bg-emerald-50">
                                         <span className="text-sm font-medium text-gray-900">{course.title}</span>
-                                        <span className="text-sm text-gray-500">{currency(course.salePrice || course.price)}</span>
+                                        <span className="text-sm text-gray-500">{currency(getEffectiveCoursePrice(course.price, course.salePrice))}</span>
                                     </button>)}
                                 </div>
                             </>}
@@ -214,7 +215,7 @@ const Checkout: React.FC = () => {
                     <section className="h-fit rounded-2xl border border-black/[0.06] bg-white p-5 shadow-lg shadow-black/[0.04] sm:p-8">
                         <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0"><h2 className="max-w-[240px] text-xl font-bold leading-tight text-gray-900">{currentCourse?.title || 'Course title'}</h2><p className="mt-1.5 text-[13px] text-gray-400">One-time payment · Lifetime access</p></div>
-                            <div className="shrink-0 text-right"><div className="text-2xl font-bold text-gray-900">{currentCourse ? currency(payableAmount) : '—'}</div>{currentCourse && <div className="mt-0.5 text-sm text-gray-400 line-through">{currency(baseAmount)}</div>}</div>
+                            <div className="shrink-0 text-right"><div className="text-2xl font-bold text-gray-900">{currentCourse ? currency(payableAmount) : '—'}</div>{currentCourse && (appliedCoupon || baseAmount < currentCourse.price) && <div className="mt-0.5 text-sm text-gray-400 line-through">{currency(appliedCoupon ? baseAmount : currentCourse.price)}</div>}</div>
                         </div>
 
                         <div className="my-6 h-px bg-black/[0.05]" />

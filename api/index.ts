@@ -12,6 +12,7 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { createHmac, randomInt, timingSafeEqual } from "crypto";
+import { calculateCouponPrice, normalizeSalePrice, resolveCourseQuote } from "../src/utils/coursePricing.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -845,7 +846,7 @@ const getCourseQuote = async (courseId: string, user: any) => {
         cyber: { title: '90 Days Cyber Security', price: 8000, salePrice: 5000 },
         datascience: { title: 'Data Science Specialization', price: 12000, salePrice: 8000 },
         ai: { title: 'AI & Machine Learning', price: 5000, salePrice: 2000 },
-        cloudcomputing: { title: 'Cloud Computing', price: 11500, salePrice: null },
+        cloudcomputing: { title: 'Cloud Computing', price: 12000, salePrice: null },
     };
     let course: typeof courses.$inferSelect | undefined;
     try {
@@ -854,9 +855,7 @@ const getCourseQuote = async (courseId: string, user: any) => {
         // Older installations use the bundled catalogue and may not have the dynamic courses table yet.
         console.warn('[checkout] Dynamic course catalogue unavailable; using bundled prices:', error);
     }
-    if (course && !course.isPublished) return null;
     const fallback = fallbackCatalog[courseId];
-    if (!course && !fallback) return null;
     let isOfferActive = true;
     try {
         const [offerSetting] = await db.select().from(systemSettings).where(eq(systemSettings.key, 'bundle_offer_active'));
@@ -864,14 +863,7 @@ const getCourseQuote = async (courseId: string, user: any) => {
     } catch {
         // The bundled catalogue keeps its default offer when settings have not been migrated yet.
     }
-    const catalogPrice = course
-        ? (course.salePrice ?? course.price)
-        : (fallback!.salePrice ?? fallback!.price);
-    const amount = courseId === 'fullstack' && isOfferActive
-        ? 10000
-        : catalogPrice;
-    if (!Number.isInteger(amount) || amount < 1) return null;
-    return { courseId, title: course?.title || fallback!.title, amount };
+    return resolveCourseQuote(courseId, course, fallback, isOfferActive);
 };
 
 const getAvailableCoupon = async (code: string) => {
@@ -905,13 +897,13 @@ app.post('/api/coupons/preview', requireSessionUser, async (req: any, res) => {
         if (!quote) return res.status(400).json({ error: 'This course is not available for purchase' });
         const coupon = await getAvailableCoupon(couponCode);
         if (!coupon) return res.status(400).json({ error: 'Coupon is invalid, already used, revoked, or in another checkout' });
-        const discountAmount = Math.min(coupon.amountOff, Math.max(0, quote.amount - 1));
+        const { discountAmount, finalAmount } = calculateCouponPrice(quote.amount, coupon.amountOff);
         res.json({
             code: coupon.code,
             baseAmount: quote.amount,
             amountOff: coupon.amountOff,
             discountAmount,
-            finalAmount: quote.amount - discountAmount,
+            finalAmount,
             discountCapped: discountAmount < coupon.amountOff,
         });
     } catch (error) {
@@ -956,7 +948,7 @@ app.post('/api/payments/create-order', requireSessionUser, async (req: any, res)
             if (!reserved) return res.status(409).json({ error: 'This coupon is currently being used in another checkout' });
             couponId = coupon.id;
             couponReserved = true;
-            discountAmount = Math.min(coupon.amountOff, Math.max(0, quote.amount - 1));
+            discountAmount = calculateCouponPrice(quote.amount, coupon.amountOff).discountAmount;
         }
 
         const amount = quote.amount - discountAmount;
@@ -2006,10 +1998,16 @@ app.post("/api/admin/courses", requireAdmin, async (req, res) => {
     try {
         const { slug, title, subtitle, description, landingDescription, price, salePrice, features, badge, icon, color, sortOrder, isPublished } = req.body;
         if (!slug || !title) return res.status(400).json({ error: "Slug and title required" });
+        let normalizedSalePrice: number | null;
+        try {
+            normalizedSalePrice = normalizeSalePrice(price, salePrice);
+        } catch (error) {
+            return res.status(400).json({ error: error instanceof Error ? error.message : 'Invalid course pricing' });
+        }
 
         const [course] = await db.insert(courses).values({
             slug, title, subtitle, description, landingDescription,
-            price: price || 0, salePrice, features: features || [],
+            price: Number(price), salePrice: normalizedSalePrice, features: features || [],
             badge, icon, color, sortOrder: sortOrder || 0, isPublished: isPublished || false
         }).returning();
 
@@ -2025,9 +2023,15 @@ app.post("/api/admin/courses", requireAdmin, async (req, res) => {
 app.put("/api/admin/courses/:id", requireAdmin, async (req, res) => {
     try {
         const { slug, title, subtitle, description, landingDescription, price, salePrice, features, badge, icon, color, sortOrder, isPublished } = req.body;
+        let normalizedSalePrice: number | null;
+        try {
+            normalizedSalePrice = normalizeSalePrice(price, salePrice);
+        } catch (error) {
+            return res.status(400).json({ error: error instanceof Error ? error.message : 'Invalid course pricing' });
+        }
         const [course] = await db.update(courses).set({
             slug, title, subtitle, description, landingDescription,
-            price, salePrice, features, badge, icon, color, sortOrder, isPublished,
+            price: Number(price), salePrice: normalizedSalePrice, features, badge, icon, color, sortOrder, isPublished,
             updatedAt: new Date()
         }).where(eq(courses.id, req.params.id)).returning();
 
@@ -2491,7 +2495,7 @@ async function seedCloudComputingCourse() {
             subtitle: 'NPTEL Cloud Computing',
             description: 'Master cloud computing from fundamentals to platform deployment — covering architecture, virtualization, XML & web services, MapReduce, OpenStack, Azure, and GCP.',
             landingDescription: 'From cloud fundamentals to Azure & GCP deployment.',
-            price: 11500, salePrice: null,
+            price: 12000, salePrice: null,
             features: ['25+ Video Lessons', 'Cloud Architecture & Deployment', 'Azure & GCP Hands-On', 'OpenStack & MapReduce', 'Certificate of Completion', 'Discord Community Access'],
             icon: 'Cloud', color: 'sky', sortOrder: 4, isPublished: true
         }, tx);

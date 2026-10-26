@@ -151,7 +151,7 @@ const STATIC_COURSES: CourseWithModules[] = [
         subtitle: 'NPTEL Cloud Computing',
         description: 'Master cloud computing from fundamentals to platform deployment — covering architecture, virtualization, XML & web services, MapReduce, OpenStack, Azure, and GCP.',
         landingDescription: 'From cloud fundamentals to Azure & GCP deployment.',
-        price: 11500, salePrice: null,
+        price: 12000, salePrice: null,
         features: ['25+ Video Lessons', 'Cloud Architecture & Deployment', 'Azure & GCP Hands-On', 'OpenStack & MapReduce', 'Certificate of Completion', 'Discord Community Access'],
         badge: null, icon: 'Cloud', color: 'sky', sortOrder: 4, isPublished: true,
         createdAt: '', updatedAt: '',

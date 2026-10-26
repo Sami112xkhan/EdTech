@@ -12,6 +12,7 @@ import ElasticMesh from '../components/ElasticMesh';
 import GradualBlur from '../components/GradualBlur';
 import SylvaBackground from '../components/SylvaBackground';
 import Noise from '../components/Noise';
+import { formatRupees, getEffectiveCoursePrice } from '../utils/coursePricing';
 
 const Reveal: React.FC<{ children: React.ReactNode; className?: string; delay?: number }> = ({ children, className = '', delay = 0 }) => {
     const ref = useRef<HTMLDivElement>(null);
@@ -340,8 +341,12 @@ const Landing: React.FC = () => {
                             { id: '1', slug: 'fullstack', title: 'Full Stack + AI', subtitle: 'Web Development', description: 'Master frontend, backend, databases, and deploy real applications. Includes the complete AI & Machine Learning course.', features: ['Frontend & Backend Deep Dive', 'AI & ML Included', '5+ Real Projects', 'Lifetime Access'], price: 15000, salePrice: 10000, sortOrder: 0 },
                             { id: '2', slug: 'cyber', title: 'Cyber Security', subtitle: '90 Day Program', description: 'Ethical hacking, penetration testing, network security, and defensive strategies used by industry professionals.', features: ['Ethical Hacking Workshops', 'Linux & Networking', 'Penetration Testing Labs', 'Certificate'], price: 8000, salePrice: 5000, sortOrder: 1 },
                             { id: '3', slug: 'datascience', title: 'Data Science', subtitle: 'Analytics & ML', description: 'Python, statistics, data visualization, machine learning, and real-world data projects from scratch.', features: ['ML & Math Foundation', 'Python & Data Wrangling', 'Advanced Visualization', 'Certificate'], price: 12000, salePrice: 8000, sortOrder: 2 },
-                            { id: '4', slug: 'cloudcomputing', title: 'Cloud Computing', subtitle: 'NPTEL Cloud Computing', description: 'Master cloud computing from fundamentals to platform deployment — covering architecture, virtualization, XML & web services, MapReduce, OpenStack, Azure, and GCP.', features: ['25+ Video Lessons', 'Cloud Architecture & Deployment', 'Azure & GCP Hands-On', 'OpenStack & MapReduce', 'Certificate of Completion'], price: 11500, salePrice: null, sortOrder: 3 },
-                        ] as CourseData[]).sort((a, b) => a.sortOrder - b.sortOrder).map((course, i) => (
+                            { id: '4', slug: 'cloudcomputing', title: 'Cloud Computing', subtitle: 'NPTEL Cloud Computing', description: 'Master cloud computing from fundamentals to platform deployment — covering architecture, virtualization, XML & web services, MapReduce, OpenStack, Azure, and GCP.', features: ['25+ Video Lessons', 'Cloud Architecture & Deployment', 'Azure & GCP Hands-On', 'OpenStack & MapReduce', 'Certificate of Completion'], price: 12000, salePrice: null, sortOrder: 3 },
+                        ] as CourseData[]).sort((a, b) => a.sortOrder - b.sortOrder).map((course, i) => {
+                            const currentPrice = isOfferActive && course.slug === 'fullstack'
+                                ? 10000
+                                : getEffectiveCoursePrice(course.price, course.salePrice);
+                            return (
                             <Reveal key={course.id || i} delay={i * 0.08}>
                                 <div className="numbered-row py-10 border-t border-black/[0.06] group cursor-default px-3 -mx-3">
                                     <div className="flex items-start gap-6 md:gap-10">
@@ -353,9 +358,9 @@ const Landing: React.FC = () => {
                                                     <p className="text-[13px] text-gray-400 mt-0.5">{course.subtitle || ''}</p>
                                                 </div>
                                                 <div className="flex items-baseline gap-2">
-                                                    <span className="text-[24px] font-bold text-gray-900">Rs.{(course.salePrice || course.price).toLocaleString()}</span>
-                                                    {course.salePrice && course.salePrice !== course.price && (
-                                                        <span className="text-[14px] text-gray-300 line-through">Rs.{course.price.toLocaleString()}</span>
+                                                    <span className="text-[24px] font-bold text-gray-900">{formatRupees(currentPrice)}</span>
+                                                    {currentPrice < course.price && (
+                                                        <span className="text-[14px] text-gray-300 line-through">{formatRupees(course.price)}</span>
                                                     )}
                                                 </div>
                                             </div>
@@ -377,7 +382,8 @@ const Landing: React.FC = () => {
                                     </div>
                                 </div>
                             </Reveal>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             </section>

@@ -3,9 +3,22 @@ import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { motion } from "motion/react";
 import { useOffer } from "../context/OfferContext";
+import { useCourses } from "../hooks/useCourses";
+import { formatRupees, getEffectiveCoursePrice } from "../utils/coursePricing";
 
 const Hero: React.FC = () => {
     const { isOfferActive } = useOffer();
+    const { courses } = useCourses();
+    const coursesBySlug = new Map(courses.map((course) => [course.slug, course]));
+    const getDisplayedPrice = (slug: string, fallbackPrice: number) => {
+        const course = coursesBySlug.get(slug);
+        if (!course) return fallbackPrice;
+        if (slug === 'fullstack' && isOfferActive) return 10000;
+        return getEffectiveCoursePrice(course.price, course.salePrice);
+    };
+    const fullStackPrice = getDisplayedPrice('fullstack', isOfferActive ? 10000 : 8000);
+    const fullStackListPrice = coursesBySlug.get('fullstack')?.price ?? 15000;
+    const offerSavings = Math.max(0, fullStackListPrice - fullStackPrice);
 
     return (
         <section className="relative min-h-screen flex items-center justify-center pt-16 pb-20 overflow-hidden">
@@ -69,14 +82,14 @@ const Hero: React.FC = () => {
                     <div className="relative">
                         {isOfferActive && (
                             <span className="absolute -top-7 left-1/2 -translate-x-1/2 text-sm text-[#ff6b35] font-medium whitespace-nowrap">
-                                Limited Offer -- Save Rs.5,000
+                                Limited Offer -- Save {formatRupees(offerSavings)}
                             </span>
                         )}
                         <Link
                             to="/checkout?course=fullstack"
                             className="inline-flex items-center gap-2.5 px-8 py-4 rounded-full bg-[#2997ff] text-white text-[19px] font-medium leading-none hover:bg-[#0071e3] active:scale-[0.98] transition-all"
                         >
-                            Full Stack + AI Bundle -- Rs.10,000
+                            Full Stack + AI Bundle -- {formatRupees(fullStackPrice)}
                             <ArrowRight className="w-5 h-5" />
                         </Link>
                     </div>
@@ -86,19 +99,19 @@ const Hero: React.FC = () => {
                             to="/checkout?course=datascience"
                             className="px-6 py-3 rounded-full border border-[#2997ff]/40 text-[#2997ff] text-[17px] font-normal leading-none hover:bg-[#2997ff]/10 active:scale-[0.98] transition-all"
                         >
-                            Data Science -- Rs.8,000
+                            Data Science -- {formatRupees(getDisplayedPrice('datascience', 8000))}
                         </Link>
                         <Link
                             to="/checkout?course=cyber"
                             className="px-6 py-3 rounded-full border border-[#2997ff]/40 text-[#2997ff] text-[17px] font-normal leading-none hover:bg-[#2997ff]/10 active:scale-[0.98] transition-all"
                         >
-                            Cyber Security -- Rs.5,000
+                            Cyber Security -- {formatRupees(getDisplayedPrice('cyber', 5000))}
                         </Link>
                         <Link
                             to="/checkout?course=cloudcomputing"
                             className="px-6 py-3 rounded-full border border-[#2997ff]/40 text-[#2997ff] text-[17px] font-normal leading-none hover:bg-[#2997ff]/10 active:scale-[0.98] transition-all"
                         >
-                            Cloud Computing -- Rs.11,500
+                            Cloud Computing -- {formatRupees(getDisplayedPrice('cloudcomputing', 12000))}
                         </Link>
                     </div>
 

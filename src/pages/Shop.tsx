@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useOffer } from '../context/OfferContext';
 import { useCourses } from '../hooks/useCourses';
 import { useTheme } from '../context/ThemeContext';
+import { formatRupees, getEffectiveCoursePrice } from '../utils/coursePricing';
 
 const courseIcons: Record<string, React.ElementType> = {
     BookOpen,
@@ -84,7 +85,7 @@ const Shop: React.FC = () => {
                         const accent = courseAccents[course.color || ''] || courseAccents.blue;
                         const isBundle = course.slug === 'fullstack';
                         const originalPrice = course.price || 0;
-                        const price = isOfferActive && isBundle ? 10000 : (course.salePrice || originalPrice);
+                        const price = isOfferActive && isBundle ? 10000 : getEffectiveCoursePrice(course.price, course.salePrice);
                         const features = course.features?.slice(0, 4) || [];
 
                         return (
@@ -124,8 +125,8 @@ const Shop: React.FC = () => {
 
                                     <div className={`mt-auto flex items-end justify-between border-t pt-5 ${isRich ? 'border-black/[0.06]' : 'border-white/10'}`}>
                                         <div>
-                                            {originalPrice > price && <p className={`text-xs line-through ${isRich ? 'text-gray-400' : 'text-white/35'}`}>₹{originalPrice.toLocaleString()}</p>}
-                                            <p className={`text-2xl font-black ${isRich ? 'text-gray-900' : 'text-white'}`}>₹{price.toLocaleString()}</p>
+                                            {originalPrice > price && <p className={`text-xs line-through ${isRich ? 'text-gray-400' : 'text-white/35'}`}>{formatRupees(originalPrice)}</p>}
+                                            <p className={`text-2xl font-black ${isRich ? 'text-gray-900' : 'text-white'}`}>{formatRupees(price)}</p>
                                             <p className={`text-[10px] ${isRich ? 'text-gray-400' : 'text-white/35'}`}>One-time · Lifetime access</p>
                                         </div>
                                         <Link

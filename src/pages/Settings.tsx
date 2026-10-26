@@ -13,6 +13,7 @@ import {
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
 import { useCourses } from '../hooks/useCourses';
+import { formatRupees, getEffectiveCoursePrice } from '../utils/coursePricing';
 
 // ─── Toggle Switch ───
 const Toggle: React.FC<{
@@ -173,7 +174,7 @@ const Settings: React.FC = () => {
     const { courses: dbCourses } = useCourses();
     const totalPaid = (user?.purchasedCourses || []).reduce((sum, slug) => {
         const course = dbCourses.find(c => c.slug === slug);
-        return sum + (course?.salePrice || course?.price || 0);
+        return sum + (course ? getEffectiveCoursePrice(course.price, course.salePrice) : 0);
     }, 0);
 
     // Appearance (Global Theme Context)
@@ -541,7 +542,7 @@ const Settings: React.FC = () => {
                                             </div>
                                             {(user?.purchasedCourses || []).map(slug => {
                                                 const course = dbCourses.find(c => c.slug === slug);
-                                                const price = course?.salePrice || course?.price || 0;
+                                                const price = course ? getEffectiveCoursePrice(course.price, course.salePrice) : 0;
                                                 return (
                                                     <div key={slug} className={`flex items-center justify-between py-3 px-4 rounded-xl ${isRich ? 'bg-gray-50' : 'bg-white/[0.03]'}`}>
                                                         <div className="flex items-center gap-3">
@@ -554,7 +555,7 @@ const Settings: React.FC = () => {
                                                             </div>
                                                         </div>
                                                         <span className={`text-sm font-bold ${isRich ? 'text-gray-700' : 'text-white/70'}`}>
-                                                            \u20B9{price.toLocaleString()}
+                                                            {formatRupees(price)}
                                                         </span>
                                                     </div>
                                                 );

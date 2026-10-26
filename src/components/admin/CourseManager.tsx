@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTheme } from '../../context/ThemeContext';
+import { formatRupees, getEffectiveCoursePrice, normalizeSalePrice } from '../../utils/coursePricing';
 
 // Theme helper
 function _t(isRich: boolean) {
@@ -262,7 +263,7 @@ function CourseEditor({ course, onSave, onCancel, isRich }: CourseEditorProps & 
         description: course?.description || '',
         landingDescription: course?.landingDescription || '',
         price: course?.price || 0,
-        salePrice: course?.salePrice || 0,
+        salePrice: course?.salePrice && course.salePrice > 0 ? course.salePrice : '',
         badge: course?.badge || '',
         icon: course?.icon || 'BookOpen',
         color: course?.color || 'emerald',
@@ -275,9 +276,16 @@ function CourseEditor({ course, onSave, onCancel, isRich }: CourseEditorProps & 
 
     const handleSubmit = async () => {
         if (!form.slug || !form.title) { toast.error('Slug and title required'); return; }
+        let salePrice: number | null;
+        try {
+            salePrice = normalizeSalePrice(form.price, form.salePrice);
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Invalid course pricing');
+            return;
+        }
         setSaving(true);
         try {
-            const payload = { ...form, features };
+            const payload = { ...form, salePrice, features };
             if (course) {
                 await adminFetch(`/api/admin/courses/${course.id}`, 'PUT', payload);
                 toast.success('Course updated');
@@ -346,8 +354,9 @@ function CourseEditor({ course, onSave, onCancel, isRich }: CourseEditorProps & 
                 </div>
                 <div>
                     <label className={`text-[10px] font-black uppercase tracking-widest mb-1 block ${c.textLabel}`}>Sale Price (₹)</label>
-                    <input type="number" value={form.salePrice} onChange={e => setForm({ ...form, salePrice: Number(e.target.value) })}
+                    <input type="number" min="0" max={Math.max(0, form.price - 1)} value={form.salePrice} onChange={e => setForm({ ...form, salePrice: e.target.value === '' ? '' : Number(e.target.value) })}
                         className={`w-full px-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300/40 ${c.inputNoMono}`} />
+                    <p className={`mt-1 text-[10px] ${c.textMuted}`}>Leave blank to charge the regular price.</p>
                 </div>
                 <div>
                     <label className={`text-[10px] font-black uppercase tracking-widest mb-1 block ${c.textLabel}`}>Icon</label>
@@ -631,9 +640,9 @@ export default function CourseManager() {
                             <p className={`text-sm mt-1 ${c.textMuted}`}>{selectedCourse.subtitle}</p>
                         </div>
                         <div className="text-right">
-                            <div className={`text-2xl font-black ${c.priceText}`}>₹{selectedCourse.salePrice || selectedCourse.price}</div>
-                            {selectedCourse.salePrice && selectedCourse.salePrice !== selectedCourse.price && (
-                                <div className={`text-sm ${c.priceSub}`}>₹{selectedCourse.price}</div>
+                            <div className={`text-2xl font-black ${c.priceText}`}>{formatRupees(getEffectiveCoursePrice(selectedCourse.price, selectedCourse.salePrice))}</div>
+                            {getEffectiveCoursePrice(selectedCourse.price, selectedCourse.salePrice) < selectedCourse.price && (
+                                <div className={`text-sm ${c.priceSub}`}>{formatRupees(selectedCourse.price)}</div>
                             )}
                         </div>
                     </div>
@@ -734,9 +743,9 @@ export default function CourseManager() {
                         </div>
                         <div className="flex items-center justify-between">
                             <div className={`text-lg font-black ${c.priceText}`}>
-                                ₹{(course.salePrice || course.price).toLocaleString()}
-                                {course.salePrice && course.salePrice !== course.price && (
-                                    <span className={`text-xs ml-2 ${c.priceSub}`}>₹{course.price.toLocaleString()}</span>
+                                {formatRupees(getEffectiveCoursePrice(course.price, course.salePrice))}
+                                {getEffectiveCoursePrice(course.price, course.salePrice) < course.price && (
+                                    <span className={`text-xs ml-2 ${c.priceSub}`}>{formatRupees(course.price)}</span>
                                 )}
                             </div>
                             <ChevronRight className={`w-4 h-4 ${c.textMuted} group-hover:text-emerald-500 group-hover:translate-x-1 transition-all`} />
