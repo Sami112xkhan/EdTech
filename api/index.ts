@@ -270,7 +270,7 @@ app.post("/api/auth/google", authLimiter, async (req, res) => {
 
         const { sub: googleId, email, name, picture, email_verified: emailVerified } = payload;
         if (!email || !emailVerified) return res.status(403).json({ error: 'A verified Google email is required' });
-        const passwordAdminEmail = (process.env.ADMIN_EMAIL || 'admin@devmastery.com').trim().toLowerCase();
+        const passwordAdminEmail = (process.env.ADMIN_EMAIL || 'admin-login@devmastery.internal').trim().toLowerCase();
         if (email.toLowerCase() === passwordAdminEmail) {
             return res.status(403).json({ error: 'Use the administrator username and password to sign in.' });
         }
@@ -433,7 +433,7 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
 
     try {
         const adminUsername = (process.env.ADMIN_USERNAME || 'admin').trim();
-        const adminEmail = (process.env.ADMIN_EMAIL || 'admin@devmastery.com').trim().toLowerCase();
+        const adminEmail = (process.env.ADMIN_EMAIL || 'admin-login@devmastery.internal').trim().toLowerCase();
         const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
         const isConfiguredAdminLogin = Boolean(
             adminPasswordHash && identifier.toLowerCase() === adminUsername.toLowerCase()
@@ -450,24 +450,31 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
             const adminResult = await db.transaction(async (tx) => {
                 await tx.execute(sql`SELECT pg_advisory_xact_lock(73638198730212::bigint)`);
 
-                const [existingAdmin] = await tx.select().from(users).where(sql`lower(${users.email}) = ${adminEmail}`).limit(1);
-                if (existingAdmin && (
-                    (existingAdmin.googleId && existingAdmin.googleId !== 'hardcoded-admin') ||
-                    existingAdmin.password
-                )) {
+                const [emailAdmin] = await tx.select().from(users).where(sql`lower(${users.email}) = ${adminEmail}`).limit(1);
+                const [legacyAdmin] = await tx.select().from(users).where(eq(users.googleId, 'hardcoded-admin')).limit(1);
+                if (emailAdmin && ((emailAdmin.googleId && emailAdmin.googleId !== 'hardcoded-admin') || emailAdmin.password)) {
                     return { conflict: true as const };
                 }
+                if (emailAdmin && legacyAdmin && emailAdmin.id !== legacyAdmin.id) return { conflict: true as const };
 
-                const usernameCollision = await tx.select().from(users)
+                let existingAdmin = emailAdmin || legacyAdmin;
+
+                const [usernameOwner] = await tx.select().from(users)
                     .where(sql`lower(${users.username}) = ${adminUsername.toLowerCase()} AND lower(${users.email}) <> ${adminEmail}`)
                     .limit(1);
-                if (usernameCollision.length) return { conflict: true as const };
-
-                const [legacyAdminIdentity] = await tx.select().from(users).where(eq(users.googleId, 'hardcoded-admin')).limit(1);
-                if (legacyAdminIdentity && legacyAdminIdentity.id !== existingAdmin?.id) return { conflict: true as const };
+                if (usernameOwner && usernameOwner.id !== existingAdmin?.id) {
+                    const isLegacyAdmin = usernameOwner.role === 'admin' && !usernameOwner.password &&
+                        (!usernameOwner.googleId || usernameOwner.googleId === 'hardcoded-admin');
+                    if (!isLegacyAdmin || (existingAdmin && usernameOwner.id !== existingAdmin.id)) return { conflict: true as const };
+                    existingAdmin = usernameOwner;
+                }
 
                 if (existingAdmin) {
+                    if ((existingAdmin.googleId && existingAdmin.googleId !== 'hardcoded-admin') || existingAdmin.password) {
+                        return { conflict: true as const };
+                    }
                     const [updatedAdmin] = await tx.update(users).set({
+                        email: adminEmail,
                         username: adminUsername,
                         name: existingAdmin.name || 'Administrator',
                         role: 'admin',
