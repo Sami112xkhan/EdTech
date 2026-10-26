@@ -20,104 +20,144 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const app = express();
 
-// Vercel does not run Drizzle migrations automatically. Apply this additive,
-// idempotent schema update before serving API calls so old databases keep
-// working after deployment and coupon/payment tables exist when requested.
+// Vercel can start several function instances at once. Serialize the one-time
+// additive schema update so simultaneous cold starts do not race DDL on Postgres.
+async function applyApplicationSchema() {
+    await db.transaction(async (tx) => {
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(73638198730211::bigint)`);
+        const result = await tx.execute(sql`
+            SELECT
+                EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'trial_course_id'
+                ) AS has_trial_course_id,
+                to_regclass('public.courses') IS NOT NULL AS has_courses,
+                to_regclass('public.modules') IS NOT NULL AS has_modules,
+                to_regclass('public.lessons') IS NOT NULL AS has_lessons,
+                to_regclass('public.activity_logs') IS NOT NULL AS has_activity_logs,
+                to_regclass('public.discount_coupons') IS NOT NULL AS has_discount_coupons,
+                to_regclass('public.payment_orders') IS NOT NULL AS has_payment_orders,
+                to_regclass('public.discount_coupons_status_idx') IS NOT NULL AS has_coupon_index
+        `);
+        const schemaState = result.rows[0] as Record<string, boolean>;
+        if (Object.values(schemaState).every(Boolean)) return;
+
+        await tx.execute(sql`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS trial_course_id text`);
+        await tx.execute(sql`
+            CREATE TABLE IF NOT EXISTS public.courses (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                slug text NOT NULL UNIQUE,
+                title text NOT NULL,
+                subtitle text,
+                description text,
+                landing_description text,
+                price integer NOT NULL,
+                sale_price integer,
+                features text[] NOT NULL DEFAULT '{}',
+                badge text,
+                icon text,
+                color text,
+                sort_order integer NOT NULL DEFAULT 0,
+                is_published boolean NOT NULL DEFAULT false,
+                created_at timestamp NOT NULL DEFAULT now(),
+                updated_at timestamp NOT NULL DEFAULT now()
+            )
+        `);
+        await tx.execute(sql`
+            CREATE TABLE IF NOT EXISTS public.modules (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                course_id uuid NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
+                slug text NOT NULL,
+                title text NOT NULL,
+                description text,
+                sort_order integer NOT NULL DEFAULT 0,
+                created_at timestamp NOT NULL DEFAULT now(),
+                updated_at timestamp NOT NULL DEFAULT now()
+            )
+        `);
+        await tx.execute(sql`
+            CREATE TABLE IF NOT EXISTS public.lessons (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                module_id uuid NOT NULL REFERENCES public.modules(id) ON DELETE CASCADE,
+                slug text NOT NULL,
+                title text NOT NULL,
+                duration text,
+                youtube_id text,
+                notes_path text,
+                free boolean NOT NULL DEFAULT false,
+                sort_order integer NOT NULL DEFAULT 0,
+                created_at timestamp NOT NULL DEFAULT now(),
+                updated_at timestamp NOT NULL DEFAULT now()
+            )
+        `);
+        await tx.execute(sql`
+            CREATE TABLE IF NOT EXISTS public.activity_logs (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id uuid NOT NULL REFERENCES public.users(id),
+                type text NOT NULL,
+                description text,
+                path text,
+                metadata text,
+                created_at timestamp NOT NULL DEFAULT now()
+            )
+        `);
+        await tx.execute(sql`
+            CREATE TABLE IF NOT EXISTS public.discount_coupons (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                code text NOT NULL,
+                amount_off integer NOT NULL,
+                is_used boolean NOT NULL DEFAULT false,
+                is_revoked boolean NOT NULL DEFAULT false,
+                used_by text,
+                used_at timestamp,
+                reserved_by uuid,
+                reserved_at timestamp,
+                reserved_order_id text,
+                created_at timestamp NOT NULL DEFAULT now(),
+                CONSTRAINT discount_coupons_code_unique UNIQUE (code)
+            )
+        `);
+        await tx.execute(sql`
+            CREATE TABLE IF NOT EXISTS public.payment_orders (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                razorpay_order_id text NOT NULL,
+                razorpay_payment_id text,
+                user_id uuid NOT NULL REFERENCES public.users(id),
+                course_id text NOT NULL,
+                base_amount integer NOT NULL,
+                discount_amount integer NOT NULL DEFAULT 0,
+                amount integer NOT NULL,
+                coupon_id uuid REFERENCES public.discount_coupons(id),
+                status text NOT NULL DEFAULT 'created',
+                created_at timestamp NOT NULL DEFAULT now(),
+                paid_at timestamp,
+                CONSTRAINT payment_orders_razorpay_order_id_unique UNIQUE (razorpay_order_id),
+                CONSTRAINT payment_orders_razorpay_payment_id_unique UNIQUE (razorpay_payment_id)
+            )
+        `);
+        await tx.execute(sql`CREATE INDEX IF NOT EXISTS discount_coupons_status_idx ON public.discount_coupons (is_used, is_revoked, reserved_at)`);
+    });
+}
+
+function isTransientDatabaseConnectionError(error: unknown) {
+    let current = error as any;
+    while (current?.cause && current.cause !== current) current = current.cause;
+    return (
+        typeof current?.code === 'string' && (current.code.startsWith('08') || ['ECONNRESET', 'EPIPE', 'ETIMEDOUT', '57P01', '57P02', '57P03'].includes(current.code))
+    ) || /connection terminated unexpectedly|connection terminated/i.test(String(current?.message || error));
+}
+
 const applicationSchemaReady = (async () => {
-    await db.execute(sql`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS trial_course_id text`);
-    await db.execute(sql`
-        CREATE TABLE IF NOT EXISTS public.courses (
-            id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-            slug text NOT NULL UNIQUE,
-            title text NOT NULL,
-            subtitle text,
-            description text,
-            landing_description text,
-            price integer NOT NULL,
-            sale_price integer,
-            features text[] NOT NULL DEFAULT '{}',
-            badge text,
-            icon text,
-            color text,
-            sort_order integer NOT NULL DEFAULT 0,
-            is_published boolean NOT NULL DEFAULT false,
-            created_at timestamp NOT NULL DEFAULT now(),
-            updated_at timestamp NOT NULL DEFAULT now()
-        )
-    `);
-    await db.execute(sql`
-        CREATE TABLE IF NOT EXISTS public.modules (
-            id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-            course_id uuid NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
-            slug text NOT NULL,
-            title text NOT NULL,
-            description text,
-            sort_order integer NOT NULL DEFAULT 0,
-            created_at timestamp NOT NULL DEFAULT now(),
-            updated_at timestamp NOT NULL DEFAULT now()
-        )
-    `);
-    await db.execute(sql`
-        CREATE TABLE IF NOT EXISTS public.lessons (
-            id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-            module_id uuid NOT NULL REFERENCES public.modules(id) ON DELETE CASCADE,
-            slug text NOT NULL,
-            title text NOT NULL,
-            duration text,
-            youtube_id text,
-            notes_path text,
-            free boolean NOT NULL DEFAULT false,
-            sort_order integer NOT NULL DEFAULT 0,
-            created_at timestamp NOT NULL DEFAULT now(),
-            updated_at timestamp NOT NULL DEFAULT now()
-        )
-    `);
-    await db.execute(sql`
-        CREATE TABLE IF NOT EXISTS public.activity_logs (
-            id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-            user_id uuid NOT NULL REFERENCES public.users(id),
-            type text NOT NULL,
-            description text,
-            path text,
-            metadata text,
-            created_at timestamp NOT NULL DEFAULT now()
-        )
-    `);
-    await db.execute(sql`
-        CREATE TABLE IF NOT EXISTS public.discount_coupons (
-            id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-            code text NOT NULL,
-            amount_off integer NOT NULL,
-            is_used boolean NOT NULL DEFAULT false,
-            is_revoked boolean NOT NULL DEFAULT false,
-            used_by text,
-            used_at timestamp,
-            reserved_by uuid,
-            reserved_at timestamp,
-            reserved_order_id text,
-            created_at timestamp NOT NULL DEFAULT now(),
-            CONSTRAINT discount_coupons_code_unique UNIQUE (code)
-        )
-    `);
-    await db.execute(sql`
-        CREATE TABLE IF NOT EXISTS public.payment_orders (
-            id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-            razorpay_order_id text NOT NULL,
-            razorpay_payment_id text,
-            user_id uuid NOT NULL REFERENCES public.users(id),
-            course_id text NOT NULL,
-            base_amount integer NOT NULL,
-            discount_amount integer NOT NULL DEFAULT 0,
-            amount integer NOT NULL,
-            coupon_id uuid REFERENCES public.discount_coupons(id),
-            status text NOT NULL DEFAULT 'created',
-            created_at timestamp NOT NULL DEFAULT now(),
-            paid_at timestamp,
-            CONSTRAINT payment_orders_razorpay_order_id_unique UNIQUE (razorpay_order_id),
-            CONSTRAINT payment_orders_razorpay_payment_id_unique UNIQUE (razorpay_payment_id)
-        )
-    `);
-    await db.execute(sql`CREATE INDEX IF NOT EXISTS discount_coupons_status_idx ON public.discount_coupons (is_used, is_revoked, reserved_at)`);
+    const maxAttempts = 3;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+            await applyApplicationSchema();
+            return;
+        } catch (error) {
+            if (attempt === maxAttempts - 1 || !isTransientDatabaseConnectionError(error)) throw error;
+            await new Promise((resolve) => setTimeout(resolve, 200 * (2 ** attempt)));
+        }
+    }
 })();
 
 app.use(async (_req, res, next) => {

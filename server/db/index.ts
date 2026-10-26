@@ -11,7 +11,11 @@ if (!process.env.DATABASE_URL) {
 
 const pool = new pg.Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : undefined
+    ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : undefined,
+    // Limit connections per serverless instance to avoid multiplying the
+    // default pool size across Vercel's concurrent function instances.
+    max: process.env.VERCEL ? 1 : 10,
+    connectionTimeoutMillis: 10000,
 });
 
 export const db = drizzle(pool, { schema });
