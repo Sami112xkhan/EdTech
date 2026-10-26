@@ -22,10 +22,8 @@ const app = express();
 
 // Vercel can start several function instances at once. Serialize the one-time
 // additive schema update so simultaneous cold starts do not race DDL on Postgres.
-async function applyApplicationSchema() {
-    await db.transaction(async (tx) => {
-        await tx.execute(sql`SELECT pg_advisory_xact_lock(73638198730211::bigint)`);
-        const result = await tx.execute(sql`
+async function isApplicationSchemaComplete(executor: any) {
+    const result = await executor.execute(sql`
             SELECT
                 EXISTS (
                     SELECT 1 FROM information_schema.columns
@@ -39,8 +37,18 @@ async function applyApplicationSchema() {
                 to_regclass('public.payment_orders') IS NOT NULL AS has_payment_orders,
                 to_regclass('public.discount_coupons_status_idx') IS NOT NULL AS has_coupon_index
         `);
-        const schemaState = result.rows[0] as Record<string, boolean>;
-        if (Object.values(schemaState).every(Boolean)) return;
+    return Object.values(result.rows[0] as Record<string, boolean>).every(Boolean);
+}
+
+async function applyApplicationSchema() {
+    // Most serverless cold starts happen after setup has completed. Check first
+    // so warm production schema does not make every instance wait on a global
+    // advisory lock or hold a connection while doing so.
+    if (await isApplicationSchemaComplete(db)) return;
+
+    await db.transaction(async (tx) => {
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(73638198730211::bigint)`);
+        if (await isApplicationSchemaComplete(tx)) return;
 
         await tx.execute(sql`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS trial_course_id text`);
         await tx.execute(sql`
@@ -160,35 +168,6 @@ const applicationSchemaReady = (async () => {
     }
 })();
 
-// Temporary production diagnostic: report only the database host and presence
-// of required public tables, never the connection string or credentials.
-const databaseTargetHost = (() => {
-    try {
-        return new URL(process.env.DATABASE_URL || '').hostname || 'invalid DATABASE_URL';
-    } catch {
-        return 'invalid DATABASE_URL';
-    }
-})();
-void applicationSchemaReady.then(async () => {
-    const result = await db.execute(sql`
-        SELECT current_database() AS database_name,
-            to_regclass('public.users') IS NOT NULL AS has_public_users,
-            to_regclass('public.sessions') IS NOT NULL AS has_public_sessions,
-            to_regclass('public.courses') IS NOT NULL AS has_public_courses,
-            (SELECT count(*)::int FROM public.users) AS public_users_count,
-            (SELECT count(*)::int FROM public.sessions) AS public_sessions_count,
-            (SELECT count(*)::int FROM public.courses) AS public_courses_count,
-            (SELECT count(*)::int FROM public.modules) AS public_modules_count,
-            (SELECT count(*)::int FROM public.lessons) AS public_lessons_count
-    `);
-    console.info('[database target diagnostic]', { host: databaseTargetHost, ...result.rows[0] });
-}).catch((error) => {
-    console.error('[database target diagnostic] schema readiness failed', {
-        host: databaseTargetHost,
-        message: error instanceof Error ? error.message : String(error),
-    });
-});
-
 let courseCatalogReady: Promise<void> = Promise.resolve();
 let courseCatalogSeedError: unknown = null;
 
@@ -211,24 +190,6 @@ app.use(async (req, res, next) => {
         }
     }
 });
-
-// Initialize hardcoded legacy codes into the database so they are tracked
-async function initStaticCodes() {
-    try {
-        await applicationSchemaReady;
-        const [existingCode] = await db.select().from(accessCodes).where(eq(accessCodes.code, 'LIFETIME100'));
-        if (!existingCode) {
-            await db.insert(accessCodes).values({
-                code: 'LIFETIME100',
-                type: 'lifetime'
-            });
-            console.log("Seeded legacy LIFETIME100 code into database for tracking.");
-        }
-    } catch (error) {
-        console.error("Failed to seed static codes:", error);
-    }
-}
-initStaticCodes();
 
 const googleClient = new OAuth2Client(process.env.VITE_GOOGLE_CLIENT_ID);
 
@@ -2219,15 +2180,20 @@ async function seedCourseCurriculum(courseId: string, moduleData: any[], tx: any
 async function seedCoursesFromStaticData() {
     try {
         await applicationSchemaReady;
-        console.info('[Seed] Starting core curriculum check.');
-        await withCourseSeedLock(async (tx) => {
-        console.info('[Seed] Core curriculum lock acquired.');
-        const curriculaComplete = await hasSeededCurricula(tx, {
+        const coreCurricula = {
             fullstack: minimumSeededCurricula.fullstack,
             cyber: minimumSeededCurricula.cyber,
             datascience: minimumSeededCurricula.datascience,
             ai: minimumSeededCurricula.ai,
-        });
+        };
+        // Avoid queueing every serverless cold start on the same seed lock once
+        // the production catalog is complete. The locked check remains below
+        // for the first install and partial-catalog repair path.
+        if (await hasSeededCurricula(db, coreCurricula)) return;
+        console.info('[Seed] Starting core curriculum check.');
+        await withCourseSeedLock(async (tx) => {
+        console.info('[Seed] Core curriculum lock acquired.');
+        const curriculaComplete = await hasSeededCurricula(tx, coreCurricula);
         console.info('[Seed] Core curriculum check complete.', { curriculaComplete });
         if (curriculaComplete) {
             console.log('[Seed] Core course curricula already complete; skipping seed queries.');
@@ -2409,6 +2375,9 @@ async function seedCoursesFromStaticData() {
 async function seedCloudComputingCourse() {
     try {
         await applicationSchemaReady;
+        // Cloud curriculum seeding is also a no-op on normal production starts;
+        // check before taking the transaction lock to keep startup requests short.
+        if (await hasSeededCurricula(db, { cloudcomputing: minimumSeededCurricula.cloudcomputing })) return;
         console.info('[Seed] Starting cloud computing curriculum check.');
         await withCourseSeedLock(async (tx) => {
         console.info('[Seed] Cloud computing curriculum lock acquired.');
