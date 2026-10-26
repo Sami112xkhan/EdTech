@@ -160,6 +160,30 @@ const applicationSchemaReady = (async () => {
     }
 })();
 
+// Temporary production diagnostic: report only the database host and presence
+// of required public tables, never the connection string or credentials.
+const databaseTargetHost = (() => {
+    try {
+        return new URL(process.env.DATABASE_URL || '').hostname || 'invalid DATABASE_URL';
+    } catch {
+        return 'invalid DATABASE_URL';
+    }
+})();
+void applicationSchemaReady.then(async () => {
+    const result = await db.execute(sql`
+        SELECT current_database() AS database_name,
+            to_regclass('public.users') IS NOT NULL AS has_public_users,
+            to_regclass('public.sessions') IS NOT NULL AS has_public_sessions,
+            to_regclass('public.courses') IS NOT NULL AS has_public_courses
+    `);
+    console.info('[database target diagnostic]', { host: databaseTargetHost, ...result.rows[0] });
+}).catch((error) => {
+    console.error('[database target diagnostic] schema readiness failed', {
+        host: databaseTargetHost,
+        message: error instanceof Error ? error.message : String(error),
+    });
+});
+
 let courseCatalogReady: Promise<void> = Promise.resolve();
 let courseCatalogSeedError: unknown = null;
 
