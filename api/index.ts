@@ -2089,36 +2089,57 @@ app.put("/api/admin/lessons/reorder", requireAdmin, async (req, res) => {
 // SEED: Populate missing courses, modules, and lessons without overwriting edits
 // ═══════════════════════════════════════════════════════════════════════════════
 
-async function withCourseSeedLock<T>(work: () => Promise<T>): Promise<T> {
-    await db.execute(sql`SELECT pg_advisory_lock(73638198730212::bigint)`);
-    try {
-        return await work();
-    } finally {
-        try {
-            await db.execute(sql`SELECT pg_advisory_unlock(73638198730212::bigint)`);
-        } catch (error) {
-            console.error('[course catalog] Failed to release seed lock:', error);
-        }
-    }
+async function withCourseSeedLock<T>(work: (tx: any) => Promise<T>): Promise<T> {
+    return db.transaction(async (tx) => {
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(73638198730212::bigint)`);
+        return work(tx);
+    });
 }
 
-async function findOrCreateCourse(courseData: any) {
-    const [existing] = await db.select().from(courses).where(eq(courses.slug, courseData.slug)).limit(1);
+const minimumSeededCurricula = {
+    fullstack: { modules: 6, lessons: 24 },
+    cyber: { modules: 10, lessons: 19 },
+    datascience: { modules: 4, lessons: 16 },
+    ai: { modules: 1, lessons: 1 },
+    cloudcomputing: { modules: 7, lessons: 25 },
+};
+
+async function hasSeededCurricula(tx: any, expected: Record<string, { modules: number; lessons: number }>) {
+    const counts = await tx.select({
+        slug: courses.slug,
+        moduleCount: sql<number>`count(distinct ${modules.id})::int`,
+        lessonCount: sql<number>`count(${lessons.id})::int`,
+    })
+        .from(courses)
+        .leftJoin(modules, eq(modules.courseId, courses.id))
+        .leftJoin(lessons, eq(lessons.moduleId, modules.id))
+        .where(inArray(courses.slug, Object.keys(expected)))
+        .groupBy(courses.slug);
+
+    const countBySlug = new Map(counts.map((row: any) => [row.slug, row]));
+    return Object.entries(expected).every(([slug, minimum]) => {
+        const row = countBySlug.get(slug) as any;
+        return row && Number(row.moduleCount) >= minimum.modules && Number(row.lessonCount) >= minimum.lessons;
+    });
+}
+
+async function findOrCreateCourse(courseData: any, tx: any) {
+    const [existing] = await tx.select().from(courses).where(eq(courses.slug, courseData.slug)).limit(1);
     if (existing) return existing;
 
-    const [inserted] = await db.insert(courses).values(courseData)
+    const [inserted] = await tx.insert(courses).values(courseData)
         .onConflictDoNothing({ target: courses.slug })
         .returning();
     if (inserted) return inserted;
 
-    const [createdConcurrently] = await db.select().from(courses).where(eq(courses.slug, courseData.slug)).limit(1);
+    const [createdConcurrently] = await tx.select().from(courses).where(eq(courses.slug, courseData.slug)).limit(1);
     if (!createdConcurrently) throw new Error(`Course ${courseData.slug} could not be created`);
     return createdConcurrently;
 }
 
-async function seedCourseCurriculum(courseId: string, moduleData: any[]) {
-    const existingModules = await db.select().from(modules).where(eq(modules.courseId, courseId));
-    const modulesBySlug = new Map(existingModules.map((module) => [module.slug, module]));
+async function seedCourseCurriculum(courseId: string, moduleData: any[], tx: any) {
+    const existingModules: Array<typeof modules.$inferSelect> = await tx.select().from(modules).where(eq(modules.courseId, courseId));
+    const modulesBySlug = new Map<string, typeof modules.$inferSelect>(existingModules.map((module) => [module.slug, module]));
     const missingModules = moduleData
         .map((module, index) => ({ module, index }))
         .filter(({ module }) => !modulesBySlug.has(module.slug))
@@ -2131,14 +2152,14 @@ async function seedCourseCurriculum(courseId: string, moduleData: any[]) {
         }));
 
     if (missingModules.length) {
-        const insertedModules = await db.insert(modules).values(missingModules).returning();
+        const insertedModules: Array<typeof modules.$inferSelect> = await tx.insert(modules).values(missingModules).returning();
         for (const module of insertedModules) modulesBySlug.set(module.slug, module);
     }
 
     const moduleIds = [...modulesBySlug.values()].map((module) => module.id);
     if (!moduleIds.length) return;
 
-    const existingLessons = await db.select().from(lessons).where(inArray(lessons.moduleId, moduleIds));
+    const existingLessons: Array<typeof lessons.$inferSelect> = await tx.select().from(lessons).where(inArray(lessons.moduleId, moduleIds));
     const lessonKeys = new Set(existingLessons.map((lesson) => `${lesson.moduleId}:${lesson.slug}`));
     const missingLessons: Array<typeof lessons.$inferInsert> = [];
 
@@ -2163,15 +2184,22 @@ async function seedCourseCurriculum(courseId: string, moduleData: any[]) {
         }
     }
 
-    if (missingLessons.length) await db.insert(lessons).values(missingLessons);
+    if (missingLessons.length) await tx.insert(lessons).values(missingLessons);
 }
 
 async function seedCoursesFromStaticData() {
     try {
         await applicationSchemaReady;
-        await withCourseSeedLock(async () => {
-        const [existing] = await db.select({ count: sql<number>`count(*)` }).from(courses);
-        console.log(`[Seed] Checking ${existing.count} existing courses for missing curriculum data.`);
+        await withCourseSeedLock(async (tx) => {
+        if (await hasSeededCurricula(tx, {
+            fullstack: minimumSeededCurricula.fullstack,
+            cyber: minimumSeededCurricula.cyber,
+            datascience: minimumSeededCurricula.datascience,
+            ai: minimumSeededCurricula.ai,
+        })) {
+            console.log('[Seed] Core course curricula already complete; skipping seed queries.');
+            return;
+        }
 
         // ── Full Stack ──
         const fs = await findOrCreateCourse({
@@ -2182,7 +2210,7 @@ async function seedCoursesFromStaticData() {
             price: 15000, salePrice: 8000,
             features: ['Lifetime Access to Full Stack Content', 'Frontend & Backend Deep Dive', 'AI Mentor Support (Beta)', '5+ Real World Projects', 'Certificate of Completion', 'Discord Community Access'],
             icon: 'BookOpen', color: 'emerald', sortOrder: 0, isPublished: true
-        });
+        }, tx);
 
         // ── Cybersecurity ──
         const cy = await findOrCreateCourse({
@@ -2193,7 +2221,7 @@ async function seedCoursesFromStaticData() {
             price: 8000, salePrice: 5000,
             features: ['90 Days Intensive Training', 'Ethical Hacking Workshops', 'Linux & Networking Deep Dive', 'Certificate of Completion', 'Discord Community Access'],
             icon: 'Shield', color: 'blue', sortOrder: 1, isPublished: true
-        });
+        }, tx);
 
         // ── Data Science ──
         const ds = await findOrCreateCourse({
@@ -2204,7 +2232,7 @@ async function seedCoursesFromStaticData() {
             price: 12000, salePrice: 8000,
             features: ['Complete ML & Math Foundation', 'Python & Data Wrangling Projects', 'Advanced Data Visualization', 'Certificate of Completion', 'Discord Community Access'],
             icon: 'Award', color: 'purple', sortOrder: 2, isPublished: true
-        });
+        }, tx);
 
         // ── AI ──
         const ai = await findOrCreateCourse({
@@ -2215,7 +2243,7 @@ async function seedCoursesFromStaticData() {
             price: 5000, salePrice: 2000,
             features: ['Complete AI & ML Course Content', 'Builds on Your Full Stack Skills', 'Hands-on AI Projects', 'Early Access to New AI Modules', 'Discord Community Access'],
             icon: 'Bot', color: 'cyan', sortOrder: 3, isPublished: true
-        });
+        }, tx);
 
         // Seed modules & lessons for each course
         const courseMap: Record<string, { course: any; moduleData: any[] }> = {
@@ -2332,7 +2360,7 @@ async function seedCoursesFromStaticData() {
         };
 
         for (const data of Object.values(courseMap)) {
-            await seedCourseCurriculum(data.course.id, data.moduleData);
+            await seedCourseCurriculum(data.course.id, data.moduleData, tx);
         }
 
         console.log("[Seed] Verified static course curricula and filled missing modules and lessons.");
@@ -2347,7 +2375,12 @@ async function seedCoursesFromStaticData() {
 async function seedCloudComputingCourse() {
     try {
         await applicationSchemaReady;
-        await withCourseSeedLock(async () => {
+        await withCourseSeedLock(async (tx) => {
+        if (await hasSeededCurricula(tx, { cloudcomputing: minimumSeededCurricula.cloudcomputing })) {
+            console.log('[Seed] Cloud Computing curriculum already complete; skipping seed queries.');
+            return;
+        }
+
         const cc = await findOrCreateCourse({
             slug: 'cloudcomputing', title: 'Cloud Computing',
             subtitle: 'NPTEL Cloud Computing',
@@ -2356,7 +2389,7 @@ async function seedCloudComputingCourse() {
             price: 11500, salePrice: null,
             features: ['25+ Video Lessons', 'Cloud Architecture & Deployment', 'Azure & GCP Hands-On', 'OpenStack & MapReduce', 'Certificate of Completion', 'Discord Community Access'],
             icon: 'Cloud', color: 'sky', sortOrder: 4, isPublished: true
-        });
+        }, tx);
 
         const ccModules = [
             { slug: 'cc-phase-1', title: 'Phase 1 — Cloud Computing Fundamentals', description: 'Understand the core concepts, architecture, deployment models, and virtualization in cloud computing.', lessons: [
@@ -2400,7 +2433,7 @@ async function seedCloudComputingCourse() {
             ]},
         ];
 
-        await seedCourseCurriculum(cc.id, ccModules);
+        await seedCourseCurriculum(cc.id, ccModules, tx);
         console.log("[Seed] Verified Cloud Computing curriculum and filled missing modules and lessons.");
         });
     } catch (error) {
@@ -2409,7 +2442,8 @@ async function seedCloudComputingCourse() {
     }
 }
 
-courseCatalogReady = Promise.all([seedCoursesFromStaticData(), seedCloudComputingCourse()])
+courseCatalogReady = seedCoursesFromStaticData()
+    .then(() => seedCloudComputingCourse())
     .then(() => undefined)
     .catch((error) => {
         courseCatalogSeedError = error;
