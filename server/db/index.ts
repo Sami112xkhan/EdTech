@@ -12,9 +12,9 @@ if (!process.env.DATABASE_URL) {
 const pool = new pg.Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : undefined,
-    // Limit connections per serverless instance to avoid multiplying the
-    // default pool size across Vercel's concurrent function instances.
-    max: process.env.VERCEL ? 1 : 10,
+    // The admin dashboard polls several authenticated endpoints concurrently;
+    // keep enough pooled connections for those requests to avoid queue timeouts.
+    max: 10,
     connectionTimeoutMillis: 10000,
 });
 
