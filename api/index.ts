@@ -958,7 +958,6 @@ app.post('/api/payments/create-order', requireSessionUser, async (req: any, res)
                 amount: amount * 100,
                 currency: 'INR',
                 receipt: `dm${Date.now().toString(36)}${randomInt(0xffffff).toString(36)}`,
-                expire_by: Math.floor(Date.now() / 1000) + 20 * 60,
                 notes: { userId: user.id, courseId: quote.courseId, couponCode: coupon?.code || '' },
             }),
         });
